@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 require('colorize')
 
-require_relative './core/core.rb'
-require_relative './utils/utils.rb'
+require_relative './core/core'
+require_relative './utils/utils'
 
 if ARGV.size == 0
   raise "Wrong number of arguments given"
