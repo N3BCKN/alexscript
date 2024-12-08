@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'byebug'
 
 # Parser class that builds an AST from tokens using recursive descent parsing
 # Implements grammar rules for expressions, handling operator precedence and grouping
@@ -57,7 +58,7 @@ class Parser
   def primary 
     return Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
     return Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
-    return Bool.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_prawda) || match(:token_falsz)
+    return Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
     return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
     
     if match(:tok_lparen)

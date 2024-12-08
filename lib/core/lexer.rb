@@ -85,8 +85,8 @@ class Lexer
       # Two-character operators
       elsif char == '='
         add_token(:tok_eq) if next_match('=')
-      elsif char == '~'
-        add_token(:tok_noteq) if next_match('=')
+      # elsif char == '~'
+      #   add_token(:tok_noteq) if next_match('=')
       elsif char == '>'
         if next_match('=')
           add_token(:tok_greateroreq)
@@ -99,9 +99,14 @@ class Lexer
         else
           add_token(:tok_smaller)
         end
-      elsif char == ':'
-        add_token(:tok_assign) if next_match('=')
-      
+      elsif char == '!'
+        if next_match('=')
+          add_token(:tok_noteq)
+        else 
+          add_token(:tok_not) #logical not
+        end 
+      # elsif char == ':'
+      #   add_token(:tok_assign) if next_match('=')
       # Complex tokens
       elsif char.between?('0', '9') 
         handle_numeral
@@ -111,7 +116,6 @@ class Lexer
         handle_identifier
       else 
         Utils.lexing_error("unknown character: #{char}", @line)
-        # raise TypeError, 'unknown character'
       end
     end
 
@@ -170,7 +174,7 @@ class Lexer
     when 'jesli' then :tok_if
     when 'to' then :tok_then
     when 'albo' then :tok_albo
-    when 'prawda' then :tok_prawda
+    when 'prawda' then :tok_true
     when 'falsz' then :tok_false
     when 'i' then :tok_and
     when 'lub' then :tok_or

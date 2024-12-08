@@ -1,4 +1,4 @@
-require_relative './lexer.rb'
-require_relative './parser.rb'
-require_relative './interpreter.rb'
+require_relative './lexer'
+require_relative './parser'
+require_relative './interpreter'
 

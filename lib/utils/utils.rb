@@ -1,3 +1,3 @@
-require_relative './token.rb'
-require_relative './models.rb'
-require_relative './errors.rb'
+require_relative './token'
+require_relative './models'
+require_relative './errors'

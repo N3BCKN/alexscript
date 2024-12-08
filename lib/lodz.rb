@@ -1,8 +1,16 @@
 # frozen_string_literal: true
-require('colorize')
+require 'colorize'
+require 'slop'
 
 require_relative './core/core'
 require_relative './utils/utils'
+
+
+
+opts = Slop.parse do |o|
+  o.bool '-f', '--full', 'run in full mode'
+end
+
 
 if ARGV.size == 0
   raise "Wrong number of arguments given"
@@ -21,34 +29,43 @@ if filename&.end_with?('.ldz')
     puts "Error: #{e.message}"
   end
 else
-  puts "reading output directly from a console"
-  source = ARGV.join(' ')
+  # puts "reading output directly from a console"
+  source = ARGV[0]
 end
 
-puts "***************************************".colorize(:white)
-puts "SOURCE:".colorize(:white)
-puts "***************************************".colorize(:white)
-puts source
 
-puts "***************************************".colorize(:white)
-puts "LEXER:".colorize(:white)
-puts "***************************************".colorize(:white)
+if opts.full?
+  puts "***************************************".colorize(:white)
+  puts "SOURCE:".colorize(:white)
+  puts "***************************************".colorize(:white)
+  puts source
+
+  puts "***************************************".colorize(:white)
+  puts "LEXER:".colorize(:white)
+  puts "***************************************".colorize(:white)
+end 
+
 lexer = Lexer.new(source)
 tokens = lexer.tokenize!
 
-lexer.tokens.each{|token| p token.print}
+if opts.full?
+  lexer.tokens.each{|token| p token.print}
 
+  puts "***************************************".colorize(:white)
+  puts "PARSED AST:".colorize(:white)
+  puts "***************************************".colorize(:white)
+end 
 
-puts "***************************************".colorize(:white)
-puts "PARSED AST:".colorize(:white)
-puts "***************************************".colorize(:white)
 parser = Parser.new(tokens)
 ast = parser.parse!
-puts ast.pretty_print
 
-puts "***************************************".colorize(:white)
-puts "INTERPRETER:".colorize(:white)
-puts "***************************************".colorize(:white)
+if opts.full?
+  puts ast.pretty_print
+
+  puts "***************************************".colorize(:white)
+  puts "INTERPRETER:".colorize(:white)
+  puts "***************************************".colorize(:white)
+end 
 
 interpreter = Interpreter.new
 puts interpreter.interpret!(ast)

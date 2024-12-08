@@ -6,7 +6,7 @@ class Interpreter
   def init
   end
 
-  def interpret!(node)
+  def interpret!(node)   
     if node.is_a? Int
       return [:type_number, node.value.to_f]
     elsif node.is_a? Flt
@@ -14,7 +14,7 @@ class Interpreter
     elsif node.is_a? Str
       return [:type_string, node.value.to_s]
     elsif node.is_a? Bool
-      return [:type_boolean, node.value]
+      return [:type_bool, node.value]
     elsif node.is_a? Grouping
       return interpret!(node.value)
     elsif node.is_a? BinOp
@@ -42,6 +42,8 @@ class Interpreter
           runtime_error(left_value, right_value, node)
         end 
       elsif node.op.token_type == :tok_slash #divisions /
+        Utils.runtime_error("Division by zero", node.op.line) if right_value == 0
+        
         if left_type == :type_number && right_type == :type_number 
           return [:type_number, left_value / right_value]
         else
@@ -61,37 +63,37 @@ class Interpreter
         end
       elsif node.op.token_type == :tok_greater # >
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value > right_value]
+          return [:type_bool, left_value > right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greateroreq # >=
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value >= right_value]
+          return [:type_bool, left_value >= right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greater # <
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value < right_value]
+          return [:type_bool, left_value < right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greater # <=
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value <= right_value]
+          return [:type_bool, left_value <= right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_eq # ==
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value == right_value]
+          return [:type_bool, left_value == right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_noteq # !=
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
-          return [:type_number, left_value != right_value]
+          return [:type_bool, left_value != right_value]
         else
           runtime_error(left_value, right_value, node)
         end
@@ -99,6 +101,7 @@ class Interpreter
   
     elsif node.is_a? UnOp
       operand_type, operand_value = interpret!(node.operand)
+      
       if node.op.token_type == :tok_plus
         if operand_type == :type_number
           return [:type_number, +operand_value]
@@ -112,8 +115,8 @@ class Interpreter
           runtime_error_unop(operand_value, node)
         end 
       elsif node.op.token_type == :tok_not
-        if operand_type == :type_boolean
-          return [:type_number, !operand_value]
+        if operand_type == :type_bool
+          return [:type_bool, !operand_value]
         else
           runtime_error_unop(operand_value, node)
         end 
@@ -141,4 +144,6 @@ class Interpreter
   def runtime_error_unop(value, node)
     Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
   end
+
+  
 end
