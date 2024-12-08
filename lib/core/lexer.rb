@@ -1,0 +1,224 @@
+# frozen_string_literal: true
+
+# Lexer class responsible for tokenizing source code
+# Handles various token types including:
+# - Single character tokens (parentheses, operators)
+# - Multi-character tokens (numbers, strings)
+# - Keywords (in Polish)
+# - Comments (single-line and multi-line)
+class Lexer
+  attr_reader :tokens
+
+  def initialize(source)
+    @source = source
+    @source_size = source.size  # Cache size for performance
+    @tokens = []
+    @line = 1
+    @start = 0
+    @current = 0
+  end
+
+  def tokenize!
+    while @current < @source_size
+      @start = @current
+      char = advance
+
+      # Whitespace handling and line counting
+      if char == "\n"
+        @line += 1
+      elsif ["\t", "\r"," "].include?(char)
+        next
+      # Single-line comments - skip until newline
+      elsif char == '#'
+        while peek != "\n" && @current <= @source.size
+          advance
+        end
+      
+      # Single character tokens - grouping
+      elsif char == '(' 
+        add_token(:tok_lparen)
+      elsif char == ')'
+        add_token(:tok_rparen)
+      elsif char == '{'
+        add_token(:tok_lcurly)
+      elsif char == '}'
+        add_token(:tok_rcurly)
+      elsif char == '['
+        add_token(:tok_lsquare)
+      elsif char == ']'
+        add_token(:tok_rsquare)
+      
+      # Single character tokens - punctuation
+      elsif char == '.'
+        add_token(:tok_dot)
+      elsif char == ','
+        add_token(:tok_comma)
+      elsif char == ';'
+        add_token(:tok_semicolon)
+      elsif char == '?'
+        add_token(:tok_question)
+      
+      # Single character tokens - operators
+      elsif char == '+'
+        add_token(:tok_plus)
+      elsif char == '-'
+        add_token(:tok_minus)
+      elsif char == '*'
+        add_token(:tok_star)
+      elsif char == '^'
+        add_token(:tok_caret)
+      elsif char == '%'
+        add_token(:tok_mod)
+      
+      # Multi-line comments
+      elsif char == '/'
+        if next_match('*')
+          advance
+          while peek != '*' && !next_match('/') 
+            advance
+          end
+          advance(2)  # Skip closing */ sequence
+        else 
+          add_token(:tok_slash)
+        end
+      
+      # Two-character operators
+      elsif char == '='
+        add_token(:tok_eq) if next_match('=')
+      elsif char == '~'
+        add_token(:tok_noteq) if next_match('=')
+      elsif char == '>'
+        if next_match('=')
+          add_token(:tok_greateroreq)
+        else
+          add_token(:tok_greater)
+        end
+      elsif char == '<'
+        if next_match('=')
+          add_token(:tok_smalleroreq)
+        else
+          add_token(:tok_smaller)
+        end
+      elsif char == ':'
+        add_token(:tok_assign) if next_match('=')
+      
+      # Complex tokens
+      elsif char.between?('0', '9') 
+        handle_numeral
+      elsif char == "\'" || char == "\""
+        handle_string(char)
+      elsif char.match?(/[a-zA-Z]/) || char == "_"
+        handle_identifier
+      else 
+        Utils.lexing_error("unknown character: #{char}", @line)
+        # raise TypeError, 'unknown character'
+      end
+    end
+
+    @tokens
+  end
+
+  private
+
+  # Advances current position by specified number of positions and returns current character
+  def advance(positions = 1)
+    char = @source[@current]
+    @current += positions
+    char
+  end
+
+  # Creates and adds a new token to the tokens array
+  def add_token(token_type)
+    current_token = @source[@start...@current]
+    @tokens << Token.new(token_type, current_token, @line)
+  end
+
+  # Returns the next character without advancing position
+  # Returns null character if at end of source
+  def peek
+    return "\0" if @current >= @source_size
+    @source[@current]  
+  end
+
+  # Handles numeric literals, both integer and float
+  def handle_numeral
+    while peek && peek.between?('0', '9')
+      advance
+    end
+    
+    if peek == '.' && look_ahead&.between?('0', '9')
+      advance 
+      while peek && peek.between?('0', '9')
+        advance
+      end
+      add_token(:tok_float)
+    else
+      add_token(:tok_int)
+    end
+  end
+
+  # Handles identifiers and keywords
+  def handle_identifier
+    while peek.match?(/[a-zA-Z]/) || peek == '_'
+      advance
+    end
+    
+    word = @source[@start...@current]
+
+    # restriced words
+    token_type = case word
+    when 'jesli' then :tok_if
+    when 'to' then :tok_then
+    when 'albo' then :tok_albo
+    when 'prawda' then :tok_prawda
+    when 'falsz' then :tok_false
+    when 'i' then :tok_and
+    when 'lub' then :tok_or
+    when 'kiedy' then :tok_while
+    when 'rob' then :tok_do
+    when 'dla' then :tok_for
+    when 'funkcja' then :tok_func
+    when 'nic' then :tok_null
+    when 'koniec' then :tok_end
+    when 'pokaz' then :tok_print
+    when 'pokazlinie' then :tok_println
+    when 'zwroc' then :tok_return
+    else :tok_identifier
+    end
+    
+    add_token(token_type)
+  end
+
+  # Handles string literals (both single and double quoted)
+  def handle_string(char)
+    str_quote = char
+    @start += 1  # Skip the opening quote
+    while peek != str_quote && @current <= @source_size
+      advance
+    end
+
+    if @current >= @source_size 
+      Utils.lexing_error("Unterminated string.'", @line)
+    end
+
+    final_pos = @current  
+    advance  
+    text = @source[@start...final_pos] 
+    @tokens << Token.new(:tok_string, text, @line)
+  end
+
+  # Returns character at position current + 1
+  # Returns null character if at end of source
+  def look_ahead
+    return "\0" if @current >= @source_size
+    @source[@current + 1]
+  end
+
+  # Checks if next character matches expected and advances position if it does
+  def next_match(expected)
+    return false if @current >= @source_size
+    return false if @source[@current] != expected
+    @current += 1
+    true
+  end
+end
