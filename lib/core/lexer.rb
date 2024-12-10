@@ -11,7 +11,7 @@ class Lexer
 
   def initialize(source)
     @source = source
-    @source_size = source.size  # Cache size for performance
+    @source_size = source.size # Cache size for performance
     @tokens = []
     @line = 1
     @start = 0
@@ -26,16 +26,14 @@ class Lexer
       # Whitespace handling and line counting
       if char == "\n"
         @line += 1
-      elsif ["\t", "\r"," "].include?(char)
+      elsif ["\t", "\r", ' '].include?(char)
         next
       # Single-line comments - skip until newline
       elsif char == '#'
-        while peek != "\n" && @current <= @source.size
-          advance
-        end
-      
+        advance while peek != "\n" && @current <= @source.size
+
       # Single character tokens - grouping
-      elsif char == '(' 
+      elsif char == '('
         add_token(:tok_lparen)
       elsif char == ')'
         add_token(:tok_rparen)
@@ -47,7 +45,7 @@ class Lexer
         add_token(:tok_lsquare)
       elsif char == ']'
         add_token(:tok_rsquare)
-      
+
       # Single character tokens - punctuation
       elsif char == '.'
         add_token(:tok_dot)
@@ -57,7 +55,7 @@ class Lexer
         add_token(:tok_semicolon)
       elsif char == '?'
         add_token(:tok_question)
-      
+
       # Single character tokens - operators
       elsif char == '+'
         add_token(:tok_plus)
@@ -69,19 +67,17 @@ class Lexer
         add_token(:tok_caret)
       elsif char == '%'
         add_token(:tok_mod)
-      
+
       # Multi-line comments
       elsif char == '/'
         if next_match('*')
           advance
-          while peek != '*' && !next_match('/') 
-            advance
-          end
-          advance(2)  # Skip closing */ sequence
-        else 
+          advance while peek != '*' && !next_match('/')
+          advance(2) # Skip closing */ sequence
+        else
           add_token(:tok_slash)
         end
-      
+
       # Two-character operators
       elsif char == '='
         add_token(:tok_eq) if next_match('=')
@@ -102,19 +98,19 @@ class Lexer
       elsif char == '!'
         if next_match('=')
           add_token(:tok_noteq)
-        else 
-          add_token(:tok_not) #logical not
-        end 
+        else
+          add_token(:tok_not) # logical not
+        end
       # elsif char == ':'
       #   add_token(:tok_assign) if next_match('=')
       # Complex tokens
-      elsif char.between?('0', '9') 
+      elsif char.between?('0', '9')
         handle_numeral
-      elsif char == "\'" || char == "\""
+      elsif ["\'", '"'].include?(char)
         handle_string(char)
-      elsif char.match?(/[a-zA-Z]/) || char == "_"
+      elsif char.match?(/[a-zA-Z]/) || char == '_'
         handle_identifier
-      else 
+      else
         Utils.lexing_error("unknown character: #{char}", @line)
       end
     end
@@ -141,20 +137,17 @@ class Lexer
   # Returns null character if at end of source
   def peek
     return "\0" if @current >= @source_size
-    @source[@current]  
+
+    @source[@current]
   end
 
   # Handles numeric literals, both integer and float
   def handle_numeral
-    while peek && peek.between?('0', '9')
-      advance
-    end
-    
+    advance while peek && peek.between?('0', '9')
+
     if peek == '.' && look_ahead&.between?('0', '9')
-      advance 
-      while peek && peek.between?('0', '9')
-        advance
-      end
+      advance
+      advance while peek && peek.between?('0', '9')
       add_token(:tok_float)
     else
       add_token(:tok_int)
@@ -163,51 +156,45 @@ class Lexer
 
   # Handles identifiers and keywords
   def handle_identifier
-    while peek.match?(/[a-zA-Z]/) || peek == '_'
-      advance
-    end
-    
+    advance while peek.match?(/[a-zA-Z]/) || peek == '_'
+
     word = @source[@start...@current]
 
     # restriced words
     token_type = case word
-    when 'jesli' then :tok_if
-    when 'to' then :tok_then
-    when 'albo' then :tok_albo
-    when 'prawda' then :tok_true
-    when 'falsz' then :tok_false
-    when 'i' then :tok_and
-    when 'lub' then :tok_or
-    when 'kiedy' then :tok_while
-    when 'rob' then :tok_do
-    when 'dla' then :tok_for
-    when 'funkcja' then :tok_func
-    when 'nic' then :tok_null
-    when 'koniec' then :tok_end
-    when 'pokaz' then :tok_print
-    when 'pokazlinie' then :tok_println
-    when 'zwroc' then :tok_return
-    else :tok_identifier
-    end
-    
+                 when 'jesli' then :tok_if
+                 when 'to' then :tok_then
+                 when 'albo' then :tok_albo
+                 when 'prawda' then :tok_true
+                 when 'falsz' then :tok_false
+                 when 'i' then :tok_and
+                 when 'lub' then :tok_or
+                 when 'kiedy' then :tok_while
+                 when 'rob' then :tok_do
+                 when 'dla' then :tok_for
+                 when 'funkcja' then :tok_func
+                 when 'nic' then :tok_null
+                 when 'koniec' then :tok_end
+                 when 'pokaz' then :tok_print
+                 when 'pokazlinie' then :tok_println
+                 when 'zwroc' then :tok_return
+                 else :tok_identifier
+                 end
+
     add_token(token_type)
   end
 
   # Handles string literals (both single and double quoted)
   def handle_string(char)
     str_quote = char
-    @start += 1  # Skip the opening quote
-    while peek != str_quote && @current <= @source_size
-      advance
-    end
+    @start += 1 # Skip the opening quote
+    advance while peek != str_quote && @current <= @source_size
 
-    if @current >= @source_size 
-      Utils.lexing_error("Unterminated string.'", @line)
-    end
+    Utils.lexing_error("Unterminated string.'", @line) if @current >= @source_size
 
-    final_pos = @current  
-    advance  
-    text = @source[@start...final_pos] 
+    final_pos = @current
+    advance
+    text = @source[@start...final_pos]
     @tokens << Token.new(:tok_string, text, @line)
   end
 
@@ -215,6 +202,7 @@ class Lexer
   # Returns null character if at end of source
   def look_ahead
     return "\0" if @current >= @source_size
+
     @source[@current + 1]
   end
 
@@ -222,6 +210,7 @@ class Lexer
   def next_match(expected)
     return false if @current >= @source_size
     return false if @source[@current] != expected
+
     @current += 1
     true
   end

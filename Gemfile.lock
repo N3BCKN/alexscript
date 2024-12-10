@@ -9,6 +9,7 @@ GEM
       thor (~> 1.0)
     ast (2.4.2)
     bigdecimal (3.1.8)
+    braintree (1.2.1)
     builder (3.3.0)
     byebug (11.1.3)
     colorize (1.1.0)
@@ -50,6 +51,8 @@ GEM
       racc
     racc (1.8.1)
     rainbow (3.1.1)
+    redline (0.3.4)
+      braintree (~> 1.2.1)
     regexp_parser (2.9.3)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)
@@ -92,6 +95,7 @@ DEPENDENCIES
   aruba
   byebug
   colorize
+  redline
   rspec
   rubocop
   slop
