@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'byebug'
 
 # Parser class that builds an AST from tokens using recursive descent parsing
@@ -8,25 +9,26 @@ class Parser
     @tokens = tokens
     @current = 0
   end
- 
+
   # Advances the parser position and returns current token
   def advance
     token = @tokens[@current]
     @current += 1
     token
   end
- 
+
   # Returns current token without advancing position
   def peek
     @tokens[@current]
   end
- 
+
   # Checks if next token matches expected type
   def next?(expected_type)
     return false if @current >= @tokens.length
+
     peek.token_type == expected_type
   end
- 
+
   # Expects a token of specific type, raises error if not found
   def expect(expected_type)
     if @current >= @tokens.length
@@ -39,40 +41,39 @@ class Parser
       # raise SyntaxError, "Expected '#{expected_type}', found '#{peek.lexeme}'"
     end
   end
- 
+
   # Returns the previously consumed token
   def previous_token
     @tokens[@current - 1]
   end
- 
+
   # Matches and consumes token if it matches expected type
   def match(expected_type)
     return false if @current >= @tokens.length
     return false if peek.token_type != expected_type
-    @current += 1  # Consume the token on match
+
+    @current += 1 # Consume the token on match
     true
   end
- 
-  # Grammar rule: <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string>
+
+  # <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string>
   # Handles basic expressions and parenthesized expressions
-  def primary 
+  def primary
     return Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
     return Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
     return Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
     return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
-    
+
     if match(:tok_lparen)
       expr = expression
-      unless match(:tok_rparen)
-        Utils.parse_error("Expected ')' after expression", previous_token.line)
-      end
+      Utils.parse_error("Expected ')' after expression", previous_token.line) unless match(:tok_rparen)
       return Grouping.new(expr, previous_token.line)
     end
- 
-    raise SyntaxError, "Expected expression"
+
+    raise SyntaxError, 'Expected expression'
   end
- 
-  # Grammar rule: <unary> ::= ('+'|'-'|'~') <unary> | <primary>
+
+  # <unary> ::= ('+'|'-'|'~') <unary> | <primary>
   # Handles unary operations like negation
   def unary
     if match(:tok_not) || match(:tok_minus) || match(:tok_plus)
@@ -80,27 +81,27 @@ class Parser
       operand = unary
       return UnOp.new(op, operand, op.line)
     end
- 
+
     primary
   end
 
-  # Grammar rule: ::= <unary> ("^" <unary>)*
+  # ::= <unary> ("^" <unary>)*
   def exponent
     expr = unary
- 
+
     while match(:tok_caret)
       op = previous_token
       right = exponent
       expr = BinOp.new(op, expr, right, op.line)
     end
 
-    expr  
+    expr
   end
 
-  # Grammar rule: <modulo> ::= <exponent> ("%" <exponent>)*
+  # <modulo> ::= <exponent> ("%" <exponent>)*
   def modulo
     expr = exponent
- 
+
     while match(:tok_mod)
       op = previous_token
       right = exponent
@@ -109,36 +110,36 @@ class Parser
 
     expr
   end
-  
-  # Grammar rule: <multiplication> ::= <modulo> ( ('*'|'/') <modulo> )*
+
+  # <multiplication> ::= <modulo> ( ('*'|'/') <modulo> )*
   # Handles multiplication and division with proper precedence
   def multiplication
     expr = modulo
- 
+
     while match(:tok_star) || match(:tok_slash)
       op = previous_token
       right = modulo
       expr = BinOp.new(op, expr, right, op.line)
     end
- 
+
     expr
   end
- 
-  # Grammar rule: <addition> ::= <multiplication> ( ('+'|'-') <multiplication> )*
+
+  # <addition> ::= <multiplication> ( ('+'|'-') <multiplication> )*
   # Handles addition and subtraction with proper precedence
   def addition
     expr = multiplication
- 
+
     while match(:tok_plus) || match(:tok_minus)
       op = previous_token
       right = multiplication
       expr = BinOp.new(op, expr, right, op.line)
     end
- 
+
     expr
   end
 
-  #Grammar rule: <comparsion> ::= <addition> ((">" | ">=" | "<" | "<="))*
+  # <comparsion> ::= <addition> ((">" | ">=" | "<" | "<="))*
   def comparison
     expr = addition
     while match(:tok_greater) || match(:tok_greateroreq) || match(:tok_smalleroreq) || match(:tok_smaller)
@@ -150,7 +151,7 @@ class Parser
     expr
   end
 
-  #Grammar rule: <equality> ::= <comparsion>  ( ("~=" | "==")) <comparsion> 
+  # <equality> ::= <comparsion>  ( ("~=" | "==")) <comparsion>
   def equality
     expr = comparison
     while match(:tok_eq) || match(:tok_noteq)
@@ -162,7 +163,7 @@ class Parser
     expr
   end
 
-  #Grammar rule: <logical_and> ::= <equality> ("and" <equality>)*
+  # <logical_and> ::= <equality> ("and" <equality>)*
   def logical_and
     expr = equality
     while match(:tok_and)
@@ -170,12 +171,11 @@ class Parser
       right = equality
       expr = LogicalOp.new(op, expr, right, op.line)
     end
-  
-    expr 
+
+    expr
   end
 
-
-  #Grammar rule: <logical_or> ::= <logical_and> ("or" <logical_and>)*
+  # <logical_or> ::= <logical_and> ("or" <logical_and>)*
   def logical_or
     expr = logical_and
     while match(:tok_or)
@@ -184,15 +184,59 @@ class Parser
       expr = LogicalOp.new(op, expr, right, op.line)
     end
 
-    expr 
+    expr
   end
 
   def expression
     logical_or
   end
- 
+
+  # <print_statement> :== "pokaz" <expression>
+  def print_statement
+    return unless match(:tok_print)
+
+    value = expression
+    PrintStmt.new(value, previous_token.line)
+  end
+
+  def it_statement
+  end
+
+  def while_statement
+  end
+
+  def for_statement
+  end
+
+  def statement
+    # predict next token
+    token = peek.token_type
+    if token == :tok_print
+      print_statement
+    elsif token == :tok_if
+      if_statement
+    elsif token == :tok_while
+      while_statement
+    elsif token == :tok_for
+      for_statement
+    elsif token == :tok_func
+      func_statement
+    end
+  end
+
+  def statements
+    stmts = []
+    stmts << statement while @current < @tokens.size
+    Stmts.new(stmts, previous_token.line)
+  end
+
+  # <program> ::= <statements>*
+  def program
+    stmts = statements
+  end
+
   # Entry point for parsing, returns completed AST
   def parse!
-    expression
+    program
   end
 end

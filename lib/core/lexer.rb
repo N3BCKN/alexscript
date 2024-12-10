@@ -164,7 +164,7 @@ class Lexer
     token_type = case word
                  when 'jesli' then :tok_if
                  when 'to' then :tok_then
-                 when 'albo' then :tok_albo
+                 #  when 'albo' then :tok_or
                  when 'prawda' then :tok_true
                  when 'falsz' then :tok_false
                  when 'i' then :tok_and

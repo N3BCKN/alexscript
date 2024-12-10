@@ -1,29 +1,40 @@
 # frozen_string_literal: true
 
+require('byebug')
+
 class Node
-  def initialize(*)
-    if self.class == BaseModel
-      raise NotImplementedError, "BaseModel is an abstract class"
-    end
-  end
+  # def initialize(*)
+  #   return unless self.class == BaseModel
+
+  #   raise NotImplementedError, 'BaseModel is an abstract class'
+  # end
 
   private
 
-  def validate_type(value, expected_type, param_name = 'value')
-    return if value.is_a?(expected_type)
-    raise TypeError, "Invalid #{param_name}: Expected #{expected_type}, got #{value.class}"
+  def validate_types(values, expected_type, param_name = 'value')
+    values = [values] unless values.is_a?(Array)
+
+    i = 0
+    while i < values.length
+      value = values[i]
+      unless value.is_a?(expected_type)
+        raise TypeError, "Invalid #{param_name}: Expected #{expected_type}, got #{value.class}"
+      end
+
+      i += 1
+    end
   end
 
   def validate_bool_type(value)
     return unless value.is_a?(TrueClass) || value.is_a?(FalseClass)
+
     raise TypeError, "Invalid value: Expected boolean, got #{value.class}"
   end
 
   def indent(level)
-    "  " * level
+    '  ' * level
   end
 end
-
 
 # Abstract base class for all statements in the AST
 # Statements are language constructs that perform actions but don't return values
@@ -37,13 +48,12 @@ end
 class Expr < Node
 end
 
-
 # Example: 42 in the expression "x = 42"
 class Int < Expr
   attr_reader :value
 
   def initialize(value, line)
-    validate_type(value, Integer)
+    validate_types([value], Integer)
     @value = value
     @line  = line
   end
@@ -53,13 +63,12 @@ class Int < Expr
   end
 end
 
-
 # Example: 3.14 in the expression "pi = 3.14"
 class Flt < Expr
   attr_reader :value
 
   def initialize(value, line)
-    validate_type(value, Float)
+    validate_types([value], Float)
     @value = value
     @line  = line
   end
@@ -89,7 +98,7 @@ class Str < Expr
   attr_reader :value
 
   def initialize(value, line)
-    validate_type(value, String)
+    validate_types([value], String)
     @value = value
     @line = line
   end
@@ -101,21 +110,20 @@ end
 
 class LogicalOp < Expr
   attr_reader :left, :right, :op
-  
+
   def initialize(op, left, right, line)
-    validate_type(op, Token)
-    validate_type(left, Expr)
-    validate_type(right, Expr)
+    validate_types([op], Token)
+    validate_types([left, right], Expr)
+
     @op = op
     @left = left
     @right = right
   end
 
   def pretty_print(level = 0)
-  ["#{indent(level)}LogicalOp(#{@op.lexeme})",
-    @left.pretty_print(level + 1),
-    @right.pretty_print(level + 1)
-  ].join("\n")
+    ["#{indent(level)}LogicalOp(#{@op.lexeme})",
+     @left.pretty_print(level + 1),
+     @right.pretty_print(level + 1)].join("\n")
   end
 end
 
@@ -124,8 +132,8 @@ class UnOp < Expr
   attr_reader :op, :operand
 
   def initialize(op, operand, line)
-    validate_type(op, Token, 'operator')
-    validate_type(operand, Expr, 'operand')
+    validate_types([op], Token, 'operator')
+    validate_types([operand], Expr, 'operand')
     @op      = op
     @operand = operand
     @line    = line
@@ -139,15 +147,14 @@ class UnOp < Expr
   end
 end
 
-
 # Examples: addition (x + y), multiplication (x * y), comparison (x > y)
 class BinOp < Expr
   attr_reader :left, :right, :op
 
   def initialize(op, left, right, line)
-    validate_type(op, Token, 'operator')
-    validate_type(left, Expr, 'left operand')
-    validate_type(right, Expr, 'right operand')
+    validate_types([op], Token, 'operator')
+    validate_types([left], Expr, 'left operand')
+    validate_types([right], Expr, 'right operand')
     @op    = op
     @left  = left
     @right = right
@@ -163,13 +170,12 @@ class BinOp < Expr
   end
 end
 
-
 # Example: (1 + 2) * 3
 class Grouping < Expr
   attr_reader :value
 
   def initialize(value, line)
-    validate_type(value, Expr, 'expression')
+    validate_types([value], Expr, 'expression')
     @value = value
     @line  = line
   end
@@ -183,11 +189,49 @@ class Grouping < Expr
   end
 end
 
+# a list of all statements (each one of the belongs to the Statement class)
+class Stmts < Node
+  def initialize(stmts, line)
+    validate_types(stmts, Stmt, 'expression')
+    @stmts = stmts
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    statement_strings = []
+    statement_strings << "#{indent(level)}Statements("
+
+    i = 0
+    while i < @stmts.length
+      statement_strings << @stmts[i].pretty_print(level + 1)
+      i += 1
+    end
+
+    statement_strings << "#{indent(level)})"
+    statement_strings.join("\n")
+  end
+end
+
+# print value (pokaz ...)
+class PrintStmt < Stmt
+  def initialize(value, line)
+    validate_types([value], Expr, 'expression')
+    @value = value
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}PrintStatement(",
+      @value.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
 
 # Example: while (x < 10) { x = x + 1 }
 class WhileStmt < Stmt
 end
-
 
 # Example: x = 42
 class Assignment < Stmt
