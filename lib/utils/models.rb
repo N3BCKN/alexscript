@@ -3,12 +3,6 @@
 require('byebug')
 
 class Node
-  # def initialize(*)
-  #   return unless self.class == BaseModel
-
-  #   raise NotImplementedError, 'BaseModel is an abstract class'
-  # end
-
   private
 
   def validate_types(values, expected_type, param_name = 'value')
@@ -191,6 +185,8 @@ end
 
 # a list of all statements (each one of the belongs to the Statement class)
 class Stmts < Node
+  attr_reader :stmts
+
   def initialize(stmts, line)
     validate_types(stmts, Stmt, 'expression')
     @stmts = stmts
@@ -214,6 +210,8 @@ end
 
 # print value (pokaz ...)
 class PrintStmt < Stmt
+  attr_reader :value, :ending
+
   def initialize(value, line)
     validate_types([value], Expr, 'expression')
     @value = value
@@ -224,6 +222,32 @@ class PrintStmt < Stmt
     [
       "#{indent(level)}PrintStatement(",
       @value.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class IfStmt < Stmt
+  attr_reader :test, :then_stmt, :else_stmt
+
+  def initialize(test, then_stmt, else_stmt, line)
+    validate_types([test], Expr)
+    validate_types([then_stmt], Stmts)
+    # TODO: validate else statement as statement or nil, new method perhaps?
+
+    @test = test
+    @then_stmt = then_stmt
+    @else_stmt = else_stmt
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    else_stmt_expression = @else_stmt ? "else: #{@else_stmt.pretty_print(level + 1)}" : ''
+    [
+      "#{indent(level)}IfStatement(",
+      "test: #{@test.pretty_print}}",
+      @then_stmt.pretty_print(level + 1),
+      else_stmt_expression,
       "#{indent(level)})"
     ].join("\n")
   end

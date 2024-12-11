@@ -199,7 +199,27 @@ class Parser
     PrintStmt.new(value, previous_token.line)
   end
 
-  def it_statement
+  # <if_statement> ::= "jesli" <expression> {<stmts> "lub" <stmts>}?
+  def if_statement
+    p 'is inside?'
+    expect(:tok_if)
+    test = expression
+    expect(:tok_lcurly) # {
+    then_stmt = statements
+    expect(:tok_rcurly) # }
+    if next?(:tok_else)
+      p 'inside next?'
+      advance # consume else
+      expect(:tok_lcurly)
+      else_stmts = statements
+      expect(:tok_rcurly)
+      p 'end of next?'
+    else
+      else_stmts = nil
+    end
+
+    p 'out of there?'
+    IfStmt.new(test, then_stmt, else_stmts, previous_token.line)
   end
 
   def while_statement
@@ -214,6 +234,7 @@ class Parser
     if token == :tok_print
       print_statement
     elsif token == :tok_if
+      p 'is here?'
       if_statement
     elsif token == :tok_while
       while_statement
@@ -226,7 +247,7 @@ class Parser
 
   def statements
     stmts = []
-    stmts << statement while @current < @tokens.size
+    stmts << statement while @current < @tokens.size && !next?(:tok_rcurly)
     Stmts.new(stmts, previous_token.line)
   end
 

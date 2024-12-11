@@ -132,6 +132,26 @@ class Interpreter
         return [left_type, left_value] unless left_value
       end
       interpret!(node.right)
+    elsif node.is_a? Stmts
+      i = 0
+      while i < node.stmts.size
+        interpret!(node.stmts[i])
+        i += 1
+      end
+    elsif node.is_a? PrintStmt
+      expression_type, expression_value = interpret!(node.value)
+      puts(expression_value)
+
+    elsif node.is_a? IfStmt
+      test_type, test_value = interpret!(node.test)
+      # TODO: export it to a general private method
+      Utils.runtime_error("Condition type #{test_value} is not a boolean", no.op.line) unless test_type == :type_bool
+
+      if test_value
+        interpret!(node.then_stmt)
+      else
+        interpret!(node.else_stmt)
+      end
     end
   end
 

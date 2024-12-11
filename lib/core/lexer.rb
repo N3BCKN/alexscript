@@ -163,8 +163,8 @@ class Lexer
     # restriced words
     token_type = case word
                  when 'jesli' then :tok_if
+                 when 'albo' then :tok_else
                  when 'to' then :tok_then
-                 #  when 'albo' then :tok_or
                  when 'prawda' then :tok_true
                  when 'falsz' then :tok_false
                  when 'i' then :tok_and
@@ -176,7 +176,7 @@ class Lexer
                  when 'nic' then :tok_null
                  when 'koniec' then :tok_end
                  when 'pokaz' then :tok_print
-                 when 'pokazlinie' then :tok_println
+                 when 'pokaz_linie' then :tok_println
                  when 'zwroc' then :tok_return
                  else :tok_identifier
                  end
