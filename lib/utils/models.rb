@@ -254,8 +254,26 @@ class IfStmt < Stmt
   end
 end
 
-# Example: while (x < 10) { x = x + 1 }
+# Example: dopoki x <= n {<body_statement>*}
 class WhileStmt < Stmt
+  attr_reader :test, :body_statement, :line
+
+  def initialize(test, body_statement, line)
+    validate_types([test], Expr)
+    validate_types([body_statement], Stmts)
+    @test = test
+    @body_statement = body_statement
+    @line = line # dodajemy przypisanie line!
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}While(",
+      @test.pretty_print(level + 1),
+      @body_statement.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
 end
 
 # Example: niech x = 42

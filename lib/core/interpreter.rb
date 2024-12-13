@@ -83,13 +83,13 @@ class Interpreter
         else
           runtime_error(left_value, right_value, node)
         end
-      elsif node.op.token_type == :tok_greater # <
+      elsif node.op.token_type == :tok_smaller # <
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
           [:type_bool, left_value < right_value]
         else
           runtime_error(left_value, right_value, node)
         end
-      elsif node.op.token_type == :tok_greater # <=
+      elsif node.op.token_type == :tok_smalleroreq # <=
         if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
           [:type_bool, left_value <= right_value]
         else
@@ -162,6 +162,23 @@ class Interpreter
         interpret!(node.then_stmt, env.new_env) # new child, nested env for if-else block
       else
         interpret!(node.else_stmt, env.new_env)
+      end
+    elsif node.is_a? WhileStmt
+      # Create a new environment for the while loop scope
+      loop_env = env.new_env
+
+      loop do
+        # Evaluate test condition in the parent environment
+        test_type, test_value = interpret!(node.test, env)
+
+        # Validate the test condition type
+        Utils.runtime_error('While test is not a boolean expression', node.line) if test_type != :type_bool
+
+        # Exit loop if condition is false
+        break unless test_value
+
+        # Execute body in the loop's environment
+        interpret!(node.body_statement, loop_env)
       end
     end
   end

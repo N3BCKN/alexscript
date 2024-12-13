@@ -223,6 +223,13 @@ class Parser
   end
 
   def while_statement
+    expect(:tok_while)
+    test = expression
+    expect(:tok_lcurly) # {
+    body_statements = statements
+    expect(:tok_rcurly) # }
+
+    WhileStmt.new(test, body_statements, previous_token.line)
   end
 
   def for_statement

@@ -23,13 +23,13 @@ class Environment
   def set_var(name, value)
     current = self
     while current
-      if @variables[name]
-        @variables[name] = value
+      if current.variables[name]
+        current.variables[name] = value
         return value
       end
       current = current.parent
     end
-    # set variable in current scope/env if it wasn't found in any of the parrent scopes
+    # if var was not found in parent scopes, create it in current one
     @variables[name] = value
   end
 

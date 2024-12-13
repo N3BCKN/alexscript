@@ -173,7 +173,7 @@ class Lexer
                  when 'falsz' then :tok_false
                  when 'i' then :tok_and
                  when 'lub' then :tok_or
-                 when 'kiedy' then :tok_while
+                 when 'dopoki' then :tok_while
                  when 'rob' then :tok_do
                  when 'dla' then :tok_for
                  when 'funkcja' then :tok_func
