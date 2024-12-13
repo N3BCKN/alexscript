@@ -64,4 +64,4 @@ if opts.full?
 end
 
 interpreter = Interpreter.new
-puts interpreter.interpret!(ast)
+puts interpreter.interpret_ast(ast)

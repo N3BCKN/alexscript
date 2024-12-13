@@ -227,6 +227,7 @@ class PrintStmt < Stmt
   end
 end
 
+# jesli/albojesli/albo
 class IfStmt < Stmt
   attr_reader :test, :then_stmt, :else_stmt
 
@@ -257,6 +258,36 @@ end
 class WhileStmt < Stmt
 end
 
-# Example: x = 42
+# Example: niech x = 42
 class Assignment < Stmt
+  attr_reader :left, :right
+
+  def initialize(left, right, line)
+    validate_types([left, right], Expr)
+    @left = left
+    @right = right
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}Assignment(",
+      @left.pretty_print(level + 1),
+      @right.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class Identifier < Expr
+  attr_reader :name, :line
+
+  def initialize(name, line)
+    @name = name
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    "#{indent(level)}Identifier(#{@name})"
+  end
 end

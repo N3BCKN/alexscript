@@ -6,7 +6,7 @@ class Interpreter
   def init
   end
 
-  def interpret!(node)
+  def interpret!(node, env)
     if node.is_a? Int
       [:type_number, node.value.to_f]
     elsif node.is_a? Flt
@@ -16,10 +16,20 @@ class Interpreter
     elsif node.is_a? Bool
       [:type_bool, node.value]
     elsif node.is_a? Grouping
-      interpret!(node.value)
+      interpret!(node.value, env)
+    elsif node.is_a? Identifier
+      value = env.get_var(node.name)
+      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if value.nil?
+      Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if value[1].nil?
+      value
+    elsif node.is_a? Assignment
+      # evaluate right side of the expression
+      right_type, right_value = interpret!(node.right, env)
+      # assign new value or overwrite existing one
+      env.set_var(node.left.name, [right_type, right_value])
     elsif node.is_a? BinOp
-      left_type,  left_value  = interpret!(node.left)
-      right_type, right_value = interpret!(node.right)
+      left_type,  left_value  = interpret!(node.left, env)
+      right_type, right_value = interpret!(node.right, env)
 
       if node.op.token_type == :tok_plus # addition +
         if left_type == :type_number && right_type == :type_number #
@@ -100,7 +110,7 @@ class Interpreter
       end
 
     elsif node.is_a? UnOp
-      operand_type, operand_value = interpret!(node.operand)
+      operand_type, operand_value = interpret!(node.operand, env)
 
       if node.op.token_type == :tok_plus
         if operand_type == :type_number
@@ -125,34 +135,41 @@ class Interpreter
     # short-circut evaluation for logical operators, left 'and' is false => false, left 'or' is true => true
     # otherwise search for the right side
     elsif node.is_a? LogicalOp
-      left_type, left_value = interpret!(node.left)
+      left_type, left_value = interpret!(node.left, env)
       if node.op.token_type == :tok_or
         return [left_type, left_value] if left_value
       elsif node.op.token_type == :tok_and
         return [left_type, left_value] unless left_value
       end
-      interpret!(node.right)
+      interpret!(node.right, env)
     elsif node.is_a? Stmts
       i = 0
       while i < node.stmts.size
-        interpret!(node.stmts[i])
+        interpret!(node.stmts[i], env)
         i += 1
       end
     elsif node.is_a? PrintStmt
-      expression_type, expression_value = interpret!(node.value)
+      expression_type, expression_value = interpret!(node.value, env)
       puts(expression_value)
 
     elsif node.is_a? IfStmt
-      test_type, test_value = interpret!(node.test)
+      test_type, test_value = interpret!(node.test, env)
       # TODO: export it to a general private method
-      Utils.runtime_error("Condition type #{test_value} is not a boolean", no.op.line) unless test_type == :type_bool
+      # TODO: use the same type of testing conditions just like in JS (nil, false and 0 would not pass only)
+      Utils.runtime_error("Condition type #{test_value} is not a boolean", node.op.line) unless test_type == :type_bool
 
       if test_value
-        interpret!(node.then_stmt)
+        interpret!(node.then_stmt, env.new_env) # new child, nested env for if-else block
       else
-        interpret!(node.else_stmt)
+        interpret!(node.else_stmt, env.new_env)
       end
     end
+  end
+
+  # entry point of interpreter creating brand new global/parent environment
+  def interpret_ast(node)
+    env = Environment.new
+    interpret!(node, env)
   end
 
   private

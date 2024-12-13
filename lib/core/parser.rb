@@ -56,7 +56,7 @@ class Parser
     true
   end
 
-  # <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string>
+  # <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string> | <identifier>
   # Handles basic expressions and parenthesized expressions
   def primary
     return Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
@@ -70,7 +70,11 @@ class Parser
       return Grouping.new(expr, previous_token.line)
     end
 
-    raise SyntaxError, 'Expected expression'
+    identifier = expect(:tok_identifier)
+    Identifier.new(identifier.lexeme, previous_token.line)
+    # TODO: we can also have action calls here and hande this as well
+
+    # raise SyntaxError, 'Expected expression'
   end
 
   # <unary> ::= ('+'|'-'|'~') <unary> | <primary>
@@ -201,24 +205,20 @@ class Parser
 
   # <if_statement> ::= "jesli" <expression> {<stmts> "lub" <stmts>}?
   def if_statement
-    p 'is inside?'
     expect(:tok_if)
     test = expression
     expect(:tok_lcurly) # {
     then_stmt = statements
     expect(:tok_rcurly) # }
     if next?(:tok_else)
-      p 'inside next?'
       advance # consume else
       expect(:tok_lcurly)
       else_stmts = statements
       expect(:tok_rcurly)
-      p 'end of next?'
     else
       else_stmts = nil
     end
 
-    p 'out of there?'
     IfStmt.new(test, then_stmt, else_stmts, previous_token.line)
   end
 
@@ -234,7 +234,6 @@ class Parser
     if token == :tok_print
       print_statement
     elsif token == :tok_if
-      p 'is here?'
       if_statement
     elsif token == :tok_while
       while_statement
@@ -242,6 +241,14 @@ class Parser
       for_statement
     elsif token == :tok_func
       func_statement
+    else
+      left = expression
+      if match(:tok_assign)
+        right = expression
+        Assignment.new(left, right, previous_token.line)
+      else
+        # TODO: function call
+      end
     end
   end
 

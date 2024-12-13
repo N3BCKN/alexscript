@@ -80,7 +80,11 @@ class Lexer
 
       # Two-character operators
       elsif char == '='
-        add_token(:tok_eq) if next_match('=')
+        if next_match('=')
+          add_token(:tok_eq)
+        else
+          add_token(:tok_assign)
+        end
       # elsif char == '~'
       #   add_token(:tok_noteq) if next_match('=')
       elsif char == '>'
