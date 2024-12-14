@@ -276,6 +276,36 @@ class WhileStmt < Stmt
   end
 end
 
+class ForStmt < Stmt
+  attr_accessor :identifier, :start_statement, :end_statement, :step_statement, :body_statement
+
+  def initialize(identifier, start_statement, end_statement, step_statement, body_statement, line)
+    validate_types([identifier], Identifier)
+    validate_types([start_statement, end_statement, step_statement], Expr)
+    validate_types([step_statement], Expr) unless step_statement.nil?
+    validate_types([body_statement], Stmts)
+    @identifier = identifier
+    @start_statement = start_statement
+    @end_statement = end_statement
+    @step_statement = step_statement
+    @body_statement = body_statement
+  end
+
+  def pretty_print(level = 0)
+    step_statement = @step_statement.pretty_print(level + 1) unless @step_statement.nil?
+
+    [
+      "#{indent(level)}ForLoop(",
+      @identifier.pretty_print(level + 1),
+      @start_statement.pretty_print(level + 1),
+      @end_statement.pretty_print(level + 1),
+      step_statement,
+      "body: #{@body_statement.pretty_print(level + 1)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 # Example: niech x = 42
 class Assignment < Stmt
   attr_reader :left, :right

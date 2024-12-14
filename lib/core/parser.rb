@@ -226,13 +226,29 @@ class Parser
     expect(:tok_while)
     test = expression
     expect(:tok_lcurly) # {
-    body_statements = statements
+    body_statement = statements
     expect(:tok_rcurly) # }
 
-    WhileStmt.new(test, body_statements, previous_token.line)
+    WhileStmt.new(test, body_statement, previous_token.line)
   end
 
+  # <for_statement> :== "dla" <identifier> "=" <start> ";" <end> (";" <increment>)? "{" <body_statement> "]"
   def for_statement
+    expect(:tok_for)
+    identifier = primary
+    expect(:tok_assign)
+    start_statement = expression
+    expect(:tok_semicolon)
+    end_statement = expression
+    if next?(:tok_semicolon)
+      advance
+      step_statment = expression
+    end
+    expect(:tok_lcurly) # {
+    body_statement = statements
+    expect(:tok_rcurly) # }
+
+    ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
   end
 
   def statement

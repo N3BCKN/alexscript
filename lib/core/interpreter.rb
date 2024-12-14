@@ -180,6 +180,40 @@ class Interpreter
         # Execute body in the loop's environment
         interpret!(node.body_statement, loop_env)
       end
+
+    elsif node.is_a? ForStmt
+      var_name = node.identifier.name
+      index_type, index_value = interpret!(node.start_statement, env)
+      end_type, end_value = interpret!(node.end_statement, env)
+
+      # Create a new environment for the while loop scope
+      loop_env = env.new_env
+      if index_value < end_value
+        if node.step_statement.nil?
+          step = 1
+        else
+          step_type, step = interpret!(node.step_statement, env)
+        end
+        while index_value <= end_value
+          new_value = [:type_number, index_value]
+          env.set_var(var_name, new_value)
+          interpret!(node.body_statement, loop_env)
+          index_value += step
+        end
+      else
+        if node.step_statement.nil?
+          step = -1
+        else
+          step_type, step = interpret!(node.step_statement, env)
+        end
+        while index_value >= end_value
+          new_value = [:type_number, index_valuei]
+          env.set_var(var_name, new_value)
+          interpret!(node.body_statement, loop_env)
+          index_value -= step
+        end
+      end
+
     end
   end
 
