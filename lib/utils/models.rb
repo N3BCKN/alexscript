@@ -281,7 +281,7 @@ class ForStmt < Stmt
 
   def initialize(identifier, start_statement, end_statement, step_statement, body_statement, line)
     validate_types([identifier], Identifier)
-    validate_types([start_statement, end_statement, step_statement], Expr)
+    validate_types([start_statement, end_statement], Expr)
     validate_types([step_statement], Expr) unless step_statement.nil?
     validate_types([body_statement], Stmts)
     @identifier = identifier
