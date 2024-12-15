@@ -207,7 +207,7 @@ class Interpreter
           step_type, step = interpret!(node.step_statement, env)
         end
         while index_value >= end_value
-          new_value = [:type_number, index_valuei]
+          new_value = [:type_number, index_value]
           env.set_var(var_name, new_value)
           interpret!(node.body_statement, loop_env)
           index_value -= step

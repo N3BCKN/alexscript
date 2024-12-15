@@ -166,7 +166,7 @@ class Lexer
 
   # Handles identifiers and keywords
   def handle_identifier
-    advance while peek.match?(/[a-zA-Z]/) || peek == '_'
+    advance while peek.match?(/[a-zA-Z0-9_]/)
 
     word = @source[@start...@current]
 
