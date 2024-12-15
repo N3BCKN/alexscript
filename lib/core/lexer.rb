@@ -30,7 +30,10 @@ class Lexer
         next
       # Single-line comments - skip until newline
       elsif char == '#'
-        advance while peek != "\n" && @current <= @source.size
+        while peek != "\n" && @current <= @source.size
+          @line += 1 if peek == "\n"
+          advance
+        end
 
       # Single character tokens - grouping
       elsif char == '('
@@ -72,7 +75,10 @@ class Lexer
       elsif char == '/'
         if next_match('*')
           advance
-          advance while peek != '*' && !next_match('/')
+          while peek != '*' && !next_match('/')
+            @line += 1 if peek == "\n"
+            advance
+          end
           advance(2) # Skip closing */ sequence
         else
           add_token(:tok_slash)
