@@ -70,8 +70,16 @@ class Parser
       return Grouping.new(expr, previous_token.line)
     end
 
+    # handle function calls
     identifier = expect(:tok_identifier)
-    Identifier.new(identifier.lexeme, previous_token.line)
+    if match(:tok_lparen) # (
+      f_args = arguments
+      expect(:tok_rparen) # )
+      FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+    else
+      Identifier.new(identifier.lexeme, previous_token.line)
+    end
+
     # TODO: we can also have action calls here and hande this as well
 
     # raise SyntaxError, 'Expected expression'
@@ -251,6 +259,41 @@ class Parser
     ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
   end
 
+  # <func_decl> :== "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
+  def func_decl
+    expect(:tok_func)
+    name = expect(:tok_identifier)
+    expect(:tok_lparen) # (
+    f_params = params
+    expect(:tok_rparen) # )
+    expect(:tok_lcurly) # {
+    body_statement = statements
+    expect(:tok_rcurly) # }
+
+    FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
+  end
+
+  # <arguments> :== <expr> (',' <expr>)*
+  def arguments
+    f_args = []
+    until next?(:tok_rparen)
+      f_args << expression
+      expect(:tok_comma) unless next?(:tok_rparen)
+    end
+    f_args
+  end
+
+  # <params> :== <identifier> (',' <identifier>)*
+  def params
+    f_params = []
+    until next?(:tok_rparen)
+      name = expect(:tok_identifier)
+      f_params << Param.new(name.lexeme, previous_token.line)
+      expect(:tok_comma) unless next?(:tok_rparen)
+    end
+    f_params
+  end
+
   def statement
     # predict next token
     token = peek.token_type
@@ -263,14 +306,15 @@ class Parser
     elsif token == :tok_for
       for_statement
     elsif token == :tok_func
-      func_statement
+      func_decl
     else
       left = expression
       if match(:tok_assign)
         right = expression
         Assignment.new(left, right, previous_token.line)
       else
-        # TODO: function call
+        # handle function call statements, eg: myfunction()
+        FuncCallStmt.new(left, previous_token.line)
       end
     end
   end

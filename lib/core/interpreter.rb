@@ -213,7 +213,45 @@ class Interpreter
           index_value += step
         end
       end
+    elsif node.is_a? FuncDclr
+      # store entire parsed 'body' of the function with its current env
+      env.set_func(node.name, [node, env]) # TODO: improve memory management here
+    elsif node.is_a? FuncCall
+      func = env.get_func(node.name)
+      # check if function was declared
+      # todo: consider exporint this into a method
+      Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
 
+      # fetch function declaration
+      func_declr = func[0] # entire func declaration
+      func_env   = func[1] # function env
+
+      # check if number of args matches expected number of params in func delcaration
+      if func_declr.params.size != node.arguments.size
+        Utils.runtime_error(
+          "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.args.size} instead", node.line
+        )
+      end
+
+      # evalate args
+      arguments = []
+      node.arguments.each { |arg| arguments << interpret!(arg, env) }
+
+      # new nested env for function, derrived from the original env of the function where it was declared
+      # (eg, could be nested func or smth)
+      new_func_env = func_env.new_env
+
+      # create local variables for called function, derrived from args
+      # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
+      func_declr.params.zip(arguments).each do |param, argval|
+        new_func_env.set_var(param.name, argval)
+      end
+
+      # interpet function declaration body
+      interpret!(func_declr.body_statement, new_func_env)
+
+    elsif node.is_a? FuncCallStmt
+      interpret!(node.expression, env)
     end
   end
 
