@@ -18,7 +18,10 @@ class Environment
 
       current = current.parent
     end
-    nil
+  end
+
+  def set_local(name, value)
+    @variables[name] = value
   end
 
   def set_var(name, value)

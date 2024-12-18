@@ -273,6 +273,15 @@ class Parser
     FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
   end
 
+  # <local_assign> ::= "lokalna" <asign>
+  def local_assign
+    expect(:tok_local)
+    left = expression
+    expect(:tok_assign)
+    right = expression
+    LocalAssignment.new(left, right, previous_token.line)
+  end
+
   # <arguments> :== <expr> (',' <expr>)*
   def arguments
     f_args = []
@@ -319,6 +328,8 @@ class Parser
       func_decl
     elsif token == :tok_return
       return_statement
+    elsif token == :tok_local
+      local_assign
     else
       left = expression
       if match(:tok_assign)

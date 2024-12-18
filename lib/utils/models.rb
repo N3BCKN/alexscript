@@ -420,7 +420,28 @@ class ReturnStatement < Stmt
   end
 end
 
-# Example: niech x = 42
+# Example: lokalna x = 42
+class LocalAssignment < Stmt
+  attr_reader :left, :right
+
+  def initialize(left, right, line)
+    validate_types([left, right], Expr)
+    @left = left
+    @right = right
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}LocalAssignment(",
+      @left.pretty_print(level + 1),
+      @right.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+# Example: x = 42
 class Assignment < Stmt
   attr_reader :left, :right
 

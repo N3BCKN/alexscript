@@ -27,6 +27,11 @@ class Interpreter
       right_type, right_value = interpret!(node.right, env)
       # assign new value or overwrite existing one
       env.set_var(node.left.name, [right_type, right_value])
+    elsif node.is_a? LocalAssignment
+      # evaluate right side of the expression
+      right_type, right_value = interpret!(node.right, env)
+      # assign new value or overwrite existing one
+      env.set_local(node.left.name, [right_type, right_value])
     elsif node.is_a? BinOp
       left_type,  left_value  = interpret!(node.left, env)
       right_type, right_value = interpret!(node.right, env)
@@ -244,7 +249,7 @@ class Interpreter
       # create local variables for called function, derrived from args
       # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
       func_declr.params.zip(arguments).each do |param, argval|
-        new_func_env.set_var(param.name, argval)
+        new_func_env.set_local(param.name, argval)
       end
 
       # interpret function declaration body, wrap in into a rescue block to catch a return statement
