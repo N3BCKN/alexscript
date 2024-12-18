@@ -403,6 +403,23 @@ class FuncCallStmt < Stmt
   end
 end
 
+# "zwroc" <exprs>
+class ReturnStatement < Stmt
+  attr_reader :name
+
+  def initialize(value, line)
+    validate_types([value], Expr)
+    @value = value
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}Return(",
+     @value.pretty_print(level + 1),
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # Example: niech x = 42
 class Assignment < Stmt
   attr_reader :left, :right

@@ -229,7 +229,7 @@ class Interpreter
       # check if number of args matches expected number of params in func delcaration
       if func_declr.params.size != node.arguments.size
         Utils.runtime_error(
-          "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.args.size} instead", node.line
+          "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead", node.line
         )
       end
 

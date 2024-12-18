@@ -286,12 +286,22 @@ class Parser
   # <params> :== <identifier> (',' <identifier>)*
   def params
     f_params = []
+    params_num = 0
     until next?(:tok_rparen)
+      params_num += 1
+      Utils.parse_error('Number of params in function exceeded 255', previous_token.line) if params_num > 255
       name = expect(:tok_identifier)
       f_params << Param.new(name.lexeme, previous_token.line)
       expect(:tok_comma) unless next?(:tok_rparen)
     end
     f_params
+  end
+
+  # <return_stmt> :== "zwroc" <expression>
+  def return_statement
+    expect(:tok_return)
+    value = expression
+    ReturnStatement.new(value, previous_token.line)
   end
 
   def statement
@@ -307,6 +317,8 @@ class Parser
       for_statement
     elsif token == :tok_func
       func_decl
+    elsif token == :tok_return
+      return_statement
     else
       left = expression
       if match(:tok_assign)
