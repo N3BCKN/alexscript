@@ -339,7 +339,7 @@ class Parser
 
   # <program> ::= <statements>*
   def program
-    stmts = statements
+    statements
   end
 
   # Entry point for parsing, returns completed AST

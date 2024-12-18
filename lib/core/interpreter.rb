@@ -247,11 +247,16 @@ class Interpreter
         new_func_env.set_var(param.name, argval)
       end
 
-      # interpet function declaration body
-      interpret!(func_declr.body_statement, new_func_env)
-
+      # interpret function declaration body, wrap in into a rescue block to catch a return statement
+      begin
+        interpret!(func_declr.body_statement, new_func_env)
+      rescue ReturnError => e
+        e.value
+      end
     elsif node.is_a? FuncCallStmt
       interpret!(node.expression, env)
+    elsif node.is_a? ReturnStatement
+      raise ReturnError.new(interpret!(node.value, env))
     end
   end
 
@@ -269,5 +274,15 @@ class Interpreter
 
   def runtime_error_unop(value, node)
     Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
+  end
+end
+
+# TODO: export this to another file
+class ReturnError < StandardError
+  attr_reader :value
+
+  def initialize(value)
+    @value = value
+    super()
   end
 end
