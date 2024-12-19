@@ -155,6 +155,10 @@ class Interpreter
       end
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
+      print(expression_value)
+
+    elsif node.is_a? PrintlnStmt
+      expression_type, expression_value = interpret!(node.value, env)
       puts(expression_value)
 
     elsif node.is_a? IfStmt

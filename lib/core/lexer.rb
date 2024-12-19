@@ -186,7 +186,7 @@ class Lexer
                  when 'nic' then :tok_null
                  when 'koniec' then :tok_end
                  when 'pokaz' then :tok_print
-                 when 'pokaz_linie' then :tok_println
+                 when 'pokazl' then :tok_println
                  when 'zwroc' then :tok_return
                  when 'lokalna' then :tok_local
                  else :tok_identifier

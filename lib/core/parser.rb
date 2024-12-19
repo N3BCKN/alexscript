@@ -211,6 +211,14 @@ class Parser
     PrintStmt.new(value, previous_token.line)
   end
 
+  # <println_statement> :== "pokazl" <expression>
+  def println_statement
+    return unless match(:tok_println)
+
+    value = expression
+    PrintlnStmt.new(value, previous_token.line)
+  end
+
   # <if_statement> ::= "jesli" <expression> {<stmts> "lub" <stmts>}?
   def if_statement
     expect(:tok_if)
@@ -318,6 +326,8 @@ class Parser
     token = peek.token_type
     if token == :tok_print
       print_statement
+    elsif token == :tok_println
+      println_statement
     elsif token == :tok_if
       if_statement
     elsif token == :tok_while

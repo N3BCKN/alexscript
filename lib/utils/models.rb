@@ -231,6 +231,24 @@ class PrintStmt < Stmt
   end
 end
 
+class PrintlnStmt < Stmt
+  attr_reader :value, :ending
+
+  def initialize(value, line)
+    validate_types([value], Expr, 'expression')
+    @value = value
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}PrintLineStatement(",
+      @value.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 # jesli/albojesli/albo
 class IfStmt < Stmt
   attr_reader :test, :then_stmt, :else_stmt
