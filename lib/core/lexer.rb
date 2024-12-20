@@ -184,6 +184,7 @@ class Lexer
                  when 'globalna' then :tok_global
                  when 'jesli' then :tok_if
                  when 'albo' then :tok_else
+                 when 'albojesli' then :tok_elseif
                  when 'to' then :tok_then
                  when 'prawda' then :tok_true
                  when 'falsz' then :tok_false

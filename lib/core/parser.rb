@@ -219,13 +219,25 @@ class Parser
     PrintlnStmt.new(value, previous_token.line)
   end
 
-  # <if_statement> ::= "jesli" <expression> {<stmts> "lub" <stmts>}?
+  # <if_statement> ::= "jesli" <expression> "albojesli" <stmts>*? {<stmts> "albo" <stmts>}?
   def if_statement
     expect(:tok_if)
     test = expression
     expect(:tok_lcurly) # {
     then_stmt = statements
     expect(:tok_rcurly) # }
+
+    else_if_conditions = []
+
+    while next?(:tok_elseif)
+      advance
+      else_if_test = expression
+      expect(:tok_lcurly) # {
+      else_if_stmt = statements
+      expect(:tok_rcurly) # }
+      else_if_conditions << [else_if_test, else_if_stmt]
+    end
+
     if next?(:tok_else)
       advance # consume else
       expect(:tok_lcurly)
@@ -235,7 +247,7 @@ class Parser
       else_stmts = nil
     end
 
-    IfStmt.new(test, then_stmt, else_stmts, previous_token.line)
+    IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
   end
 
   def while_statement

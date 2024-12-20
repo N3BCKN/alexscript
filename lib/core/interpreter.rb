@@ -177,10 +177,26 @@ class Interpreter
       Utils.runtime_error("Condition type #{test_value} is not a boolean", node.op.line) unless test_type == :type_bool
 
       if test_value
-        interpret!(node.then_stmt, env.new_env) # new child, nested env for if-else block
+        interpret!(node.then_stmt, env.new_env)
       else
-        interpret!(node.else_stmt, env.new_env)
+        # check else-if statements (albojesli)
+        executed = false
+        node.else_if_conditions.each do |condition|
+          else_if_test, else_if_stmt = condition
+          else_if_type, else_if_value = interpret!(else_if_test, env)
+          Utils.runtime_error('Else-if condition must be boolean', node.line) unless else_if_type == :type_bool
+
+          next unless else_if_value
+
+          interpret!(else_if_stmt, env.new_env)
+          executed = true
+          break
+        end
+
+        # if no other condition was fullfiled, execute else (albo) statement
+        interpret!(node.else_stmt, env.new_env) if !executed && node.else_stmt
       end
+
     elsif node.is_a? WhileStmt
       # Create a new environment for the while loop scope
       loop_env = env.new_env

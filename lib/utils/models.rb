@@ -251,16 +251,18 @@ end
 
 # jesli/albojesli/albo
 class IfStmt < Stmt
-  attr_reader :test, :then_stmt, :else_stmt
+  attr_reader :test, :then_stmt, :else_stmt, :else_if_conditions
 
-  def initialize(test, then_stmt, else_stmt, line)
+  def initialize(test, then_stmt, else_stmt, else_if_conditions, line)
     validate_types([test], Expr)
     validate_types([then_stmt], Stmts)
-    # TODO: validate else statement as statement or nil, new method perhaps?
+    validate_types([else_stmt], Stmts) unless else_stmt.nil?
+    validate_types([else_if_conditions], Array) unless else_if_conditions.nil?
 
     @test = test
     @then_stmt = then_stmt
     @else_stmt = else_stmt
+    @else_if_conditions = else_if_conditions
     @line = line
   end
 
