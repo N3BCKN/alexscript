@@ -421,6 +421,26 @@ class FuncCallStmt < Stmt
   end
 end
 
+class VariableDeclaration < Stmt
+  attr_reader :left, :right, :line
+
+  def initialize(left, right, line)
+    validate_types([left, right], Expr)
+    @left = left
+    @right = right
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}VariableDeclaration(",
+      @left.pretty_print(level + 1),
+      @right.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 # "zwroc" <exprs>
 class ReturnStatement < Stmt
   attr_reader :value
@@ -461,7 +481,7 @@ end
 
 # Example: x = 42
 class Assignment < Stmt
-  attr_reader :left, :right
+  attr_reader :left, :right, :line
 
   def initialize(left, right, line)
     validate_types([left, right], Expr)

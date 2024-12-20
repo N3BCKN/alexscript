@@ -251,6 +251,7 @@ class Parser
   # <for_statement> :== "dla" <identifier> "=" <start> ";" <end> (";" <increment>)? "{" <body_statement> "]"
   def for_statement
     expect(:tok_for)
+    expect(:tok_let)
     identifier = primary
     expect(:tok_assign)
     start_statement = expression
@@ -321,10 +322,21 @@ class Parser
     ReturnStatement.new(value, previous_token.line)
   end
 
+  # <variable_statment> :== "niech" <expression> <assign> "=" <expression>
+  def var_declaration_statement
+    expect(:tok_let)
+    left = expression
+    expect(:tok_assign)
+    right = expression
+    VariableDeclaration.new(left, right, previous_token.line)
+  end
+
   def statement
     # predict next token
     token = peek.token_type
-    if token == :tok_print
+    if token == :tok_let
+      var_declaration_statement
+    elsif token == :tok_print
       print_statement
     elsif token == :tok_println
       println_statement

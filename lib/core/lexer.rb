@@ -197,7 +197,6 @@ class Lexer
                  when 'pokaz' then :tok_print
                  when 'pokazl' then :tok_println
                  when 'zwroc' then :tok_return
-                 when 'lokalna' then :tok_local
                  else :tok_identifier
                  end
 

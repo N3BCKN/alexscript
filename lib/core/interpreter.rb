@@ -23,14 +23,16 @@ class Interpreter
       Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if value[1].nil?
       value
     elsif node.is_a? Assignment
+      if env.get_var(node.left.name).nil?
+        Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
+      end
       # evaluate right side of the expression
       right_type, right_value = interpret!(node.right, env)
       # assign new value or overwrite existing one
       env.set_var(node.left.name, [right_type, right_value])
-    elsif node.is_a? LocalAssignment
-      # evaluate right side of the expression
+    elsif node.is_a? VariableDeclaration
       right_type, right_value = interpret!(node.right, env)
-      # assign new value or overwrite existing one
+      # declare new variable
       env.set_local(node.left.name, [right_type, right_value])
     elsif node.is_a? BinOp
       left_type,  left_value  = interpret!(node.left, env)
@@ -205,7 +207,7 @@ class Interpreter
         end
         while index_value <= end_value
           new_value = [:type_number, index_value]
-          env.set_var(var_name, new_value)
+          loop_env.set_var(var_name, new_value)
           interpret!(node.body_statement, loop_env)
           index_value += step
         end
@@ -217,7 +219,7 @@ class Interpreter
         end
         while index_value >= end_value
           new_value = [:type_number, index_value]
-          env.set_var(var_name, new_value)
+          loop_env.set_var(var_name, new_value)
           interpret!(node.body_statement, loop_env)
           index_value += step
         end
