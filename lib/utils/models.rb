@@ -442,7 +442,7 @@ class VariableDeclaration < Stmt
 end
 
 class GlobalVariableDeclaration < Stmt
-  attr_reader :left, :right
+  attr_reader :left, :right, :line
 
   def initialize(left, right, line)
     validate_types([left, right], Expr)
