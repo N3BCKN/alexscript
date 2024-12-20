@@ -6,6 +6,7 @@
 # - Multi-character tokens (numbers, strings)
 # - Keywords (in Polish)
 # - Comments (single-line and multi-line)
+require 'byebug'
 class Lexer
   attr_reader :tokens
 
@@ -73,13 +74,20 @@ class Lexer
 
       # Multi-line comments
       elsif char == '/'
-        if next_match('*')
+        if next_match('*') #
           advance
-          while peek != '*' && !next_match('/')
-            @line += 1 if peek == "\n"
+          loop do
+            break if @current >= @source_size # end of the file
+
+            # sprawdzamy sekwencję zamykającą '*/'
+            if peek == '*' && look_ahead == '/'
+              advance(2) # skip closing comment statement
+              break
+            end
+
+            @line += 1 if peek == "\n" # count commented line
             advance
           end
-          advance(2) # Skip closing */ sequence
         else
           add_token(:tok_slash)
         end
@@ -172,6 +180,7 @@ class Lexer
 
     # restriced words
     token_type = case word
+                 when 'niech' then :tok_let
                  when 'jesli' then :tok_if
                  when 'albo' then :tok_else
                  when 'to' then :tok_then
