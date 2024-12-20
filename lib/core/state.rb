@@ -47,6 +47,19 @@ class Environment
     end
   end
 
+  def get_global_env
+    current = self
+    current = current.parent while current.parent
+    current
+  end
+
+  def set_global_variable(name, value)
+    current = self
+    current = current.parent while current.parent
+
+    current.variables[name] = value
+  end
+
   def set_func(name, value)
     # value is an 2dms array storing both function declaration and current env where it was declared
     @functions[name] = value

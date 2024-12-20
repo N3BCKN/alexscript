@@ -331,11 +331,23 @@ class Parser
     VariableDeclaration.new(left, right, previous_token.line)
   end
 
+  # <global_variable_statment> :== "globalna" "niech" <expression> <assign> "=" <expression>
+  def global_var_declaration_statement
+    expect(:tok_global)
+    expect(:tok_let)
+    left = expression
+    expect(:tok_assign)
+    right = expression
+    GlobalVariableDeclaration.new(left, right, previous_token.line)
+  end
+
   def statement
     # predict next token
     token = peek.token_type
     if token == :tok_let
       var_declaration_statement
+    elsif token == :tok_global
+      global_var_declaration_statement
     elsif token == :tok_print
       print_statement
     elsif token == :tok_println

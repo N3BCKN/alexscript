@@ -34,6 +34,19 @@ class Interpreter
       right_type, right_value = interpret!(node.right, env)
       # declare new variable
       env.set_local(node.left.name, [right_type, right_value])
+    elsif node.is_a? GlobalVariableDeclaration
+      global_env = env.get_global_env
+
+      # Sprawdzamy czy zmienna nie jest już zadeklarowana w globalnym scope
+      if global_env.variables.key?(node.left.name)
+        Utils.runtime_error("Global variable '#{node.left.name}' is already declared", node.line)
+      end
+
+      # Ewaluujemy prawą stronę w bieżącym scope
+      right_type, right_value = interpret!(node.right, env)
+
+      # Deklarujemy zmienną w globalnym scope
+      global_env.set_global_variable(node.left.name, [right_type, right_value])
     elsif node.is_a? BinOp
       left_type,  left_value  = interpret!(node.left, env)
       right_type, right_value = interpret!(node.right, env)

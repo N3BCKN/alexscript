@@ -181,6 +181,7 @@ class Lexer
     # restriced words
     token_type = case word
                  when 'niech' then :tok_let
+                 when 'globalna' then :tok_global
                  when 'jesli' then :tok_if
                  when 'albo' then :tok_else
                  when 'to' then :tok_then
