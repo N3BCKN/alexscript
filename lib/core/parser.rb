@@ -223,31 +223,37 @@ class Parser
   def if_statement
     expect(:tok_if)
     test = expression
-    expect(:tok_lcurly) # {
-    then_stmt = statements
-    expect(:tok_rcurly) # }
 
-    else_if_conditions = []
-
-    while next?(:tok_elseif)
+    if next?(:tok_then) # if ... then ... statement
       advance
-      else_if_test = expression
-      expect(:tok_lcurly) # {
-      else_if_stmt = statements
-      expect(:tok_rcurly) # }
-      else_if_conditions << [else_if_test, else_if_stmt]
-    end
-
-    if next?(:tok_else)
-      advance # consume else
-      expect(:tok_lcurly)
-      else_stmts = statements
-      expect(:tok_rcurly)
+      then_stmt = statement
+      OneLinerIfStmt.new(test, then_stmt, previous_token.line)
     else
-      else_stmts = nil
-    end
+      expect(:tok_lcurly) # {
+      then_stmt = statements
+      expect(:tok_rcurly) # }
+      else_if_conditions = []
 
-    IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
+      while next?(:tok_elseif)
+        advance
+        else_if_test = expression
+        expect(:tok_lcurly) # {
+        else_if_stmt = statements
+        expect(:tok_rcurly) # }
+        else_if_conditions << [else_if_test, else_if_stmt]
+      end
+
+      if next?(:tok_else)
+        advance # consume else
+        expect(:tok_lcurly)
+        else_stmts = statements
+        expect(:tok_rcurly)
+      else
+        else_stmts = nil
+      end
+
+      IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
+    end
   end
 
   def while_statement

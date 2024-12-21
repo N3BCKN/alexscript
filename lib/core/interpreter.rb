@@ -196,6 +196,11 @@ class Interpreter
         # if no other condition was fullfiled, execute else (albo) statement
         interpret!(node.else_stmt, env.new_env) if !executed && node.else_stmt
       end
+    elsif node.is_a? OneLinerIfStmt
+      test_type, test_value = interpret!(node.test, env)
+      Utils.runtime_error('Condition must be boolean', node.line) unless test_type == :type_bool
+
+      interpret!(node.then_stmt, env) if test_value
 
     elsif node.is_a? WhileStmt
       # Create a new environment for the while loop scope
