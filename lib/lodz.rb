@@ -8,6 +8,7 @@ require_relative './utils/utils'
 
 opts = Slop.parse do |o|
   o.bool '-f', '--full', 'run in full mode'
+  o.bool '-t', '--time', 'measure time of execution'
 end
 
 # switch to REPL when no arguments
@@ -29,6 +30,8 @@ else
   # puts "reading output directly from a console"
   source = ARGV[0]
 end
+
+start_time = Time.new if opts.time?
 
 if opts.full?
   puts '***************************************'.colorize(:white)
@@ -65,3 +68,8 @@ end
 
 interpreter = Interpreter.new
 puts interpreter.interpret_ast(ast)
+
+if opts.time?
+  end_time = Time.now
+  puts "Execution time: #{end_time - start_time}s"
+end
