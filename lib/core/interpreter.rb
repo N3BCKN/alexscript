@@ -172,7 +172,7 @@ class Interpreter
       end
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
-      print(expression_value)
+      print("#{expression_value} ")
 
     elsif node.is_a? PrintlnStmt
       expression_type, expression_value = interpret!(node.value, env)
@@ -210,6 +210,11 @@ class Interpreter
 
       interpret!(node.then_stmt, env) if test_value
 
+    elsif node.is_a? BreakLoop
+      raise BreakException.new
+    elsif node.is_a? ContinueLoop
+      raise ContinueException.new
+
     elsif node.is_a? WhileStmt
       # Create a new environment for the while loop scope
       loop_env = env.new_env
@@ -225,7 +230,13 @@ class Interpreter
         break unless test_value
 
         # Execute body in the loop's environment
-        interpret!(node.body_statement, loop_env)
+        begin
+          interpret!(node.body_statement, env.new_env)
+        rescue ContinueException
+          next
+        rescue BreakException
+          break
+        end
       end
 
     elsif node.is_a? ForStmt
@@ -242,9 +253,14 @@ class Interpreter
           step_type, step = interpret!(node.step_statement, env)
         end
         while index_value <= end_value
-          new_value = [:type_number, index_value]
-          loop_env.set_var(var_name, new_value)
-          interpret!(node.body_statement, loop_env)
+          begin
+            new_value = [:type_number, index_value]
+            loop_env.set_var(var_name, new_value)
+            interpret!(node.body_statement, loop_env)
+          rescue ContinueException
+          rescue BreakException
+            break
+          end
           index_value += step
         end
       else
@@ -254,9 +270,14 @@ class Interpreter
           step_type, step = interpret!(node.step_statement, env)
         end
         while index_value >= end_value
-          new_value = [:type_number, index_value]
-          loop_env.set_var(var_name, new_value)
-          interpret!(node.body_statement, loop_env)
+          begin
+            new_value = [:type_number, index_value]
+            loop_env.set_var(var_name, new_value)
+            interpret!(node.body_statement, loop_env)
+          rescue ContinueException
+          rescue BreakException
+            break
+          end
           index_value += step
         end
       end
@@ -333,3 +354,6 @@ class ReturnError < StandardError
     super()
   end
 end
+
+class BreakException < StandardError; end
+class ContinueException < StandardError; end

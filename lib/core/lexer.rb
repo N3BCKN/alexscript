@@ -195,7 +195,8 @@ class Lexer
                  when 'dla' then :tok_for
                  when 'funkcja' then :tok_func
                  when 'nic' then :tok_null
-                 when 'koniec' then :tok_end
+                 when 'zakoncz' then :tok_break
+                 when 'nastepny' then :tok_continue
                  when 'pokaz' then :tok_print
                  when 'pokazl' then :tok_println
                  when 'zwroc' then :tok_return

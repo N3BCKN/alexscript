@@ -351,6 +351,26 @@ class ForStmt < Stmt
   end
 end
 
+class BreakLoop < Stmt
+  def initialize(line)
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    "#{indent(level)}BreakLoop()"
+  end
+end
+
+class ContinueLoop < Stmt
+  def initialize(line)
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    "#{indent(level)}ContinueLoop()"
+  end
+end
+
 # "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
 class FuncDclr < Dclr
   attr_reader :name, :params, :body_statement

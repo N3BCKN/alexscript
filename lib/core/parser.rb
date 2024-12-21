@@ -376,6 +376,12 @@ class Parser
       while_statement
     elsif token == :tok_for
       for_statement
+    elsif token == :tok_break
+      advance
+      BreakLoop.new(previous_token.line)
+    elsif token == :tok_continue
+      advance
+      ContinueLoop.new(previous_token.line)
     elsif token == :tok_func
       func_decl
     elsif token == :tok_return
