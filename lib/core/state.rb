@@ -20,21 +20,21 @@ class Environment
     end
   end
 
-  def set_local(name, value)
-    @variables[name] = value
+  def set_local_var(name, value, is_constant = false)
+    @variables[name] = { value: value, constant: is_constant }
   end
 
-  def set_var(name, value)
+  def set_var(name, value, is_constant = false)
     current = self
     while current
       if current.variables[name]
-        current.variables[name] = value
+        current.variables[name][:value] = value
         return value
       end
       current = current.parent
     end
     # if var was not found in parent scopes, create it in current one
-    @variables[name] = value
+    @variables[name] = { value: value, constant: is_constant }
   end
 
   def get_func(name)
