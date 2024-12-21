@@ -59,7 +59,7 @@ parser = Parser.new(tokens)
 ast = parser.parse!
 
 if opts.full?
-  puts ast.pretty_print
+  puts ast.pretty_print unless ast.nil?
 
   puts '***************************************'.colorize(:white)
   puts 'INTERPRETER:'.colorize(:white)

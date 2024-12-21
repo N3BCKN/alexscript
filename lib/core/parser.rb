@@ -403,7 +403,7 @@ class Parser
   def statements
     stmts = []
     stmts << statement while @current < @tokens.size && !next?(:tok_rcurly)
-    Stmts.new(stmts, previous_token.line)
+    Stmts.new(stmts, previous_token.line) unless stmts.empty?
   end
 
   # <program> ::= <statements>*
