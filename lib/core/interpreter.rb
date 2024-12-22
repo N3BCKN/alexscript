@@ -19,10 +19,9 @@ class Interpreter
       interpret!(node.value, env)
     elsif node.is_a? Identifier
       var_raw = env.get_var(node.name)
-      value = var_raw[:value]
-      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if value.nil?
-      Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if value[1].nil?
-      value
+      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if var_raw[:value].nil?
+      Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
+      var_raw
     elsif node.is_a? Assignment
       var = env.get_var(node.left.name)
       if var.nil?
@@ -34,23 +33,25 @@ class Interpreter
       # evaluate right side of the expression
       right_type, right_value = interpret!(node.right, env)
       # assign new value or overwrite existing one
-      env.set_var(node.left.name, [right_type, right_value])
+      env.set_var(node.left.name, right_value, right_type)
     elsif node.is_a? VariableDeclaration
       right_type, right_value = interpret!(node.right, env)
       # declare new variable
       var_name = node.left.name
       is_constant = var_name.match?(/^[A-Z_]+$/) # declare as constant if CAPITALIZED
 
-      env.set_local_var(var_name, [right_type, right_value], is_constant)
+      env.set_local_var(var_name, right_value, right_type, is_constant)
     elsif node.is_a? GlobalVariableDeclaration
       global_env = env.get_global_env
 
       right_type, right_value = interpret!(node.right, env)
 
       # declare new variable in global scope
-      global_env.set_local_var(node.left.name, [right_type, right_value])
+      global_env.set_local_var(node.left.name, right_value, right_type)
     elsif node.is_a? BinOp
-      left_type,  left_value  = interpret!(node.left, env)
+      left_raw = interpret!(node.left, env)
+      left_type = left_raw[:type]
+      left_value = left_raw[:value]
       right_type, right_value = interpret!(node.right, env)
 
       if node.op.token_type == :tok_plus # addition +
@@ -242,7 +243,9 @@ class Interpreter
     elsif node.is_a? ForStmt
       var_name = node.identifier.name
       index_type, index_value = interpret!(node.start_statement, env)
-      end_type, end_value = interpret!(node.end_statement, env)
+      end_condition_raw = interpret!(node.end_statement, env)
+      end_type =  end_condition_raw[:type]
+      end_value = end_condition_raw[:value]
 
       # Create a new environment for the while loop scope
       loop_env = env.new_env
@@ -254,8 +257,7 @@ class Interpreter
         end
         while index_value <= end_value
           begin
-            new_value = [:type_number, index_value]
-            loop_env.set_var(var_name, new_value)
+            loop_env.set_var(var_name, :type_number, index_value)
             interpret!(node.body_statement, loop_env)
           rescue ContinueException
           rescue BreakException
@@ -271,8 +273,7 @@ class Interpreter
         end
         while index_value >= end_value
           begin
-            new_value = [:type_number, index_value]
-            loop_env.set_var(var_name, new_value)
+            loop_env.set_var(var_name, :type_number, index_value)
             interpret!(node.body_statement, loop_env)
           rescue ContinueException
           rescue BreakException
@@ -312,7 +313,7 @@ class Interpreter
       # create local variables for called function, derrived from args
       # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
       func_declr.params.zip(arguments).each do |param, argval|
-        new_func_env.set_local_var(param.name, argval)
+        new_func_env.set_local_var(param.name, argval[:value], argval[:type])
       end
 
       # interpret function declaration body, wrap in into a rescue block to catch a return statement
