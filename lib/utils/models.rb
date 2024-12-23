@@ -106,6 +106,17 @@ class Str < Expr
   end
 end
 
+# example: nic 
+class Null < Expr
+  def initialize(line)
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    "#{indent(level)}Null"
+  end
+end
+
 class LogicalOp < Expr
   attr_reader :left, :right, :op
 

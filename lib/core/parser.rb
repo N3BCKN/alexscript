@@ -63,7 +63,8 @@ class Parser
     return Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
     return Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
     return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
-
+    return Null.new(previous_token.line) if match(:tok_null)
+    
     if match(:tok_lparen)
       expr = expression
       Utils.parse_error("Expected ')' after expression", previous_token.line) unless match(:tok_rparen)
@@ -366,6 +367,8 @@ class Parser
       var_declaration_statement
     elsif token == :tok_global
       global_var_declaration_statement
+    # elsif token == :tok_null
+    #   Null.new(previous_token.line)
     elsif token == :tok_print
       print_statement
     elsif token == :tok_println

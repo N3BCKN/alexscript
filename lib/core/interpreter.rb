@@ -15,11 +15,14 @@ class Interpreter
       [:type_string, node.value.to_s]
     elsif node.is_a? Bool
       [:type_bool, node.value]
+    elsif node.is_a? Null
+      [:type_null, "nic"]
     elsif node.is_a? Grouping
       interpret!(node.value, env)
     elsif node.is_a? Identifier
       var_raw = env.get_var(node.name)
-      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if var_raw[:value].nil?
+      
+      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if var_raw.nil? || var_raw[:value].nil?
       Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
       [var_raw[:type], var_raw[:value]]
     elsif node.is_a? Assignment
@@ -52,8 +55,19 @@ class Interpreter
       
       left_type, left_value = interpret!(node.left, env)
       right_type, right_value = interpret!(node.right, env)
-      
-      
+
+      #handle operations with null values
+      if left_type == :type_null || right_type == :type_null
+        case node.op.token_type
+        when :tok_eq  # ==
+          return [:type_bool, left_type == right_type]
+        when :tok_noteq  # !=
+          return [:type_bool, left_type != right_type]
+        else
+          return [:type_null, "nic"]  # all logical operations with null returns null 
+        end
+      end
+    
       if node.op.token_type == :tok_plus # addition +
         if left_type == :type_number && right_type == :type_number #
           [:type_number, left_value + right_value]
