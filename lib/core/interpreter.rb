@@ -8,20 +8,20 @@ class Interpreter
 
   def interpret!(node, env)
     if node.is_a? Int
-      [:type_number, node.value.to_f]
+      [:type_int, node.value.to_i]
     elsif node.is_a? Flt
-      [:type_number, node.value.to_f]
+      [:type_float, node.value.to_f]
     elsif node.is_a? Str
       [:type_string, node.value.to_s]
     elsif node.is_a? Bool
       [:type_bool, node.value]
     elsif node.is_a? Null
-      [:type_null, "nic"]
+      [:type_null, 'nic']
     elsif node.is_a? Grouping
       interpret!(node.value, env)
     elsif node.is_a? Identifier
       var_raw = env.get_var(node.name)
-      
+
       Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if var_raw.nil? || var_raw[:value].nil?
       Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
       [var_raw[:type], var_raw[:value]]
@@ -52,94 +52,134 @@ class Interpreter
       # declare new variable in global scope
       global_env.set_local_var(node.left.name, right_value, right_type)
     elsif node.is_a? BinOp
-      
+
       left_type, left_value = interpret!(node.left, env)
       right_type, right_value = interpret!(node.right, env)
 
-      #handle operations with null values
+      # handle operations with null values
       if left_type == :type_null || right_type == :type_null
         case node.op.token_type
-        when :tok_eq  # ==
+        when :tok_eq # ==
           return [:type_bool, left_type == right_type]
-        when :tok_noteq  # !=
+        when :tok_noteq # !=
           return [:type_bool, left_type != right_type]
         else
-          return [:type_null, "nic"]  # all logical operations with null returns null 
+          return [:type_null, 'nic'] # all logical operations with null returns null
         end
       end
-    
+
       if node.op.token_type == :tok_plus # addition +
-        if left_type == :type_number && right_type == :type_number #
-          [:type_number, left_value + right_value]
-        elsif left_type == :type_string || right_type == :type_string # addition of strings or strings and numbers
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          [:type_int, left_value + right_value]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f + right_value.to_f]
+        when %i[type_string type_string], %i[type_string type_int], %i[type_string type_float],
+             %i[type_int type_string], %i[type_float type_string]
           [:type_string, left_value.to_s + right_value.to_s]
         else
           runtime_error(left_value, right_value, node)
         end
-      elsif node.op.token_type == :tok_minus # substraction -
-        if left_type == :type_number && right_type == :type_number
-          [:type_number, left_value - right_value]
+      elsif node.op.token_type == :tok_minus # subtraction -
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          [:type_int, left_value - right_value]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f - right_value.to_f]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_star # multiplication *
-        if left_type == :type_number && right_type == :type_number
-          [:type_number, left_value * right_value]
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          [:type_int, left_value * right_value]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f * right_value.to_f]
         else
           runtime_error(left_value, right_value, node)
         end
-      elsif node.op.token_type == :tok_slash # divisions /
+      elsif node.op.token_type == :tok_slash # division /
         Utils.runtime_error('Division by zero', node.op.line) if right_value == 0
 
-        if left_type == :type_number && right_type == :type_number
-          [:type_number, left_value / right_value]
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          # If both are integers but result has decimal part, convert to float
+          result = left_value.to_f / right_value.to_f
+          result == result.to_i ? [:type_int, result.to_i] : [:type_float, result]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f / right_value.to_f]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_mod # modulo %
-        if left_type == :type_number && right_type == :type_number
-          [:type_number, left_value % right_value]
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          [:type_int, left_value % right_value]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f % right_value.to_f]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_caret # exponentiation ^
-        if left_type == :type_number && right_type == :type_number
-          [:type_number, left_value**right_value]
+        case [left_type, right_type]
+        when %i[type_int type_int]
+          result = left_value**right_value
+          result == result.to_i ? [:type_int, result.to_i] : [:type_float, result.to_f]
+        when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_float, left_value.to_f**right_value.to_f]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greater # >
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value > right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value > right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greateroreq # >=
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value >= right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value >= right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_smaller # <
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value < right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value < right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_smalleroreq # <=
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value <= right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value <= right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_eq # ==
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value == right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value == right_value]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_noteq # !=
-        if (left_type == :type_number && right_type == :type_number) || (left_type == :type_string && right_type == :type_string)
+        case [left_type, right_type]
+        when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          [:type_bool, left_value != right_value]
+        when %i[type_string type_string]
           [:type_bool, left_value != right_value]
         else
           runtime_error(left_value, right_value, node)
@@ -150,14 +190,20 @@ class Interpreter
       operand_type, operand_value = interpret!(node.operand, env)
 
       if node.op.token_type == :tok_plus
-        if operand_type == :type_number
-          [:type_number, +operand_value]
+        case operand_type
+        when :type_int
+          [:type_int, +operand_value]
+        when :type_float
+          [:type_float, +operand_value]
         else
           runtime_error_unop(operand_value, node)
         end
       elsif node.op.token_type == :tok_minus
-        if operand_type == :type_number
-          [:type_number, -operand_value]
+        case operand_type
+        when :type_int
+          [:type_int, -operand_value]
+        when :type_float
+          [:type_float, -operand_value]
         else
           runtime_error_unop(operand_value, node)
         end
@@ -259,7 +305,6 @@ class Interpreter
       index_type, index_value = interpret!(node.start_statement, env)
       end_type, end_value = interpret!(node.end_statement, env)
 
-
       # Create a new environment for the while loop scope
       loop_env = env.new_env
       if index_value < end_value
@@ -270,7 +315,7 @@ class Interpreter
         end
         while index_value <= end_value
           begin
-            loop_env.set_var(var_name, index_value, :type_number)
+            loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
           rescue ContinueException
           rescue BreakException
@@ -286,7 +331,7 @@ class Interpreter
         end
         while index_value >= end_value
           begin
-            loop_env.set_var(var_name, index_value, :type_number)
+            loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
           rescue ContinueException
           rescue BreakException

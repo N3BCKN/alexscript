@@ -4,7 +4,7 @@ require 'readline'
 
 class Repl
   def self.run
-    version = '0.1.1' # replace this
+    version = '0.2.0' # replace this
     puts "LODZ jezyk, wersja: #{version}, 2024-#{Time.new.year}"
     puts "Wpisz 'koniec' aby zakonczyc"
     while input = Readline.readline('>>> ', true)
