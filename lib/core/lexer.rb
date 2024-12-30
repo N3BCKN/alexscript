@@ -110,6 +110,8 @@ class Lexer
       elsif char == '<'
         if next_match('=')
           add_token(:tok_smalleroreq)
+        elsif next_match('<')
+          add_token(:tok_append)
         else
           add_token(:tok_smaller)
         end

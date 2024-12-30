@@ -106,7 +106,7 @@ class Str < Expr
   end
 end
 
-# example: nic 
+# example: nic
 class Null < Expr
   def initialize(line)
     @line = line
@@ -305,6 +305,26 @@ class OneLinerIfStmt < Stmt
       "#{indent(level)}OneLinerIf(",
       "test: #{@test.pretty_print(level + 1)}",
       "then: #{@then_stmt.pretty_print(level + 1)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+# example: niech tablica = [1,'dwa', 3, prawda]
+class ArrayLiteral < Expr
+  attr_reader :elements, :line
+
+  def initialize(elements, line)
+    validate_types(elements, Expr, 'array elements')
+    @elements = elements
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    elements_string = @elements.map { |elem| elem.pretty_print(level + 1) }.join("\n")
+    [
+      "#{indent(level)}Array(",
+      elements_string,
       "#{indent(level)})"
     ].join("\n")
   end

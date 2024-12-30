@@ -382,6 +382,21 @@ class Interpreter
       end
     elsif node.is_a? FuncCallStmt
       interpret!(node.expression, env)
+    elsif node.is_a? ArrayLiteral
+      elements = []
+
+      # Ewaluacja każdego elementu tablicy
+      node.elements.each do |element|
+        element_type, element_value = interpret!(element, env)
+        elements << {
+          type: element_type,
+          value: element_value
+        }
+      end
+
+      # Jeśli to część deklaracji zmiennej, sama tablica zostanie zapisana w Environment
+      # przez logikę obsługującą VariableDeclaration
+      [:type_array, elements]
     elsif node.is_a? ReturnStatement
       raise ReturnError.new(interpret!(node.value, env))
     end
@@ -391,6 +406,7 @@ class Interpreter
   def interpret_ast(node)
     env = Environment.new
     interpret!(node, env)
+    byebug
   end
 
   private

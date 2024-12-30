@@ -64,6 +64,7 @@ class Parser
     return Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
     return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
     return Null.new(previous_token.line) if match(:tok_null)
+    return array_statement if match(:tok_lsquare) # [ -> start array parsing
 
     if match(:tok_lparen)
       expr = expression
@@ -80,9 +81,6 @@ class Parser
     else
       Identifier.new(identifier.lexeme, previous_token.line)
     end
-
-    # TODO: we can also have action calls here and hande this as well
-
     # raise SyntaxError, 'Expected expression'
   end
 
@@ -255,6 +253,33 @@ class Parser
 
       IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
     end
+  end
+
+  def array_statement
+    elements = []
+
+    # Parse array elements
+
+    # handle empty arrays
+    if next?(:tok_rsquare)
+      advance
+      return ArrayLiteral.new([], previous_token.line)
+    end
+
+    # iterate over array elements
+    loop do
+      elements << expression
+
+      break unless match(:tok_comma)
+
+      if next?(:tok_rsquare) # case: [1,2,]
+        advance
+        break
+      end
+    end
+
+    expect(:tok_rsquare) # ]
+    ArrayLiteral.new(elements, previous_token.line)
   end
 
   def while_statement
