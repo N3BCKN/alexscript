@@ -436,7 +436,7 @@ class Interpreter
       object_value = object_var[:value]
 
       begin
-        result = env.call_method(object_var[:type], node.method_name, object_var, evaluated_args)
+        result = env.call_method(object_var[:type], node.method_name, object_var, evaluated_args, node.line)
 
         # Określamy typ zwracanej wartości
         result_type = case result
