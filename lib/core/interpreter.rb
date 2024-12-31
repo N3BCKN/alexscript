@@ -233,11 +233,23 @@ class Interpreter
       end
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
-      print("#{expression_value} ")
+      # handle arrays display
+      if expression_type == :type_array
+        formatted_value = expression_value.map { |elem| elem.is_a?(Hash) ? elem[:value] : elem }
+        print("#{formatted_value} ")
+      else
+        print("#{expression_value} ")
+      end
 
     elsif node.is_a? PrintlnStmt
       expression_type, expression_value = interpret!(node.value, env)
-      puts(expression_value)
+      # handle arrays display
+      if expression_type == :type_array
+        formatted_value = expression_value.map { |elem| elem.is_a?(Hash) ? elem[:value] : elem }
+        puts(formatted_value)
+      else
+        puts(expression_value)
+      end
 
     elsif node.is_a? IfStmt
       test_type, test_value = interpret!(node.test, env)
