@@ -418,7 +418,10 @@ class Interpreter
       Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
 
       array = array_var[:value]
-      Utils.runtime_error('Array index out of bounds', node.line) if index_value < 0 || index_value >= array.length
+      if index_value <= -array.length || index_value >= array.length
+        Utils.runtime_error('Array index out of bounds',
+                            node.line)
+      end
 
       [array[index_value][:type], array[index_value][:value]]
     elsif node.is_a? ArrayAccessStmt
