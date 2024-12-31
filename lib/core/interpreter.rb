@@ -428,7 +428,7 @@ class Interpreter
       object_var = env.get_var(node.object.name)
       Utils.runtime_error("Undefined variable #{node.object.name}", node.line) unless object_var
 
-      # Ewaluujemy argumenty metody
+      # evaluate all arguments of method
       evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 
       # Pobieramy typ obiektu i wywołujemy odpowiednią metodę z environment
@@ -436,7 +436,7 @@ class Interpreter
       object_value = object_var[:value]
 
       begin
-        result = env.call_method(object_type, node.method_name, object_value, evaluated_args)
+        result = env.call_method(object_var[:type], node.method_name, object_var, evaluated_args)
 
         # Określamy typ zwracanej wartości
         result_type = case result

@@ -8,12 +8,13 @@ class Environment
     @variables = {}
     @parent = parent
     @functions = {}
-    @built_in_methods = {
-      type_array: {
-        'dlg' => ->(obj) { obj.length },
-        'dodaj' => ->(obj, element) { obj << element }
-      }
-    }
+    @built_in_methods = BuiltInMethods::MethodRegistry.new
+    # @built_in_methods = {
+    #   type_array: {
+    #     'dlg' => ->(obj) { obj.length },
+    #     'dodaj' => ->(obj, element) { obj << element }
+    #   }
+    # }
   end
 
   def get_var(name)
@@ -71,12 +72,13 @@ class Environment
   end
 
   def call_method(obj_type, method_name, receiver, args = [])
-    type_methods = @built_in_methods[obj_type]
-    Utils.runtime_error("Type #{obj_type} has no methods", nil) unless type_methods
-
-    method = type_methods[method_name]
+    method = @built_in_methods.get_method(obj_type, method_name)
     Utils.runtime_error("Unknown method #{method_name} for type #{obj_type}", nil) unless method
 
-    method.call(receiver, *args)
+    begin
+      method.call(receiver, *args)
+    rescue StandardError => e
+      Utils.runtime_error("Error executing method #{method_name}: #{e.message}", nil)
+    end
   end
 end
