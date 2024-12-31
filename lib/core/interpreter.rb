@@ -411,6 +411,41 @@ class Interpreter
       [array[index_value][:type], array[index_value][:value]]
     elsif node.is_a? ArrayAccessStmt
       interpret!(node.expression, env)
+    elsif node.is_a? MethodCall
+      # Najpierw pobieramy obiekt na którym wywoływana jest metoda
+      object_var = env.get_var(node.object.name)
+      Utils.runtime_error("Undefined variable #{node.object.name}", node.line) unless object_var
+
+      # Ewaluujemy argumenty metody
+      evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+
+      # Pobieramy typ obiektu i wywołujemy odpowiednią metodę z environment
+      object_type = object_var[:type]
+      object_value = object_var[:value]
+
+      begin
+        result = env.call_method(object_type, node.method_name, object_value, evaluated_args)
+
+        # Określamy typ zwracanej wartości
+        result_type = case result
+                      when Integer then :type_int
+                      when Float then :type_float
+                      when String then :type_string
+                      when TrueClass, FalseClass then :type_bool
+                      when Array then :type_array
+                      when NilClass then :type_null
+                      else
+                        Utils.runtime_error("Unexpected return type from method #{node.method_name}", node.line)
+                      end
+
+        [result_type, result]
+      rescue StandardError => e
+        Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}", node.line)
+      end
+    elsif node.is_a? MethodCallStmt
+      interpret!(node.expression, env)
+    elsif node.is_a? ExpressionStmt
+      interpret!(node.expression, env)
     elsif node.is_a? ReturnStatement
       raise ReturnError.new(interpret!(node.value, env))
     end

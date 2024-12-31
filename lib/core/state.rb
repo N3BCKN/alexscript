@@ -8,6 +8,12 @@ class Environment
     @variables = {}
     @parent = parent
     @functions = {}
+    @built_in_methods = {
+      type_array: {
+        'dlg' => ->(obj) { obj.length },
+        'dodaj' => ->(obj, element) { obj << element }
+      }
+    }
   end
 
   def get_var(name)
@@ -62,5 +68,15 @@ class Environment
   # this is used for the nested scopes (functions, loop, blocks etc)
   def new_env
     Environment.new(self)
+  end
+
+  def call_method(obj_type, method_name, receiver, args = [])
+    type_methods = @built_in_methods[obj_type]
+    Utils.runtime_error("Type #{obj_type} has no methods", nil) unless type_methods
+
+    method = type_methods[method_name]
+    Utils.runtime_error("Unknown method #{method_name} for type #{obj_type}", nil) unless method
+
+    method.call(receiver, *args)
   end
 end

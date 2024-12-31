@@ -72,7 +72,7 @@ class Parser
       return Grouping.new(expr, previous_token.line)
     end
 
-    # handle function calls
+    # handle function calls | array access | method calls
     identifier = expect(:tok_identifier)
     if match(:tok_lparen) # (
       f_args = arguments
@@ -82,6 +82,19 @@ class Parser
       index = expression
       expect(:tok_rsquare) # ]
       ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
+    elsif match(:tok_dot) # . -> method calls
+      method_name = expect(:tok_identifier).lexeme
+      arguments = []
+      if match(:tok_lparen) # (
+        unless next?(:tok_rparen)
+          loop do
+            arguments << expression
+            break unless match(:tok_comma)
+          end
+        end
+        expect(:tok_rparen) # )
+      end
+      MethodCall.new(Identifier.new(identifier.lexeme, identifier.line), method_name, arguments, identifier.line)
     else
       Identifier.new(identifier.lexeme, previous_token.line)
     end
@@ -430,6 +443,10 @@ class Parser
         FuncCallStmt.new(left, previous_token.line)
       elsif left.is_a?(ArrayAccess)
         ArrayAccessStmt.new(left, previous_token.line)
+      elsif left.is_a?(MethodCall)
+        MethodCallStmt.new(left, previous_token.line)
+      elsif left.is_a?(Expr)
+        ExpressionStmt.new(left, previous_token.line)
       else
         Utils.parse_error('Unexpected expression', previous_token.line)
       end

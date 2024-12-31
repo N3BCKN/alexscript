@@ -368,6 +368,63 @@ class ArrayAccessStmt < Stmt
   end
 end
 
+# example: tablica.dlg
+class MethodCall < Expr
+  attr_reader :object, :method_name, :arguments, :line
+
+  def initialize(object, method_name, arguments, line)
+    validate_types([object], Identifier, 'object')
+    validate_types([method_name], String, 'method_name')
+    validate_types(arguments, Expr, 'arguments') unless arguments.nil?
+    @object = object
+    @method_name = method_name
+    @arguments = arguments || []
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}MethodCall(",
+      "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
+      "#{indent(level + 1)}method: #{@method_name}",
+      "#{indent(level + 1)}arguments: #{@arguments.map { |arg| arg.pretty_print(level + 2) }.join(', ')}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class MethodCallStmt < Stmt
+  attr_reader :expression, :line
+
+  def initialize(expression, line)
+    validate_types([expression], MethodCall)
+    @expression = expression
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}MethodCallStmt(",
+     @expression.pretty_print(level + 1),
+     "#{indent(level)})"].join("\n")
+  end
+end
+
+class ExpressionStmt < Stmt
+  attr_reader :expression, :line
+
+  def initialize(expression, line)
+    validate_types([expression], Expr)
+    @expression = expression
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}ExpressionStmt(",
+     @expression.pretty_print(level + 1),
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # Example: dopoki x <= n {<body_statement>*}
 class WhileStmt < Stmt
   attr_reader :test, :body_statement, :line
