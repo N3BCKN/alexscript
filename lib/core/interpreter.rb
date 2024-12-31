@@ -385,7 +385,7 @@ class Interpreter
     elsif node.is_a? ArrayLiteral
       elements = []
 
-      # Ewaluacja każdego elementu tablicy
+      # interpret each element of the array
       node.elements.each do |element|
         element_type, element_value = interpret!(element, env)
         elements << {
@@ -394,9 +394,23 @@ class Interpreter
         }
       end
 
-      # Jeśli to część deklaracji zmiennej, sama tablica zostanie zapisana w Environment
-      # przez logikę obsługującą VariableDeclaration
       [:type_array, elements]
+    elsif node.is_a? ArrayAccess
+      array_var = env.get_var(node.array.name)
+      unless array_var[:type] == :type_array
+        Utils.runtime_error("Variable #{node.array.name} is not an array",
+                            node.line)
+      end
+
+      index_type, index_value = interpret!(node.index, env)
+      Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
+
+      array = array_var[:value]
+      Utils.runtime_error('Array index out of bounds', node.line) if index_value < 0 || index_value >= array.length
+
+      [array[index_value][:type], array[index_value][:value]]
+    elsif node.is_a? ArrayAccessStmt
+      interpret!(node.expression, env)
     elsif node.is_a? ReturnStatement
       raise ReturnError.new(interpret!(node.value, env))
     end
@@ -406,7 +420,6 @@ class Interpreter
   def interpret_ast(node)
     env = Environment.new
     interpret!(node, env)
-    byebug
   end
 
   private

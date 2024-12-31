@@ -330,6 +330,44 @@ class ArrayLiteral < Expr
   end
 end
 
+# example: array[0]
+class ArrayAccess < Expr
+  attr_reader :array, :index, :line
+
+  def initialize(array, index, line)
+    validate_types([array], Identifier, 'array')
+    validate_types([index], Expr, 'index')
+    @array = array
+    @index = index
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}ArrayAccess(",
+      "#{indent(level)}array: #{@array.pretty_print(level)}",
+      "#{indent(level)}index: #{@index.pretty_print(level)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class ArrayAccessStmt < Stmt
+  attr_reader :expression, :line
+
+  def initialize(expression, line)
+    validate_types([expression], ArrayAccess)
+    @expression = expression
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}ArrayAccessStmt(",
+     @expression.pretty_print(level + 1),
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # Example: dopoki x <= n {<body_statement>*}
 class WhileStmt < Stmt
   attr_reader :test, :body_statement, :line

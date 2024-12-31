@@ -78,6 +78,10 @@ class Parser
       f_args = arguments
       expect(:tok_rparen) # )
       FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+    elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
+      index = expression
+      expect(:tok_rsquare) # ]
+      ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
     else
       Identifier.new(identifier.lexeme, previous_token.line)
     end
@@ -421,9 +425,13 @@ class Parser
       if match(:tok_assign)
         right = expression
         Assignment.new(left, right, previous_token.line)
-      else
-        # handle function call statements, eg: myfunction()
+      elsif left.is_a?(FuncCall)
+        # handle function calls and array access statements
         FuncCallStmt.new(left, previous_token.line)
+      elsif left.is_a?(ArrayAccess)
+        ArrayAccessStmt.new(left, previous_token.line)
+      else
+        Utils.parse_error('Unexpected expression', previous_token.line)
       end
     end
   end
