@@ -18,3 +18,10 @@ first fully working version with basic structures:
 * null type of variables (nic)
 * break and continue (zakoncz/nastepny) procedures in loops
 * if one liner statements (jesli... to....)
+
+
+## 0.3.0
+
+* implement arrays with basic funcitonalities 
+* include mechanism for build-in methods
+
