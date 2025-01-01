@@ -9,12 +9,6 @@ class Environment
     @parent = parent
     @functions = {}
     @built_in_methods = BuiltInMethods::MethodRegistry.new
-    # @built_in_methods = {
-    #   type_array: {
-    #     'dlg' => ->(obj) { obj.length },
-    #     'dodaj' => ->(obj, element) { obj << element }
-    #   }
-    # }
   end
 
   def get_var(name)
