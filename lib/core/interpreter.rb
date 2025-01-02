@@ -292,7 +292,7 @@ class Interpreter
       # Create a new environment for the while loop scope
       loop_env = env.new_env
 
-      loop do
+      while true
         # Evaluate test condition in the parent environment
         test_type, test_value = interpret!(node.test, env)
 
@@ -304,14 +304,25 @@ class Interpreter
 
         # Execute body in the loop's environment
         begin
-          interpret!(node.body_statement, env.new_env)
+          interpret!(node.body_statement, loop_env)
         rescue ContinueException
           next
         rescue BreakException
           break
         end
       end
-
+    elsif node.is_a? LoopStmt
+      loop_env = env.new_env
+      while true
+        # Execute body in the loop's environment
+        begin
+          interpret!(node.body_statement, loop_env)
+        rescue ContinueException
+          next
+        rescue BreakException
+          break
+        end
+      end
     elsif node.is_a? ForStmt
       var_name = node.identifier.name
       index_type, index_value = interpret!(node.start_statement, env)

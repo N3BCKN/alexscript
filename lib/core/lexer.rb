@@ -193,7 +193,7 @@ class Lexer
                  when 'i' then :tok_and
                  when 'lub' then :tok_or
                  when 'dopoki' then :tok_while
-                 when 'rob' then :tok_do
+                 when 'petla' then :tok_loop
                  when 'dla' then :tok_for
                  when 'funkcja' then :tok_func
                  when 'nic' then :tok_null

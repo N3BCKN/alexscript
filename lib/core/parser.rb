@@ -329,6 +329,15 @@ class Parser
     ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
   end
 
+  # <loop_statement> ::= "petla" "{" <statement>*? "}"
+  def loop_statement
+    advance
+    expect(:tok_lcurly) # {
+    body_statement = statements
+    expect(:tok_rcurly) # }
+    LoopStmt.new(body_statement, previous_token.line)
+  end
+
   # <func_decl> :== "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
   def func_decl
     expect(:tok_func)
@@ -421,6 +430,8 @@ class Parser
       while_statement
     elsif token == :tok_for
       for_statement
+    elsif token == :tok_loop
+      loop_statement
     elsif token == :tok_break
       advance
       BreakLoop.new(previous_token.line)

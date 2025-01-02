@@ -447,6 +447,24 @@ class WhileStmt < Stmt
   end
 end
 
+class LoopStmt < Stmt
+  attr_reader :body_statement, :line
+
+  def initialize(body_statement, line)
+    validate_types([body_statement], Stmts)
+    @body_statement = body_statement
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}Loop(",
+      @body_statement.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 class ForStmt < Stmt
   attr_accessor :identifier, :start_statement, :end_statement, :step_statement, :body_statement
 
