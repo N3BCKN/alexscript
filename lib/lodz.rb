@@ -12,10 +12,7 @@ opts = Slop.parse do |o|
 end
 
 # switch to REPL when no arguments
-if ARGV.empty?
-  r = Repl.new
-  r.run
-end
+Repl.new if ARGV.empty?
 
 filename = ARGV[0]
 
