@@ -25,3 +25,5 @@ first fully working version with basic structures:
 * implement arrays with basic funcitonalities 
 * include mechanism for build-in methods
 
+### 0.3.1 
+* implement loop statement (petla)
