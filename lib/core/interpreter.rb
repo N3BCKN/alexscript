@@ -246,7 +246,7 @@ class Interpreter
       # handle arrays display
       if expression_type == :type_array
         formatted_value = expression_value.map { |elem| elem.is_a?(Hash) ? elem[:value] : elem }
-        puts(formatted_value)
+        p(formatted_value)
       else
         puts(expression_value)
       end
@@ -436,6 +436,27 @@ class Interpreter
 
       [array[index_value][:type], array[index_value][:value]]
     elsif node.is_a? ArrayAccessStmt
+      interpret!(node.expression, env)
+    elsif node.is_a? ArrayAssignment
+      array_var = env.get_var(node.array.name)
+      unless array_var[:type] == :type_array
+        Utils.runtime_error("Variable #{node.array.name} is not an array",
+                            node.line)
+      end
+
+      index_type, index_value = interpret!(node.index, env)
+      Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
+      if index_value < -array_var[:value].length || index_value >= array_var[:value].length
+        Utils.runtime_error('Index out of bounds',
+                            node.line)
+      end
+
+      value_type, value = interpret!(node.value, env)
+      array_var[:value][index_value] = { type: value_type, value: value }
+
+      # save new value in local environment
+      env.set_var(node.array.name, array_var[:value], :type_array)
+    elsif node.is_a? ArrayAssignmentStmt
       interpret!(node.expression, env)
     elsif node.is_a? MethodCall
       # Najpierw pobieramy obiekt na którym wywoływana jest metoda

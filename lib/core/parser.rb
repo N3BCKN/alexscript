@@ -81,7 +81,12 @@ class Parser
     elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
       index = expression
       expect(:tok_rsquare) # ]
-      ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
+      if match(:tok_assign) # eg tablica[0] = 5
+        value = expression
+        ArrayAssignment.new(Identifier.new(identifier.lexeme, identifier.line), index, value, identifier.line)
+      else
+        ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
+      end
     elsif match(:tok_dot) # . -> method calls
       method_name = expect(:tok_identifier).lexeme
       arguments = []
@@ -454,6 +459,8 @@ class Parser
         FuncCallStmt.new(left, previous_token.line)
       elsif left.is_a?(ArrayAccess)
         ArrayAccessStmt.new(left, previous_token.line)
+      elsif left.is_a?(ArrayAssignment)
+        ArrayAssignmentStmt.new(left, previous_token.line)
       elsif left.is_a?(MethodCall)
         MethodCallStmt.new(left, previous_token.line)
       elsif left.is_a?(Expr)

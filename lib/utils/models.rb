@@ -368,6 +368,47 @@ class ArrayAccessStmt < Stmt
   end
 end
 
+# eg: tablica[2] = 5
+class ArrayAssignment < Stmt
+  attr_reader :array, :index, :value, :line
+
+  def initialize(array, index, value, line)
+    validate_types([array], Identifier, 'array')
+    validate_types([index], Expr, 'index')
+    validate_types([value], Expr, 'value')
+    @array = array
+    @index = index
+    @value = value
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}ArrayAssignment(",
+      "#{indent(level)}array: #{@array.pretty_print(level)}",
+      "#{indent(level)}index: #{@index.pretty_print(level)}",
+      "#{indent(level)}value: #{@value.pretty_print(level)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class ArrayAssignmentStmt < Stmt
+  attr_reader :expression, :line
+
+  def initialize(expression, line)
+    validate_types([expression], ArrayAssignment)
+    @expression = expression
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}ArrayAssignmentStmt(",
+     @expression.pretty_print(level + 1),
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # example: tablica.dlg
 class MethodCall < Expr
   attr_reader :object, :method_name, :arguments, :line
