@@ -447,7 +447,7 @@ class ObjectAccess < Expr
     [
       "#{indent(level)}ObjectAccess(",
       "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
-      "#{indent(level + 1)}key: #{@key}",
+      "#{indent(level + 1)}key: #{@key.pretty_print(level + 1)}",
       "#{indent(level)})"
     ].join("\n")
   end
@@ -469,8 +469,8 @@ class ObjectAssignment < Expr
   def pretty_print(level = 0)
     ["#{indent(level)}ObjectAssignment(",
      "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
-     "#{indent(level + 1)}key: #{@key}",
-     "#{indent(level + 1)}value: #{@value}",
+     "#{indent(level + 1)}key: #{@key.pretty_print(level + 1)}",
+     "#{indent(level + 1)}value: #{@value.pretty_print(level + 1)}",
      "#{indent(level)})"].join("\n")
   end
 end
