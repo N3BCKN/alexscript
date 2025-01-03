@@ -438,24 +438,40 @@ class Interpreter
     elsif node.is_a? ArrayAccessStmt
       interpret!(node.expression, env)
     elsif node.is_a? ArrayAssignment
-      array_var = env.get_var(node.array.name)
-      unless array_var[:type] == :type_array
-        Utils.runtime_error("Variable #{node.array.name} is not an array",
-                            node.line)
+      # interpret entire array first
+      if node.array.is_a?(ArrayAccess)
+        array_type, array_value = interpret!(node.array, env)
+      else
+        array_var = env.get_var(node.array.name)
+        unless array_var[:type] == :type_array
+          Utils.runtime_error("Variable #{node.array.name} is not an array",
+                              node.line)
+        end
+        array_type = array_var[:type]
+        array_value = array_var[:value]
       end
 
       index_type, index_value = interpret!(node.index, env)
       Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
-      if index_value < -array_var[:value].length || index_value >= array_var[:value].length
-        Utils.runtime_error('Index out of bounds',
-                            node.line)
-      end
+      Utils.runtime_error('Index out of bounds', node.line) if index_value < 0 || index_value >= array_value.length
 
       value_type, value = interpret!(node.value, env)
-      array_var[:value][index_value] = { type: value_type, value: value }
+      array_value[index_value] = { type: value_type, value: value }
+
+      # if it's a nested access, update main array
+      if node.array.is_a?(ArrayAccess)
+        parent_array = env.get_var(node.array.array.name)
+        parent_index_type, parent_index_value = interpret!(node.array.index, env)
+        parent_array[:value][parent_index_value] = { type: :type_array, value: array_value }
+      end
 
       # save new value in local environment
-      env.set_var(node.array.name, array_var[:value], :type_array)
+      if node.array.is_a?(ArrayAccess)
+        env.set_var(node.array.array.name, parent_array[:value], :type_array)
+      else
+        env.set_var(node.array.name, array_value, :type_array)
+      end
+
     elsif node.is_a? ArrayAssignmentStmt
       interpret!(node.expression, env)
     elsif node.is_a? MethodCall

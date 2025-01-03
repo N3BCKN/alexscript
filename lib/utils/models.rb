@@ -335,7 +335,7 @@ class ArrayAccess < Expr
   attr_reader :array, :index, :line
 
   def initialize(array, index, line)
-    validate_types([array], Identifier, 'array')
+    validate_types([array], Expr, 'array')
     validate_types([index], Expr, 'index')
     @array = array
     @index = index
@@ -373,7 +373,7 @@ class ArrayAssignment < Stmt
   attr_reader :array, :index, :value, :line
 
   def initialize(array, index, value, line)
-    validate_types([array], Identifier, 'array')
+    validate_types([array], Expr, 'array')
     validate_types([index], Expr, 'index')
     validate_types([value], Expr, 'value')
     @array = array
@@ -397,7 +397,7 @@ class ArrayAssignmentStmt < Stmt
   attr_reader :expression, :line
 
   def initialize(expression, line)
-    validate_types([expression], ArrayAssignment)
+    validate_types([expression], Stmt)
     @expression = expression
     @line = line
   end

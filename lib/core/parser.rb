@@ -87,10 +87,10 @@ class Parser
         expect(:tok_rsquare) # ]
         if match(:tok_assign) # eg tablica[0] = 5
           value = expression
-          expr = ArrayAssignment.new(Identifier.new(identifier.lexeme, identifier.line), index, value, identifier.line)
+          expr = ArrayAssignment.new(expr, index, value, identifier.line)
           break
         else
-          expr = ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
+          expr = ArrayAccess.new(expr, index, identifier.line)
         end
       elsif match(:tok_dot) # . -> method calls
         method_name = expect(:tok_identifier).lexeme
