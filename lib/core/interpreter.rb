@@ -233,23 +233,13 @@ class Interpreter
       end
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
-      # handle arrays display
-      if expression_type == :type_array
-        formatted_value = format_array_value(expression_value)
-        print("#{formatted_value} ")
-      else
-        print("#{expression_value} ")
-      end
+      formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
+      print("#{formatted_value} ")
 
     elsif node.is_a? PrintlnStmt
       expression_type, expression_value = interpret!(node.value, env)
-      # handle arrays display
-      if expression_type == :type_array
-        formatted_value = format_array_value(expression_value)
-        p(formatted_value)
-      else
-        puts(expression_value)
-      end
+      formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
+      p(formatted_value)
 
     elsif node.is_a? IfStmt
       test_type, test_value = interpret!(node.test, env)
@@ -571,12 +561,25 @@ class Interpreter
   end
 
   # TODO: move it to other file on utils
+  def format_value(type, value)
+    case type
+    when :type_array
+      format_array_value(value)
+    when :type_object
+      format_object_value(value)
+    else
+      value
+    end
+  end
+
   def format_array_value(value)
     if value.is_a?(Array)
       value.map do |elem|
         if elem.is_a?(Hash)
           if elem[:type] == :type_array
             format_array_value(elem[:value])
+          elsif elem[:type] == :type_object
+            format_object_value(elem[:value])
           else
             elem[:value]
           end
@@ -586,6 +589,22 @@ class Interpreter
       end
     else
       value
+    end
+  end
+
+  def format_object_value(value)
+    value.transform_values do |v|
+      if v.is_a?(Hash)
+        if v[:type] == :type_array
+          format_array_value(v[:value])
+        elsif v[:type] == :type_object
+          format_object_value(v[:value])
+        else
+          v[:value]
+        end
+      else
+        v
+      end
     end
   end
 end
