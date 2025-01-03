@@ -235,7 +235,7 @@ class Interpreter
       expression_type, expression_value = interpret!(node.value, env)
       # handle arrays display
       if expression_type == :type_array
-        formatted_value = expression_value.map { |elem| elem.is_a?(Hash) ? elem[:value] : elem }
+        formatted_value = format_array_value(expression_value)
         print("#{formatted_value} ")
       else
         print("#{expression_value} ")
@@ -245,7 +245,7 @@ class Interpreter
       expression_type, expression_value = interpret!(node.value, env)
       # handle arrays display
       if expression_type == :type_array
-        formatted_value = expression_value.map { |elem| elem.is_a?(Hash) ? elem[:value] : elem }
+        formatted_value = format_array_value(expression_value)
         p(formatted_value)
       else
         puts(expression_value)
@@ -512,6 +512,25 @@ class Interpreter
 
   def runtime_error_unop(value, node)
     Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
+  end
+
+  # TODO: move it to other file on utils
+  def format_array_value(value)
+    if value.is_a?(Array)
+      value.map do |elem|
+        if elem.is_a?(Hash)
+          if elem[:type] == :type_array
+            format_array_value(elem[:value])
+          else
+            elem[:value]
+          end
+        else
+          elem
+        end
+      end
+    else
+      value
+    end
   end
 end
 
