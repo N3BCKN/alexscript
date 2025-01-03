@@ -414,7 +414,7 @@ class MethodCall < Expr
   attr_reader :object, :method_name, :arguments, :line
 
   def initialize(object, method_name, arguments, line)
-    validate_types([object], Identifier, 'object')
+    validate_types([object], Expr, 'object')
     validate_types([method_name], String, 'method_name')
     validate_types(arguments, Expr, 'arguments') unless arguments.nil?
     @object = object
@@ -438,7 +438,7 @@ class MethodCallStmt < Stmt
   attr_reader :expression, :line
 
   def initialize(expression, line)
-    validate_types([expression], MethodCall)
+    validate_types([expression], Expr)
     @expression = expression
     @line = line
   end

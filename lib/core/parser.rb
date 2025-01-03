@@ -74,36 +74,43 @@ class Parser
 
     # handle function calls | array access | method calls
     identifier = expect(:tok_identifier)
-    if match(:tok_lparen) # (
-      f_args = arguments
-      expect(:tok_rparen) # )
-      FuncCall.new(identifier.lexeme, f_args, previous_token.line)
-    elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
-      index = expression
-      expect(:tok_rsquare) # ]
-      if match(:tok_assign) # eg tablica[0] = 5
-        value = expression
-        ArrayAssignment.new(Identifier.new(identifier.lexeme, identifier.line), index, value, identifier.line)
-      else
-        ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
-      end
-    elsif match(:tok_dot) # . -> method calls
-      method_name = expect(:tok_identifier).lexeme
-      arguments = []
+    expr = Identifier.new(identifier.lexeme, identifier.line)
+
+    loop do
       if match(:tok_lparen) # (
-        unless next?(:tok_rparen)
-          loop do
-            arguments << expression
-            break unless match(:tok_comma)
-          end
-        end
+        f_args = arguments
         expect(:tok_rparen) # )
+        expr = FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+        break
+      elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
+        index = expression
+        expect(:tok_rsquare) # ]
+        if match(:tok_assign) # eg tablica[0] = 5
+          value = expression
+          expr = ArrayAssignment.new(Identifier.new(identifier.lexeme, identifier.line), index, value, identifier.line)
+          break
+        else
+          expr = ArrayAccess.new(Identifier.new(identifier.lexeme, identifier.line), index, identifier.line)
+        end
+      elsif match(:tok_dot) # . -> method calls
+        method_name = expect(:tok_identifier).lexeme
+        arguments = []
+        if match(:tok_lparen) # (
+          unless next?(:tok_rparen)
+            loop do
+              arguments << expression
+              break unless match(:tok_comma)
+            end
+          end
+          expect(:tok_rparen) # )
+        end
+        expr = MethodCall.new(expr, method_name, arguments, identifier.line)
+      else
+        break
       end
-      MethodCall.new(Identifier.new(identifier.lexeme, identifier.line), method_name, arguments, identifier.line)
-    else
-      Identifier.new(identifier.lexeme, previous_token.line)
     end
-    # raise SyntaxError, 'Expected expression'
+
+    expr
   end
 
   # <unary> ::= ('+'|'-'|'~') <unary> | <primary>

@@ -48,6 +48,7 @@ module BuiltInMethods
       when String then :type_string
       when TrueClass, FalseClass then :type_bool
       when NilClass then :type_null
+      when Array then :type_array
       else raise "Unknown type for value: #{value}"
       end
     end
@@ -55,15 +56,15 @@ module BuiltInMethods
 
   class ArrayMethods < BaseTypeHandler
     def register_methods
-      register_method('dlg', ->(arr) { arr[:value].length })
+      register_method('dlg', ->(arr) { arr.size })
       register_method('typ', ->(num) { 'tablica' })
       register_method('dodaj', lambda { |arr, *elements|
         i = 0
         while i < elements.size
-          arr[:value] << { type: get_element_type(elements[i]), value: elements[i] }
+          arr << { type: get_element_type(elements[i]), value: elements[i] }
           i += 1
         end
-        arr[:value]
+        arr
       })
     end
   end

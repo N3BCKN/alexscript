@@ -459,19 +459,19 @@ class Interpreter
     elsif node.is_a? ArrayAssignmentStmt
       interpret!(node.expression, env)
     elsif node.is_a? MethodCall
-      # Najpierw pobieramy obiekt na którym wywoływana jest metoda
-      object_var = env.get_var(node.object.name)
-      Utils.runtime_error("Undefined variable #{node.object.name}", node.line) unless object_var
+      # Najpierw interpretujemy obiekt na którym wywoływana jest metoda
+      object_type, object_value = interpret!(node.object, env)
+      Utils.runtime_error('Cannot call method on undefined object', node.line) unless object_value
 
       # evaluate all arguments of method
       evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 
-      # Pobieramy typ obiektu i wywołujemy odpowiednią metodę z environment
-      object_type = object_var[:type]
-      object_value = object_var[:value]
+      # # Pobieramy typ obiektu i wywołujemy odpowiednią metodę z environment
+      # object_type = object_var[:type]
+      # object_value = object_var[:value]
 
       begin
-        result = env.call_method(object_var[:type], node.method_name, object_var, evaluated_args, node.line)
+        result = env.call_method(object_type, node.method_name, object_value, evaluated_args, node.line)
 
         # Określamy typ zwracanej wartości
         result_type = case result
