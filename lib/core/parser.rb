@@ -66,10 +66,29 @@ class Parser
     return Null.new(previous_token.line) if match(:tok_null)
     return array_statement if match(:tok_lsquare) # [ -> start array parsing
 
-    if match(:tok_lparen)
+    if match(:tok_lparen) # (
       expr = expression
-      Utils.parse_error("Expected ')' after expression", previous_token.line) unless match(:tok_rparen)
+      Utils.parse_error("Expected ')' after expression", previous_token.line) unless match(:tok_rparen) # )
       return Grouping.new(expr, previous_token.line)
+    end
+
+    if match(:tok_lcurly) # {
+      pairs = {}
+
+      unless next?(:tok_rcurly)
+        loop do
+          # key is a string
+          key = expect(:tok_string)
+          expect(:tok_colon) # :
+          value = expression
+          pairs[key.lexeme] = value
+
+          break unless match(:tok_comma)
+        end
+      end
+
+      expect(:tok_rcurly) # }
+      return ObjectLiteral.new(pairs, previous_token.line)
     end
 
     # handle function calls | array access | method calls

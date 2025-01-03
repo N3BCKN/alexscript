@@ -409,6 +409,72 @@ class ArrayAssignmentStmt < Stmt
   end
 end
 
+# eg niech obiekt = {para: "klucz"}
+class ObjectLiteral < Expr
+  attr_reader :pairs, :line
+
+  def initialize(pairs, line)
+    validate_types([pairs], Hash, 'object')
+    @pairs = pairs
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    pairs_str = @pairs.map do |k, v|
+      "#{indent(level + 1)}#{k}: #{v.pretty_print(level + 1)}"
+    end.join("\n")
+
+    [
+      "#{indent(level)}Object(",
+      pairs_str,
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class ObjectAccess < Expr
+  attr_reader :object, :key, :line
+
+  def initialize(object, key, line)
+    validate_types([object], Identifier, 'object')
+    validate_types([key], Expr, 'key')
+    @object = object
+    @key = key
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}ObjectAccess(",
+      "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
+      "#{indent(level + 1)}key: #{@key}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class ObjectAssignment < Expr
+  attr_reader :object, :key, :value, :line
+
+  def initialize(object, key, value, line)
+    validate_types([object], Identifier, 'object')
+    validate_types([key], Expr, 'key')
+    validate_types([value], Expr, 'value')
+    @object = object
+    @key = key
+    @value = value
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}ObjectAssignment(",
+     "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
+     "#{indent(level + 1)}key: #{@key}",
+     "#{indent(level + 1)}value: #{@value}",
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # example: tablica.dlg
 class MethodCall < Expr
   attr_reader :object, :method_name, :arguments, :line

@@ -121,8 +121,8 @@ class Lexer
         else
           add_token(:tok_not) # logical not
         end
-      # elsif char == ':'
-      #   add_token(:tok_assign) if next_match('=')
+      elsif char == ':'
+        add_token(:tok_colon)
       # Complex tokens
       elsif char.between?('0', '9')
         handle_numeral

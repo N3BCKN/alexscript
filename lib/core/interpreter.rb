@@ -474,6 +474,14 @@ class Interpreter
 
     elsif node.is_a? ArrayAssignmentStmt
       interpret!(node.expression, env)
+    elsif node.is_a? ObjectLiteral
+      pairs = {}
+      node.pairs.each do |key, value_expr|
+        value_type, value = interpret!(value_expr, env)
+        pairs[key] = { type: value_type, value: value }
+      end
+
+      [:type_object, pairs]
     elsif node.is_a? MethodCall
       # Najpierw interpretujemy obiekt na którym wywoływana jest metoda
       object_type, object_value = interpret!(node.object, env)
