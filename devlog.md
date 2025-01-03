@@ -33,3 +33,6 @@ first fully working version with basic structures:
 
 ### 0.3.3
 * add chain methods and methods performed on elements of array
+
+### 0.3.4
+* ability to modify elements from nested arrays
