@@ -482,6 +482,38 @@ class Interpreter
       end
 
       [:type_object, pairs]
+    elsif node.is_a? ObjectAccess
+      object_var = env.get_var(node.object.name)
+      unless object_var[:type] == :type_object
+        Utils.runtime_error("Variable #{node.object.name} is not an object",
+                            node.line)
+      end
+
+      key_type, key_value = interpret!(node.key, env)
+      Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+
+      value = object_var[:value][key_value]
+      Utils.runtime_error("Undefined key #{key_value}", node.line) unless value
+
+      [value[:type], value[:value]]
+
+    elsif node.is_a? ObjectAssignment
+      object_var = env.get_var(node.object.name)
+      unless object_var[:type] == :type_object
+        Utils.runtime_error("Variable #{node.object.name} is not an object",
+                            node.line)
+      end
+
+      key_type, key_value = interpret!(node.key, env)
+      Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+
+      value_type, value = interpret!(node.value, env)
+      object_var[:value][key_value] = { type: value_type, value: value }
+
+      # save edited value in env
+      env.set_var(node.object.name, object_var[:value], :type_object)
+
+      [value_type, value]
     elsif node.is_a? MethodCall
       # Najpierw interpretujemy obiekt na którym wywoływana jest metoda
       object_type, object_value = interpret!(node.object, env)

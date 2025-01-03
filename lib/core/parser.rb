@@ -102,14 +102,28 @@ class Parser
         expr = FuncCall.new(identifier.lexeme, f_args, previous_token.line)
         break
       elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
-        index = expression
+        key = expression
         expect(:tok_rsquare) # ]
-        if match(:tok_assign) # eg tablica[0] = 5
+        if match(:tok_assign) # =
           value = expression
-          expr = ArrayAssignment.new(expr, index, value, identifier.line)
+          # check if val is string (key to obj) or int (array index)
+          if key.is_a?(Int)
+            expr = ArrayAssignment.new(expr, key, value, identifier.line)
+          elsif key.is_a?(Str)
+            expr = ObjectAssignment.new(expr, key, value, identifier.line)
+          else
+            Utils.parse_error('Invalid key type - must be integer for arrays or string for objects',
+                              previous_token.line)
+          end
           break
+        elsif key.is_a?(Int)
+          # Podobnie dla dostępu
+          expr = ArrayAccess.new(expr, key, identifier.line)
+        elsif key.is_a?(Str)
+          expr = ObjectAccess.new(expr, key, identifier.line)
         else
-          expr = ArrayAccess.new(expr, index, identifier.line)
+          Utils.parse_error('Invalid key type - must be integer for arrays or string for objects',
+                            previous_token.line)
         end
       elsif match(:tok_dot) # . -> method calls
         method_name = expect(:tok_identifier).lexeme
