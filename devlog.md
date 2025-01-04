@@ -36,3 +36,9 @@ first fully working version with basic structures:
 
 ### 0.3.4
 * ability to modify elements from nested arrays
+
+## 0.4.4
+* add objects 
+* add build in methods for objects 
+* add for loop to iterate over objects
+* add for loop to iterate over arrays
