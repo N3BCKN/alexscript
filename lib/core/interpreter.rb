@@ -580,6 +580,12 @@ class Interpreter
       interpret!(node.expression, env)
     elsif node.is_a? ReturnStatement
       raise ReturnError.new(interpret!(node.value, env))
+    elsif node.is_a? ExitStmt
+      if node.code
+        exit(node.code.value)
+      else
+        exit
+      end
     end
   end
 

@@ -242,6 +242,7 @@ class PrintStmt < Stmt
   end
 end
 
+# print value with new line (pokazl ...)
 class PrintlnStmt < Stmt
   attr_reader :value, :ending
 
@@ -255,6 +256,26 @@ class PrintlnStmt < Stmt
     [
       "#{indent(level)}PrintLineStatement(",
       @value.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class ExitStmt < Stmt
+  attr_reader :code, :line
+
+  def initialize(code, line)
+    validate_types([code], Int) unless code.nil?
+    @code = code
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    code = @code.nil? ? '' : @code.pretty_print(level + 1)
+
+    [
+      "#{indent(level)}ExitStatement(",
+      code,
       "#{indent(level)})"
     ].join("\n")
   end

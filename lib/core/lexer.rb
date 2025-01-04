@@ -203,6 +203,7 @@ class Lexer
                  when 'pokaz' then :tok_print
                  when 'pokazl' then :tok_println
                  when 'zwroc' then :tok_return
+                 when 'wyjscie' then :tok_exit
                  else :tok_identifier
                  end
 

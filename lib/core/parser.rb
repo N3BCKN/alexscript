@@ -427,6 +427,16 @@ class Parser
     LocalAssignment.new(left, right, previous_token.line)
   end
 
+  # <exit_statement> ::= "wyjscie" "(" <expression>? ")"
+  def exit_statement
+    advance
+    expect(:tok_lparen) # (
+    message = expression unless next?(:tok_rparen)
+    expect(:tok_rparen) # (
+
+    ExitStmt.new(message, previous_token.line)
+  end
+
   # <arguments> :== <expr> (',' <expr>)*
   def arguments
     f_args = []
@@ -508,6 +518,8 @@ class Parser
       func_decl
     elsif token == :tok_return
       return_statement
+    elsif token == :tok_exit
+      exit_statement
     elsif token == :tok_local
       local_assign
     else
