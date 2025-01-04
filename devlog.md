@@ -42,3 +42,6 @@ first fully working version with basic structures:
 * add build in methods for objects 
 * add for loop to iterate over objects
 * add for loop to iterate over arrays
+
+### 0.4.5
+* add exit statement (wyjscie())
