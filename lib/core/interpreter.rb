@@ -360,11 +360,31 @@ class Interpreter
       loop_env = env.new_env
 
       object_value.each do |key, value|
-        # Zawsze ustawiamy klucz
+        # always set key (it's required)
         loop_env.set_var(node.key_identifier.name, key, :type_string)
 
-        # Wartość ustawiamy tylko jeśli została zadeklarowana
+        # setting value is optional
         loop_env.set_var(node.value_identifier.name, value[:value], value[:type]) if node.value_identifier
+
+        interpret!(node.body_statement, loop_env)
+      rescue BreakException
+        break
+      rescue ContinueException
+        next
+      end
+    elsif node.is_a? ForInArrayStmt
+      array_type, array_value = interpret!(node.array, env)
+      Utils.runtime_error('Can only iterate over arrays', node.line) unless array_type == :type_array
+
+      loop_env = env.new_env
+
+      array_value.each do |element|
+        # set values in env
+        if element.is_a?(Hash)
+          loop_env.set_var(node.element_identifier.name, element[:value], element[:type])
+        else
+          loop_env.set_var(node.element_identifier.name, element, get_type(element))
+        end
 
         interpret!(node.body_statement, loop_env)
       rescue BreakException

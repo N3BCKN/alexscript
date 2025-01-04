@@ -358,40 +358,40 @@ class Parser
   def for_statement
     expect(:tok_for)
 
-    if next?(:tok_identifier) # loop for iterating object "dla klucz, wartosc w obiekt{}"
-      key_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
-
-      # check if there are both key and values (second one is optional)
-      value_identifier = nil
-      if match(:tok_comma)
-        value_id = expect(:tok_identifier)
-        value_identifier = Identifier.new(value_id.lexeme, value_id.line)
-      end
-
-      expect(:tok_in) # słowo 'w'
-      object = expression
-
-      expect(:tok_lcurly)
-      body_statement = statements
-      expect(:tok_rcurly)
-
-      ForInObjectStmt.new(key_identifier, value_identifier, object, body_statement, previous_token.line)
-    else # regular for loop
-      expect(:tok_let)
+    if match(:tok_let) # standard loop for ranges
       identifier = primary
       expect(:tok_assign)
       start_statement = expression
       expect(:tok_semicolon)
       end_statement = expression
-      if next?(:tok_semicolon)
-        advance
-        step_statment = expression
-      end
-      expect(:tok_lcurly) # {
+      step_statement = nil
+      step_statement = expression if match(:tok_semicolon)
+      expect(:tok_lcurly)
       body_statement = statements
-      expect(:tok_rcurly) # }
+      expect(:tok_rcurly)
 
-      ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
+      ForStmt.new(identifier, start_statement, end_statement, step_statement, body_statement, previous_token.line)
+    else # loops for collections
+      element_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+
+      if match(:tok_comma) # for objects: dla klucz, wartosc w obj
+        value_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+        expect(:tok_in)
+        object = expression
+        expect(:tok_lcurly)
+        body_statement = statements
+        expect(:tok_rcurly)
+
+        ForInObjectStmt.new(element_identifier, value_identifier, object, body_statement, previous_token.line)
+      else # dla arrays: dla element w arr
+        expect(:tok_in)
+        collection = expression
+        expect(:tok_lcurly)
+        body_statement = statements
+        expect(:tok_rcurly)
+
+        ForInArrayStmt.new(element_identifier, collection, body_statement, previous_token.line)
+      end
     end
   end
 

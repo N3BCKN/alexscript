@@ -631,6 +631,30 @@ class ForInObjectStmt < Stmt
   end
 end
 
+class ForInArrayStmt < Stmt
+  attr_reader :element_identifier, :array, :body_statement, :line
+
+  def initialize(element_identifier, array, body_statement, line)
+    validate_types([element_identifier], Identifier, 'element identifier')
+    validate_types([array], Expr, 'array')
+    validate_types([body_statement], Stmts, 'body')
+    @element_identifier = element_identifier
+    @array = array
+    @body_statement = body_statement
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}ForInArrayLoop(",
+      @element_identifier.pretty_print(level + 1),
+      @array.pretty_print(level + 1),
+      "#{@body_statement.pretty_print(level + 1)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 class BreakLoop < Stmt
   def initialize(line)
     @line = line
