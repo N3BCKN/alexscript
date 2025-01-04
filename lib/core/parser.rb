@@ -357,21 +357,42 @@ class Parser
   # <for_statement> :== "dla" <identifier> "=" <start> ";" <end> (";" <increment>)? "{" <body_statement> "]"
   def for_statement
     expect(:tok_for)
-    expect(:tok_let)
-    identifier = primary
-    expect(:tok_assign)
-    start_statement = expression
-    expect(:tok_semicolon)
-    end_statement = expression
-    if next?(:tok_semicolon)
-      advance
-      step_statment = expression
-    end
-    expect(:tok_lcurly) # {
-    body_statement = statements
-    expect(:tok_rcurly) # }
 
-    ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
+    if next?(:tok_identifier) # loop for iterating object "dla klucz, wartosc w obiekt{}"
+      key_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+
+      # check if there are both key and values (second one is optional)
+      value_identifier = nil
+      if match(:tok_comma)
+        value_id = expect(:tok_identifier)
+        value_identifier = Identifier.new(value_id.lexeme, value_id.line)
+      end
+
+      expect(:tok_in) # słowo 'w'
+      object = expression
+
+      expect(:tok_lcurly)
+      body_statement = statements
+      expect(:tok_rcurly)
+
+      ForInObjectStmt.new(key_identifier, value_identifier, object, body_statement, previous_token.line)
+    else # regular for loop
+      expect(:tok_let)
+      identifier = primary
+      expect(:tok_assign)
+      start_statement = expression
+      expect(:tok_semicolon)
+      end_statement = expression
+      if next?(:tok_semicolon)
+        advance
+        step_statment = expression
+      end
+      expect(:tok_lcurly) # {
+      body_statement = statements
+      expect(:tok_rcurly) # }
+
+      ForStmt.new(identifier, start_statement, end_statement, step_statment, body_statement, previous_token.line)
+    end
   end
 
   # <loop_statement> ::= "petla" "{" <statement>*? "}"

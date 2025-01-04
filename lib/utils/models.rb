@@ -602,6 +602,35 @@ class ForStmt < Stmt
   end
 end
 
+class ForInObjectStmt < Stmt
+  attr_reader :key_identifier, :value_identifier, :object, :body_statement, :line
+
+  def initialize(key_identifier, value_identifier, object, body_statement, line)
+    validate_types([key_identifier], Identifier, 'key identifier')
+    validate_types([value_identifier], Identifier, 'value identifier') unless value_identifier.nil?
+    validate_types([object], Expr, 'object')
+    validate_types([body_statement], Stmts, 'body')
+    @key_identifier = key_identifier
+    @value_identifier = value_identifier # może być nil
+    @object = object
+    @body_statement = body_statement
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    value_identifier = @value_identifier.nil? ? nil : @value_identifier.pretty_print(level + 1)
+
+    [
+      "#{indent(level)}ForInObjectLoop(",
+      @key_identifier.pretty_print(level + 1),
+      value_identifier,
+      @object.pretty_print(level + 1),
+      "#{@body_statement.pretty_print(level + 1)}",
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 class BreakLoop < Stmt
   def initialize(line)
     @line = line

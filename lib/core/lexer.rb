@@ -195,6 +195,7 @@ class Lexer
                  when 'dopoki' then :tok_while
                  when 'petla' then :tok_loop
                  when 'dla' then :tok_for
+                 when 'w' then :tok_in
                  when 'funkcja' then :tok_func
                  when 'nic' then :tok_null
                  when 'zakoncz' then :tok_break
