@@ -13,7 +13,7 @@ class Repl
     @env = Environment.new # new global env
     @current_prompt = MAIN_PROMPT.dup
     puts "Lodz Programming Language REPL 2024-#{CURRENT_YEAR} version #{VERSION}"
-    puts "(wpisz 'wyjscie' aby zakończyć)"
+    puts "(wpisz 'wyjscie()' aby zakończyć)"
     puts '-------------------------------------------------------'
     run
   end
@@ -21,7 +21,6 @@ class Repl
   def run
     loop do
       input = read_multiline_input
-      exit if input == 'wyjscie'
 
       begin
         lexer = Lexer.new(input)
