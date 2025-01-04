@@ -30,6 +30,10 @@ module BuiltInMethods
     def initialize
       @methods = {}
       register_methods
+
+      register_method('metody', lambda { |obj|
+        @methods.keys
+      })
     end
 
     def get_method(name)
