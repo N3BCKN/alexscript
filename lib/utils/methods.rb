@@ -9,7 +9,8 @@ module BuiltInMethods
         type_array: ArrayMethods.new,
         type_string: StringMethods.new,
         type_int: IntegerMethods.new,
-        type_float: FloatMethods.new
+        type_float: FloatMethods.new,
+        type_object: ObjectMethods.new
       }
     end
 
@@ -49,6 +50,7 @@ module BuiltInMethods
       when TrueClass, FalseClass then :type_bool
       when NilClass then :type_null
       when Array then :type_array
+      when Hash then :type_object
       else raise "Unknown type for value: #{value}"
       end
     end
@@ -57,7 +59,9 @@ module BuiltInMethods
   class ArrayMethods < BaseTypeHandler
     def register_methods
       register_method('dlg', ->(arr) { arr.size })
-      register_method('typ', ->(num) { 'tablica' })
+      register_method('typ', lambda { |num|
+        'tablica'
+      }) # TODO: find elegant way to get rid of useless argument in type methods
       register_method('dodaj', lambda { |arr, *elements|
         i = 0
         while i < elements.size
@@ -66,6 +70,14 @@ module BuiltInMethods
         end
         arr
       })
+    end
+  end
+
+  class ObjectMethods < BaseTypeHandler
+    def register_methods
+      register_method('typ', ->(obj) { 'obiekt' })
+      register_method('klucze', ->(obj) { obj.keys })
+      register_method('wartosci', ->(obj) { obj.values })
     end
   end
 
