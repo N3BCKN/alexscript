@@ -62,11 +62,25 @@ class Lexer
 
       # Single character tokens - operators
       elsif char == '+'
-        add_token(:tok_plus)
+        if next_match('=')
+          add_token(:tok_pluseq)
+        else
+          add_token(:tok_plus)
+        end
+
       elsif char == '-'
-        add_token(:tok_minus)
+        if next_match('=')
+          add_token(:tok_minuseq)
+        else
+          add_token(:tok_minus)
+        end
+
       elsif char == '*'
-        add_token(:tok_star)
+        if next_match('=')
+          add_token(:tok_stareq)
+        else
+          add_token(:tok_star)
+        end
       elsif char == '^'
         add_token(:tok_caret)
       elsif char == '%'
@@ -79,7 +93,7 @@ class Lexer
           loop do
             break if @current >= @source_size # end of the file
 
-            # sprawdzamy sekwencję zamykającą '*/'
+            # check for closing sequence '*/'
             if peek == '*' && look_ahead == '/'
               advance(2) # skip closing comment statement
               break
@@ -88,7 +102,9 @@ class Lexer
             @line += 1 if peek == "\n" # count commented line
             advance
           end
-        else
+        elsif next_match('=') # compound assignment /=
+          add_token(:tok_slasheq)
+        else # regular division token
           add_token(:tok_slash)
         end
 

@@ -231,6 +231,28 @@ class Interpreter
         interpret!(node.stmts[i], env)
         i += 1
       end
+    elsif node.is_a? CompoundAssignment
+      var = env.get_var(node.left.name)
+      Utils.runtime_error("Undefined variable #{node.left.name}", node.line) unless var
+
+      right_type, right_value = interpret!(node.right, env)
+
+      # calculate new value depending on operator type
+      new_value = case node.operator.token_type
+                  when :tok_pluseq
+                    var[:value] + right_value
+                  when :tok_minuseq
+                    var[:value] - right_value
+                  when :tok_stareq
+                    var[:value] * right_value
+                  when :tok_slasheq
+                    var[:value] / right_value
+                  end
+
+      # atcualise variable in current environment
+      env.set_var(node.left.name, new_value, var[:type])
+
+      # [var[:type], new_value]
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
       formatted_value = format_value(expression_type, expression_value) # handle arrays and objects

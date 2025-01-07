@@ -535,6 +535,28 @@ class ObjectAssignment < Expr
   end
 end
 
+class CompoundAssignment < Stmt
+  attr_reader :left, :operator, :right, :line
+
+  def initialize(left, operator, right, line)
+    validate_types([left], Identifier, 'left')
+    validate_types([operator], Token, 'operator')
+    validate_types([right], Expr, 'right')
+    @left = left
+    @operator = operator
+    @right = right
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    ["#{indent(level)}CompoundAssignment(",
+     "#{indent(level + 1)}left: #{@left.pretty_print(level + 1)}",
+     "#{indent(level + 1)}operator: #{@operator.lexeme}",
+     "#{indent(level + 1)}right: #{@right.pretty_print(level + 1)}",
+     "#{indent(level)})"].join("\n")
+  end
+end
+
 # example: tablica.dlg
 class MethodCall < Expr
   attr_reader :object, :method_name, :arguments, :line

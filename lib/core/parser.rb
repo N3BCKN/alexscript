@@ -537,6 +537,11 @@ class Parser
       if match(:tok_assign)
         right = expression
         Assignment.new(left, right, previous_token.line)
+      elsif match(:tok_pluseq) || match(:tok_minuseq) ||
+            match(:tok_stareq) || match(:tok_slasheq)
+        operator = previous_token
+        right = expression
+        CompoundAssignment.new(left, operator, right, previous_token.line)
       elsif left.is_a?(FuncCall)
         # handle function calls and array access statements
         FuncCallStmt.new(left, previous_token.line)
@@ -559,6 +564,7 @@ class Parser
   def statements
     stmts = []
     stmts << statement while @current < @tokens.size && !next?(:tok_rcurly)
+    puts stmts
     Stmts.new(stmts, previous_token.line) unless stmts.empty?
   end
 
