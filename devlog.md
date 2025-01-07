@@ -45,3 +45,6 @@ first fully working version with basic structures:
 
 ### 0.4.5
 * add exit statement (wyjscie())
+
+### 0.4.6
+* add compound operators += -= *= /=
