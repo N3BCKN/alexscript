@@ -71,7 +71,7 @@ class Repl
       break
     end
 
-    # Przywracamy oryginalny prompt
+    # restore original prompt
     # @prompt = '>> '
 
     input_lines.join("\n")
