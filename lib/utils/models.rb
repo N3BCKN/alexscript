@@ -281,6 +281,45 @@ class ExitStmt < Stmt
   end
 end
 
+# eg wczytaj(...)
+class Input < Expr
+  attr_reader :prompt, :line
+
+  def initialize(prompt, line)
+    validate_types([prompt], Expr, 'prompt') unless prompt.nil?
+    @prompt = prompt
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    prompt = @prompt.nil? ? '' : @prompt.pretty_print(level + 1)
+
+    [
+      "#{indent(level)}InputStatement(",
+      prompt,
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
+class InputStmt < Stmt
+  attr_reader :expression, :line
+
+  def initialize(expression, line)
+    validate_types([expression], Input)
+    @expression = expression
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}InputStmt(",
+      @expression.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 # jesli/albojesli/albo
 class IfStmt < Stmt
   attr_reader :test, :then_stmt, :else_stmt, :else_if_conditions, :line

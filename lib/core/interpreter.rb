@@ -586,6 +586,18 @@ class Interpreter
       else
         exit
       end
+    elsif node.is_a? Input
+      if node.prompt
+        prompt_type, prompt_value = interpret!(node.prompt, env)
+        puts(prompt_value)
+      end
+
+      input = STDIN.gets
+      input = input.chomp if input
+
+      [:type_string, input]
+    elsif node.is_a? InputStmt
+      interpret!(node.expression, env)
     end
   end
 

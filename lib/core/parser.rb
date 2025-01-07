@@ -65,6 +65,7 @@ class Parser
     return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
     return Null.new(previous_token.line) if match(:tok_null)
     return array_statement if match(:tok_lsquare) # [ -> start array parsing
+    return input_statement if match(:tok_input)
 
     if match(:tok_lparen) # (
       expr = expression
@@ -437,6 +438,15 @@ class Parser
     ExitStmt.new(message, previous_token.line)
   end
 
+  # <exit_statement> ::= "wczytaj"  "(" <expression>? ")"
+  def input_statement
+    prompt = nil
+    expect(:tok_lparen) # (
+    prompt = expression unless next?(:tok_rparen)
+    expect(:tok_rparen) # (
+    Input.new(prompt, previous_token.line)
+  end
+
   # <arguments> :== <expr> (',' <expr>)*
   def arguments
     f_args = []
@@ -536,6 +546,8 @@ class Parser
         ArrayAssignmentStmt.new(left, previous_token.line)
       elsif left.is_a?(MethodCall)
         MethodCallStmt.new(left, previous_token.line)
+      elsif left.is_a?(Input)
+        InputStmt.new(left, previous_token.line)
       elsif left.is_a?(Expr)
         ExpressionStmt.new(left, previous_token.line)
       else
