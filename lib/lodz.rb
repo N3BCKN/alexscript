@@ -20,7 +20,6 @@ if filename&.end_with?('.ldz')
   begin
     source = File.read(filename)
     puts "File '#{filename}' has been read successfully."
-    # Dalsza obróbka pliku
   rescue Errno::ENOENT
     puts "Error: File '#{filename}' doesn't exist"
   rescue StandardError => e
