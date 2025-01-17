@@ -3,6 +3,9 @@
 require 'byebug'
 
 class Interpreter
+  BOOL_TRUE = 'prawda'
+  BOOL_FALSE = 'falsz'
+
   def init
   end
 
@@ -60,9 +63,9 @@ class Interpreter
       if left_type == :type_null || right_type == :type_null
         case node.op.token_type
         when :tok_eq # ==
-          return [:type_bool, left_type == right_type]
+          return [:type_bool, to_bool_value(left_type == right_type)]
         when :tok_noteq # !=
-          return [:type_bool, left_type != right_type]
+          return [:type_bool, to_bool_value(left_type != right_type)]
         else
           return [:type_null, 'nic'] # all logical operations with null returns null
         end
@@ -133,54 +136,54 @@ class Interpreter
       elsif node.op.token_type == :tok_greater # >
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value > right_value]
+          [:type_bool, to_bool_value(left_value > right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value > right_value]
+          [:type_bool, to_bool_value(left_value > right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_greateroreq # >=
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value >= right_value]
+          [:type_bool, to_bool_value(left_value >= right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value >= right_value]
+          [:type_bool, to_bool_value(left_value >= right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_smaller # <
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value < right_value]
+          [:type_bool, to_bool_value(left_value < right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value < right_value]
+          [:type_bool, to_bool_value(left_value < right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_smalleroreq # <=
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value <= right_value]
+          [:type_bool, to_bool_value(left_value <= right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value <= right_value]
+          [:type_bool, to_bool_value(left_value <= right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_eq # ==
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value == right_value]
+          [:type_bool, to_bool_value(left_value == right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value == right_value]
+          [:type_bool, to_bool_value(left_value == right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
       elsif node.op.token_type == :tok_noteq # !=
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-          [:type_bool, left_value != right_value]
+          [:type_bool, to_bool_value(left_value != right_value)]
         when %i[type_string type_string]
-          [:type_bool, left_value != right_value]
+          [:type_bool, to_bool_value(left_value != right_value)]
         else
           runtime_error(left_value, right_value, node)
         end
@@ -209,7 +212,7 @@ class Interpreter
         end
       elsif node.op.token_type == :tok_not
         if operand_type == :type_bool
-          [:type_bool, !operand_value]
+          [:type_bool, to_bool_value(!operand_value)]
         else
           runtime_error_unop(operand_value, node)
         end
@@ -219,11 +222,13 @@ class Interpreter
     # otherwise search for the right side
     elsif node.is_a? LogicalOp
       left_type, left_value = interpret!(node.left, env)
+
       if node.op.token_type == :tok_or
-        return [left_type, left_value] if left_value
+        return [left_type, left_value] if left_value == BOOL_TRUE
       elsif node.op.token_type == :tok_and
-        return [left_type, left_value] unless left_value
+        return [left_type, left_value] if left_value == BOOL_FALSE
       end
+
       interpret!(node.right, env)
     elsif node.is_a? Stmts
       i = 0
@@ -269,7 +274,7 @@ class Interpreter
       # TODO: use the same type of testing conditions just like in JS (nil, false and 0 would not pass only)
       Utils.runtime_error("Condition type #{test_value} is not a boolean", node.op.line) unless test_type == :type_bool
 
-      if test_value
+      if test_value == BOOL_TRUE
         interpret!(node.then_stmt, env.new_env)
       else
         # check else-if statements (albojesli)
@@ -279,7 +284,7 @@ class Interpreter
           else_if_type, else_if_value = interpret!(else_if_test, env)
           Utils.runtime_error('Else-if condition must be boolean', node.line) unless else_if_type == :type_bool
 
-          next unless else_if_value
+          next unless else_if_value == BOOL_TRUE
 
           interpret!(else_if_stmt, env.new_env)
           executed = true
@@ -293,7 +298,7 @@ class Interpreter
       test_type, test_value = interpret!(node.test, env)
       Utils.runtime_error('Condition must be boolean', node.line) unless test_type == :type_bool
 
-      interpret!(node.then_stmt, env) if test_value
+      interpret!(node.then_stmt, env) if test_value == BOOL_TRUE
 
     elsif node.is_a? BreakLoop
       raise BreakException.new
@@ -312,7 +317,7 @@ class Interpreter
         Utils.runtime_error('While test is not a boolean expression', node.line) if test_type != :type_bool
 
         # Exit loop if condition is false
-        break unless test_value
+        break unless test_value == BOOL_TRUE
 
         # Execute body in the loop's environment
         begin
@@ -348,7 +353,7 @@ class Interpreter
         else
           step_type, step = interpret!(node.step_statement, env)
         end
-        while index_value <= end_value
+        while to_bool_value(index_value <= end_value) == BOOL_TRUE
           begin
             loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
@@ -364,7 +369,7 @@ class Interpreter
         else
           step_type, step = interpret!(node.step_statement, env)
         end
-        while index_value >= end_value
+        while to_bool_value(index_value >= end_value) == BOOL_TRUE
           begin
             loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
@@ -637,6 +642,10 @@ class Interpreter
 
   def runtime_error_unop(value, node)
     Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
+  end
+
+  def to_bool_value(ruby_bool)
+    ruby_bool ? BOOL_TRUE : BOOL_FALSE
   end
 
   # TODO: move it to other file on utils
