@@ -212,7 +212,7 @@ class Interpreter
         end
       elsif node.op.token_type == :tok_not
         if operand_type == :type_bool
-          [:type_bool, to_bool_value(!operand_value)]
+          [:type_bool, to_bool_value(!from_bool_value(operand_value))]
         else
           runtime_error_unop(operand_value, node)
         end
@@ -646,6 +646,10 @@ class Interpreter
 
   def to_bool_value(ruby_bool)
     ruby_bool ? BOOL_TRUE : BOOL_FALSE
+  end
+
+  def from_bool_value(string_bool)
+    string_bool == BOOL_TRUE
   end
 
   # TODO: move it to other file on utils

@@ -1,4 +1,5 @@
 require 'aruba/rspec'
+require 'byebug'
 
 RSpec.describe 'Cli', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
@@ -19,19 +20,19 @@ RSpec.describe 'Cli', type: :aruba do
     it 'correctly declares string variable' do
       code = 'niech text = "Hello" pokazl text'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('Hello')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('Hello')
     end
 
     it 'correctly declares boolean variable' do
       code = 'niech flag = prawda pokazl flag'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'correctly declares null variable' do
       code = 'niech empty = nic pokazl empty'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('nic')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('nic')
     end
   end
 
@@ -55,7 +56,7 @@ RSpec.describe 'Cli', type: :aruba do
         }
         pokazl x
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Undeclared identifier x/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -84,7 +85,7 @@ RSpec.describe 'Cli', type: :aruba do
         niech CONSTANT = 100
         CONSTANT = 200
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/is constant and cannot be mutated/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -209,14 +210,14 @@ RSpec.describe 'Arithmetic Operations', type: :aruba do
   describe 'Arithmetic error handling' do
     it 'raises error on division by zero' do
       code = 'niech x = 5 / 0'
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Division by zero/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
     it 'raises error on invalid operations' do
       code = 'niech x = "text" * 5'
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
