@@ -476,6 +476,7 @@ class Interpreter
       # interpret function declaration body, wrap in into a rescue block to catch a return statement
       begin
         interpret!(func_declr.body_statement, new_func_env)
+        result || [:type_null, 'nic'] # return 'nic' if function does not return any value with direct return 'zwroc' statement
       rescue ReturnError => e
         e.value
       end
