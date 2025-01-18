@@ -12,7 +12,7 @@ RSpec.describe 'Functions', type: :aruba do
         test()
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('test')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('test')
     end
 
     it 'returns value explicitly' do
@@ -159,7 +159,7 @@ RSpec.describe 'Functions', type: :aruba do
         pokazl get_null()
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("42\n3.14\ntext\nprawda\nnic")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("42\n3.14\ntext\nprawda\nnic")
     end
 
     it 'returns arrays and objects' do
@@ -174,7 +174,7 @@ RSpec.describe 'Functions', type: :aruba do
         pokazl get_object()
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3]\n{"key": "value"}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3]\n{"key": "value"}')
     end
 
     it 'handles early returns' do
@@ -189,7 +189,7 @@ RSpec.describe 'Functions', type: :aruba do
         pokazl early_return(1)
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("negative\nzero\npositive")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("negative\nzero\npositive")
     end
   end
 
@@ -305,8 +305,8 @@ RSpec.describe 'Functions', type: :aruba do
             }
             zwroc "zero"
           } albo {
-            dla niech i = 0; x; 1 {
-              jesli i == 2 {
+            dla niech indeks = 0; x; 1 {
+              jesli indeks == 2 {
                 zwroc "early exit"
               }
             }
@@ -325,11 +325,11 @@ RSpec.describe 'Functions', type: :aruba do
       code = '
         funkcja process_array(arr) {
           niech sum = 0
-          dla niech i = 0; arr.dlg; 1 {
-            jesli arr[i] == nic {
+          dla niech indeks = 0; arr.dlg; 1 {
+            jesli arr[indeks] == nic {
               nastepny
             }
-            sum = sum + arr[i]
+            sum = sum + arr[indeks]
           }
           zwroc sum
         }

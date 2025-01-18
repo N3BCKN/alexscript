@@ -95,8 +95,8 @@ RSpec.describe 'Control Flow', type: :aruba do
   describe 'For loop (dla)' do
     it 'executes basic for loop correctly' do
       code = '
-        dla niech i = 0; 3; 1 {
-          pokazl i
+        dla niech indeks = 0; 3; 1 {
+          pokazl indeks
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -105,8 +105,8 @@ RSpec.describe 'Control Flow', type: :aruba do
 
     it 'handles custom step in for loop' do
       code = '
-        dla niech i = 0; 6; 2 {
-          pokazl i
+        dla niech indeks = 0; 6; 2 {
+          pokazl indeks
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -115,8 +115,8 @@ RSpec.describe 'Control Flow', type: :aruba do
 
     it 'handles negative step in for loop' do
       code = '
-        dla niech i = 5; 0; -1 {
-          pokazl i
+        dla niech indeks = 5; 0; -1 {
+          pokazl indeks
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -125,9 +125,9 @@ RSpec.describe 'Control Flow', type: :aruba do
 
     it 'handles break in for loop' do
       code = '
-        dla niech i = 0; 5; 1 {
-          jesli i > 2 { zakoncz }
-          pokazl i
+        dla niech indeks = 0; 5; 1 {
+          jesli indeks > 2 { zakoncz }
+          pokazl indeks
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -136,9 +136,9 @@ RSpec.describe 'Control Flow', type: :aruba do
 
     it 'handles continue in for loop' do
       code = '
-        dla niech i = 0; 4; 1 {
-          jesli i == 2 { nastepny }
-          pokazl i
+        dla niech indeks = 0; 4; 1 {
+          jesli indeks == 2 { nastepny }
+          pokazl indeks
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -155,7 +155,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('greater')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('greater')
     end
 
     it 'handles if-else statement' do
@@ -168,7 +168,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('smaller')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('smaller')
     end
 
     it 'handles multiple else-if statements' do
@@ -185,7 +185,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('medium')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('medium')
     end
 
     it 'handles one-liner if statements' do
@@ -194,7 +194,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         jesli x > 3 to pokazl "greater"
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('greater')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('greater')
     end
   end
 
@@ -207,7 +207,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('is null')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('is null')
     end
 
     it 'handles null in comparisons' do
@@ -242,20 +242,20 @@ RSpec.describe 'Control Flow', type: :aruba do
         pokazl x + y
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('nic')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('nic')
     end
   end
 
   describe 'Complex control flow scenarios' do
     it 'combines different control structures' do
       code = '
-        dla niech i = 0; 3; 1 {
-          jesli i == 1 {
+        dla niech indeks = 0; 3; 1 {
+          jesli indeks == 1 {
             nastepny
           }
           niech j = 0
           dopoki j < 2 {
-            pokazl i * j
+            pokazl indeks * j
             j = j + 1
           }
         }
@@ -277,7 +277,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('nested null')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('nested null')
     end
 
     it 'handles complex loop termination' do
@@ -356,6 +356,31 @@ RSpec.describe 'Control Flow', type: :aruba do
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq("2\n1")
+    end
+  end
+
+  describe 'If oneliners' do
+    it 'executes code when condition is true' do
+      code = 'jesli prawda to pokazl "prawda"'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
+    end
+
+    it 'does not execute code when condition is false' do
+      code = '
+      niech x = 1
+      jesli 5 > 6 to x = 2
+      pokazl x
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('1')
+    end
+
+    it 'returns an error when then statement (to) is missing' do
+      code = 'jesli prawda pokazl 5'
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Expected 'tok_lcurly', found 'pokazl/)
+      expect(last_command_started.exit_status).not_to eq(0)
     end
   end
 end

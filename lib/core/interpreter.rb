@@ -373,7 +373,7 @@ class Interpreter
         else
           step_type, step = interpret!(node.step_statement, env)
         end
-        while to_bool_value(index_value <= end_value) == BOOL_TRUE
+        while to_bool_value(index_value < end_value) == BOOL_TRUE
           begin
             loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
@@ -389,7 +389,7 @@ class Interpreter
         else
           step_type, step = interpret!(node.step_statement, env)
         end
-        while to_bool_value(index_value >= end_value) == BOOL_TRUE
+        while to_bool_value(index_value > end_value) == BOOL_TRUE
           begin
             loop_env.set_var(var_name, index_value, :type_int)
             interpret!(node.body_statement, loop_env)
