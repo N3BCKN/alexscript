@@ -203,8 +203,10 @@ class Stmts < Node
   attr_reader :stmts
 
   def initialize(stmts, line)
-    validate_types(stmts, Stmt, 'expression')
-    @stmts = stmts
+    # Jeśli stmts jest nil, zamień na pustą tablicę
+    @stmts = stmts || []
+    # Jeśli stmts nie jest puste, zwaliduj typy
+    validate_types(@stmts, Stmt, 'expression') unless @stmts.empty?
     @line = line
   end
 
@@ -212,10 +214,8 @@ class Stmts < Node
     statement_strings = []
     statement_strings << "#{indent(level)}Statements("
 
-    i = 0
-    while i < @stmts.length
-      statement_strings << @stmts[i].pretty_print(level + 1)
-      i += 1
+    @stmts.each do |stmt|
+      statement_strings << stmt.pretty_print(level + 1)
     end
 
     statement_strings << "#{indent(level)})"

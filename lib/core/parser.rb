@@ -431,7 +431,14 @@ class Parser
     f_params = params
     expect(:tok_rparen) # )
     expect(:tok_lcurly) # {
-    body_statement = statements
+
+    # if next token is "}", function body is empty
+    body_statement = if next?(:tok_rcurly)
+                       Stmts.new([], previous_token.line) # empty statements list
+                     else
+                       statements
+                     end
+
     expect(:tok_rcurly) # }
 
     FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
