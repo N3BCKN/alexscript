@@ -949,6 +949,27 @@ class Assignment < Stmt
   end
 end
 
+class AssignmentExpr < Expr
+  attr_reader :left, :right, :line
+
+  def initialize(left, right, line)
+    validate_types([left], Identifier, 'left')
+    validate_types([right], Expr, 'right')
+    @left = left
+    @right = right
+    @line = line
+  end
+
+  def pretty_print(level = 0)
+    [
+      "#{indent(level)}AssignmentExpr(",
+      @left.pretty_print(level + 1),
+      @right.pretty_print(level + 1),
+      "#{indent(level)})"
+    ].join("\n")
+  end
+end
+
 class Identifier < Expr
   attr_reader :name, :line
 

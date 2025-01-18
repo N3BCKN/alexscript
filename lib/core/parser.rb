@@ -22,6 +22,12 @@ class Parser
     @tokens[@current]
   end
 
+  def peek_next
+    return nil if @current + 1 >= @tokens.length
+
+    @tokens[@current + 1]
+  end
+
   # Checks if next token matches expected type
   def next?(expected_type)
     return false if @current >= @tokens.length
@@ -242,10 +248,16 @@ class Parser
     expr = equality
     while match(:tok_and)
       op = previous_token
-      right = equality
+      right = if next?(:tok_identifier) && peek_next && peek_next.token_type == :tok_assign
+                identifier = advance
+                expect(:tok_assign)
+                value = expression
+                AssignmentExpr.new(Identifier.new(identifier.lexeme, identifier.line), value, identifier.line)
+              else
+                equality
+              end
       expr = LogicalOp.new(op, expr, right, op.line)
     end
-
     expr
   end
 
@@ -254,10 +266,16 @@ class Parser
     expr = logical_and
     while match(:tok_or)
       op = previous_token
-      right = logical_and
+      right = if next?(:tok_identifier) && peek_next && peek_next.token_type == :tok_assign
+                identifier = advance
+                expect(:tok_assign)
+                value = expression
+                AssignmentExpr.new(Identifier.new(identifier.lexeme, identifier.line), value, identifier.line)
+              else
+                logical_and
+              end
       expr = LogicalOp.new(op, expr, right, op.line)
     end
-
     expr
   end
 

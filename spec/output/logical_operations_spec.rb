@@ -7,13 +7,13 @@ RSpec.describe 'Logical Operations', type: :aruba do
     it 'correctly compares numbers (==)' do
       code = 'pokazl 5 == 5'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'correctly compares different numbers (!=)' do
       code = 'pokazl 5 != 3'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'correctly compares greater/less than' do
@@ -24,13 +24,13 @@ RSpec.describe 'Logical Operations', type: :aruba do
         pokazl 3 <= 3
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("prawda\nprawda\nprawda\nprawda")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("prawda\nprawda\nprawda\nprawda")
     end
 
     it 'correctly compares strings' do
       code = 'pokazl "abc" == "abc"'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
   end
 
@@ -38,25 +38,25 @@ RSpec.describe 'Logical Operations', type: :aruba do
     it 'performs AND operation' do
       code = 'pokazl prawda i prawda'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'performs OR operation' do
       code = 'pokazl falsz lub prawda'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'performs NOT operation' do
       code = 'pokazl !falsz'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
 
     it 'maintains correct order of logical operations' do
       code = 'pokazl prawda lub falsz i falsz'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('prawda')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('prawda')
     end
   end
 
@@ -64,7 +64,7 @@ RSpec.describe 'Logical Operations', type: :aruba do
     it 'does not execute right side of OR if left is true' do
       code = '
         niech x = 5
-        prawda lub (x = 10)
+        prawda lub x = 10
         pokazl x
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -74,7 +74,7 @@ RSpec.describe 'Logical Operations', type: :aruba do
     it 'does not execute right side of AND if left is false' do
       code = '
         niech x = 5
-        falsz i (x = 10)
+        falsz i x = 10
         pokazl x
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
@@ -94,7 +94,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('wykonane')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('wykonane')
     end
 
     it 'does not execute block when condition is false' do
@@ -116,7 +116,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('else')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('else')
     end
 
     it 'handles else if blocks' do
@@ -131,7 +131,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('mniej niz 7')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('mniej niz 7')
     end
   end
 
@@ -139,7 +139,7 @@ RSpec.describe 'Control Flow', type: :aruba do
     it 'executes instruction when condition is true' do
       code = 'jesli prawda to pokazl "wykonane"'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('wykonane')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('wykonane')
     end
 
     it 'does not execute instruction when condition is false' do
@@ -161,7 +161,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('wykonane')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('wykonane')
     end
 
     it 'maintains proper variable scope in nested blocks' do

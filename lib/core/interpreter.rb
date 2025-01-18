@@ -40,6 +40,19 @@ class Interpreter
       right_type, right_value = interpret!(node.right, env)
       # assign new value or overwrite existing one
       env.set_var(node.left.name, right_value, right_type)
+    elsif node.is_a? AssignmentExpr
+      var = env.get_var(node.left.name)
+      if var.nil?
+        Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
+      elsif var[:constant]
+        Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line)
+      end
+
+      # evaluate right side of the expression
+      right_type, right_value = interpret!(node.right, env)
+      # assign new value and overwrite existing one
+      env.set_var(node.left.name, right_value, right_type)
+      [right_type, right_value]
     elsif node.is_a? VariableDeclaration
       right_type, right_value = interpret!(node.right, env)
       # declare new variable
@@ -229,7 +242,12 @@ class Interpreter
         return [left_type, left_value] if left_value == BOOL_FALSE
       end
 
-      interpret!(node.right, env)
+      return interpret!(node.right, env) unless node.right.is_a?(Assignment)
+
+      # if right side is an assignment, eg: falsz i x = 10
+      right_type, right_value = interpret!(node.right.right, env)
+      env.set_var(node.right.left.name, right_value, right_type)
+      [right_type, right_value]
     elsif node.is_a? Stmts
       i = 0
       while i < node.stmts.size
@@ -239,6 +257,7 @@ class Interpreter
     elsif node.is_a? CompoundAssignment
       var = env.get_var(node.left.name)
       Utils.runtime_error("Undefined variable #{node.left.name}", node.line) unless var
+      Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line) if var[:constant]
 
       right_type, right_value = interpret!(node.right, env)
 
@@ -251,6 +270,7 @@ class Interpreter
                   when :tok_stareq
                     var[:value] * right_value
                   when :tok_slasheq
+                    Utils.runtime_error('Division by zero', node.line) if right_value == 0
                     var[:value] / right_value
                   end
 

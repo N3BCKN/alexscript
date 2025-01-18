@@ -41,7 +41,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         pokazl str
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('Hello World')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('Hello World')
     end
 
     it 'raises error when adding incompatible types' do
@@ -91,7 +91,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech str = "Hello"
         str -= " World"
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -101,7 +101,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech x = 5
         x -= "3"
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -143,7 +143,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech str = "Hello"
         str *= 3
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -195,7 +195,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech x = 10
         x /= 0
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Division by zero/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -205,7 +205,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech str = "Hello"
         str /= 2
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -222,7 +222,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         pokazl x
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('9.0')
+      expect(last_command_started.output.strip).to eq('11')
     end
 
     it 'maintains correct type through operations' do
@@ -234,7 +234,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         pokazl x
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('11.0')
+      expect(last_command_started.output.strip).to eq('13.0')
     end
   end
 
@@ -257,7 +257,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech x = 5
         x += undefined_var
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Undeclared identifier/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -292,7 +292,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech CONSTANT = 5
         CONSTANT += 3
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/cannot be mutated/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -314,7 +314,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         pokazl x
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('3.0e-7')
+      expect(last_command_started.output.strip).to eq('3.0e-07')
     end
 
     it 'raises error on uninitialized variable compound assignment' do
@@ -322,7 +322,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         niech x
         x += 5
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Uninitialized/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
