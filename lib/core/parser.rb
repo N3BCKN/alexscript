@@ -475,23 +475,8 @@ class Parser
   # <arguments> :== <expr> (',' <expr>)*
   def arguments
     f_args = []
-    # loop over all arguments given to the function call
     until next?(:tok_rparen)
-      # handle identifiers
-      if next?(:tok_identifier)
-        arg_id = advance # fetch identifier
-        if next?(:tok_lparen) # if "(" there is a function call as an argument, eg first_func(second_func(5))
-          f_args << FuncCall.new(arg_id.lexeme, arguments, arg_id.line)
-          expect(:tok_rparen)
-        else
-          # regular identifier, constant name, function declaration
-          f_args << Identifier.new(arg_id.lexeme, arg_id.line)
-        end
-      else
-        # standard variables: 5, "text", prawda
-        f_args << expression
-      end
-
+      f_args << expression
       expect(:tok_comma) unless next?(:tok_rparen)
     end
     f_args
