@@ -23,16 +23,13 @@ class Interpreter
     elsif node.is_a? Grouping
       interpret!(node.value, env)
     elsif node.is_a? Identifier
-      # Najpierw sprawdź czy to zmienna
+      # check if it's a variable
       var_raw = env.get_var(node.name)
 
       if var_raw.nil?
-        # Jeśli to nie zmienna, sprawdź czy to funkcja
+        # if not a var, check if it's a function call
         func = env.get_func(node.name)
-        if func
-          # Jeśli to funkcja, zwróć ją jako wartość
-          return [:type_function, { declaration: func[0], env: func[1] }]
-        end
+        return [:type_function, { declaration: func[0], env: func[1] }] if func
 
         Utils.runtime_error("Undeclared identifier #{node.name}", node.line)
       end
@@ -454,62 +451,73 @@ class Interpreter
       # store entire parsed 'body' of the function with its current env
       env.set_func(node.name, [node, env]) # TODO: improve memory management here
     elsif node.is_a? FuncCall
-      var = env.get_var(node.name)
-      if var && var[:type] == :type_function
-        # if it's a variable containing function
-        func_declr = var[:value][:declaration]
-        func_env = var[:value][:env]
-      else
-        # if not, just check for a regulat function
-        func = env.get_func(node.name)
-        Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
-        # fetch function declaration
-        func_declr = func[0] # entire func declaration
-        func_env   = func[1] # function env
-      end
-
-      # check if number of args matches expected number of params in func delcaration
-      if func_declr.params.size != node.arguments.size
-        Utils.runtime_error(
-          "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead", node.line
-        )
-      end
-
-      # evalate args
-      arguments = node.arguments.map do |arg|
-        if arg.is_a?(Identifier)
-          # try to fetch it as a variable
-          var = env.get_var(arg.name)
-          if var
-            [var[:type], var[:value]]
-          else
-            # if var not found, try to fetch a function
-            func_value = env.get_func_as_value(arg.name)
-            Utils.runtime_error("Undefined variable or function #{arg.name}", arg.line) unless func_value
-            func_value
-          end
-        else
-          interpret!(arg, env)
-        end
-      end
-      node.arguments.each { |arg| arguments << interpret!(arg, env) }
-
-      # new nested env for function, derrived from the original env of the function where it was declared
-      # (eg, could be nested func or smth)
-      new_func_env = func_env.new_env
-
-      # create local variables for called function, derrived from args
-      # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
-      func_declr.params.zip(arguments).each do |param, argval|
-        new_func_env.set_local_var(param.name, argval[1], argval[0])
-      end
-
-      # interpret function declaration body, wrap in into a rescue block to catch a return statement
+      env.increment_call_depth(node.line)  # increase stack depth to avoid too big recursion
       begin
-        interpret!(func_declr.body_statement, new_func_env)
-        result || [:type_null, 'nic'] # return 'nic' if function does not return any value with direct return 'zwroc' statement
-      rescue ReturnError => e
-        e.value
+        var = env.get_var(node.name)
+
+        if var && !validate_function_value(var)
+          Utils.runtime_error("Invalid function value for #{node.name}",
+                              node.line)
+        end
+
+        if var && var[:type] == :type_function
+          # if it's a variable containing function
+          func_declr = var[:value][:declaration]
+          func_env = var[:value][:env]
+        else
+          # if not, just check for a regulat function
+          func = env.get_func(node.name)
+          Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
+          # fetch function declaration
+          func_declr = func[0] # entire func declaration
+          func_env   = func[1] # function env
+        end
+
+        # check if number of args matches expected number of params in func delcaration
+        if func_declr.params.size != node.arguments.size
+          Utils.runtime_error(
+            "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead", node.line
+          )
+        end
+
+        # evalate args
+        arguments = node.arguments.map do |arg|
+          if arg.is_a?(Identifier)
+            # try to fetch it as a variable
+            var = env.get_var(arg.name)
+            if var
+              [var[:type], var[:value]]
+            else
+              # if var not found, try to fetch a function
+              func_value = env.get_func_as_value(arg.name)
+              Utils.runtime_error("Undefined variable or function #{arg.name}", arg.line) unless func_value
+              func_value
+            end
+          else
+            interpret!(arg, env)
+          end
+        end
+        node.arguments.each { |arg| arguments << interpret!(arg, env) }
+
+        # new nested env for function, derrived from the original env of the function where it was declared
+        # (eg, could be nested func or smth)
+        new_func_env = func_env.new_env
+
+        # create local variables for called function, derrived from args
+        # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
+        func_declr.params.zip(arguments).each do |param, argval|
+          new_func_env.set_local_var(param.name, argval[1], argval[0])
+        end
+
+        # interpret function declaration body, wrap in into a rescue block to catch a return statement
+        begin
+          interpret!(func_declr.body_statement, new_func_env)
+          result || [:type_null, 'nic'] # return 'nic' if function does not return any value with direct return 'zwroc' statement
+        rescue ReturnError => e
+          e.value
+        end
+      ensure
+        env.decrement_call_depth
       end
     elsif node.is_a? FuncCallStmt
       interpret!(node.expression, env)
@@ -694,6 +702,13 @@ class Interpreter
 
   def runtime_error_unop(value, node)
     Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
+  end
+
+  def validate_function_value(val)
+    return false unless val && val[:type] == :type_function
+    return false unless val[:value] && val[:value][:declaration] && val[:value][:env]
+
+    true
   end
 
   def to_bool_value(ruby_bool)

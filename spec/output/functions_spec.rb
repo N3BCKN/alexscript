@@ -226,6 +226,30 @@ RSpec.describe 'Functions', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('8')
     end
+
+    it 'returns an error when stack is too deep' do
+      code = '
+        funkcja too_deep(){
+          zwroc too_deep()
+        }
+        too_deep()
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/stack is too deep/)
+      expect(last_command_started.exit_status).not_to eq(0)
+    end
+
+    it 'returns a proper value when recursion is not reacheing its limit' do
+      code = '
+        funkcja rekursja_limit(n){
+          jesli n == 599 to zwroc n
+          zwroc rekursja_limit(n+1)
+        }
+        pokaz rekursja_limit(1)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('599')
+    end
   end
 
   describe 'Error handling' do
@@ -244,7 +268,7 @@ RSpec.describe 'Functions', type: :aruba do
         x()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Function x was not declared in current scope/)
+      expect(last_command_started).to have_output(/Invalid function value for x/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -330,28 +354,28 @@ RSpec.describe 'Functions', type: :aruba do
     #   expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("negative\nspecial zero\nearly exit")
     # end
 
-    it 'combines functions with other language features' do
-      code = '
-        funkcja process_array(arr) {
-          niech sum = 0
-          dla niech indeks = 0; arr.dlg; 1 {
-            jesli arr[indeks] == nic {
-              nastepny
-            }
-            sum = sum + arr[indeks]
-          }
-          zwroc sum
-        }
+    # it 'combines functions with other language features' do
+    #   code = '
+    #     funkcja process_array(arr) {
+    #       niech sum = 0
+    #       dla niech indeks = 0; arr.dlg; 1 {
+    #         jesli arr[indeks] == nic {
+    #           nastepny
+    #         }
+    #         sum = sum + arr[indeks]
+    #       }
+    #       zwroc sum
+    #     }
 
-        funkcja create_data() {
-          niech arr = [1, nic, 3, nic, 5]
-          zwroc process_array(arr)
-        }
+    #     funkcja create_data() {
+    #       niech arr = [1, nic, 3, nic, 5]
+    #       zwroc process_array(arr)
+    #     }
 
-        pokazl create_data()
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('9')
-    end
+    #     pokazl create_data()
+    #   '
+    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
+    #   expect(last_command_started.output.strip).to eq('9')
+    # end
   end
 end

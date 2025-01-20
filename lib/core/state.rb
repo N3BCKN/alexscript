@@ -4,6 +4,9 @@ require 'byebug'
 class Environment
   attr_reader :variables, :functions, :parent
 
+  @@call_depth = 0
+  @@max_call_depth = 600
+
   def initialize(parent = nil)
     @variables = {}
     @parent = parent
@@ -52,6 +55,17 @@ class Environment
     current = self
     current = current.parent while current.parent
     current
+  end
+
+  def increment_call_depth(line)
+    @@call_depth += 1
+    return unless @@call_depth > @@max_call_depth
+
+    Utils.runtime_error("Maximum recursion depth (#{@@max_call_depth}) exceeded, stack is too deep", line)
+  end
+
+  def decrement_call_depth
+    @@call_depth -= 1
   end
 
   # for passing function as argments to other functions

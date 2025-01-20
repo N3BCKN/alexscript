@@ -892,7 +892,7 @@ end
 
 # "zwroc" <exprs>
 class ReturnStatement < Stmt
-  attr_reader :value
+  attr_reader :value, :line
 
   def initialize(value, line)
     validate_types([value], Expr)

@@ -48,3 +48,7 @@ first fully working version with basic structures:
 
 ### 0.4.6
 * add compound operators += -= *= /=
+
+### 0.4.7
+* add function as arguments to other functions 
+* implement recursion limit (600)
