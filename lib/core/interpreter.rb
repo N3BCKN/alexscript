@@ -23,9 +23,20 @@ class Interpreter
     elsif node.is_a? Grouping
       interpret!(node.value, env)
     elsif node.is_a? Identifier
+      # Najpierw sprawdź czy to zmienna
       var_raw = env.get_var(node.name)
 
-      Utils.runtime_error("Undeclared identifier #{node.name}", node.line) if var_raw.nil? || var_raw[:value].nil?
+      if var_raw.nil?
+        # Jeśli to nie zmienna, sprawdź czy to funkcja
+        func = env.get_func(node.name)
+        if func
+          # Jeśli to funkcja, zwróć ją jako wartość
+          return [:type_function, { declaration: func[0], env: func[1] }]
+        end
+
+        Utils.runtime_error("Undeclared identifier #{node.name}", node.line)
+      end
+
       Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
       [var_raw[:type], var_raw[:value]]
     elsif node.is_a? Assignment
@@ -443,14 +454,19 @@ class Interpreter
       # store entire parsed 'body' of the function with its current env
       env.set_func(node.name, [node, env]) # TODO: improve memory management here
     elsif node.is_a? FuncCall
-      func = env.get_func(node.name)
-      # check if function was declared
-      # todo: consider exporint this into a method
-      Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
-
-      # fetch function declaration
-      func_declr = func[0] # entire func declaration
-      func_env   = func[1] # function env
+      var = env.get_var(node.name)
+      if var && var[:type] == :type_function
+        # if it's a variable containing function
+        func_declr = var[:value][:declaration]
+        func_env = var[:value][:env]
+      else
+        # if not, just check for a regulat function
+        func = env.get_func(node.name)
+        Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
+        # fetch function declaration
+        func_declr = func[0] # entire func declaration
+        func_env   = func[1] # function env
+      end
 
       # check if number of args matches expected number of params in func delcaration
       if func_declr.params.size != node.arguments.size
@@ -460,7 +476,22 @@ class Interpreter
       end
 
       # evalate args
-      arguments = []
+      arguments = node.arguments.map do |arg|
+        if arg.is_a?(Identifier)
+          # try to fetch it as a variable
+          var = env.get_var(arg.name)
+          if var
+            [var[:type], var[:value]]
+          else
+            # if var not found, try to fetch a function
+            func_value = env.get_func_as_value(arg.name)
+            Utils.runtime_error("Undefined variable or function #{arg.name}", arg.line) unless func_value
+            func_value
+          end
+        else
+          interpret!(arg, env)
+        end
+      end
       node.arguments.each { |arg| arguments << interpret!(arg, env) }
 
       # new nested env for function, derrived from the original env of the function where it was declared

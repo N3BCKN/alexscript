@@ -54,6 +54,14 @@ class Environment
     current
   end
 
+  # for passing function as argments to other functions
+  def get_func_as_value(name)
+    func = get_func(name)
+    return nil unless func
+
+    [:type_function, { declaration: func[0], env: func[1] }]
+  end
+
   def set_func(name, value)
     # value is an 2dms array storing both function declaration and current env where it was declared
     @functions[name] = value
