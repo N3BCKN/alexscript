@@ -298,33 +298,29 @@ class Interpreter
 
     elsif node.is_a? IfStmt
       test_type, test_value = interpret!(node.test, env)
-      # TODO: export it to a general private method
-      # TODO: use the same type of testing conditions just like in JS (nil, false and 0 would not pass only)
-      Utils.runtime_error("Condition type #{test_value} is not a boolean", node.op.line) unless test_type == :type_bool
 
-      if test_value == BOOL_TRUE
+      if is_truthy?(test_type, test_value)
         interpret!(node.then_stmt, env.new_env)
       else
-        # check else-if statements (albojesli)
+        # check else-if statements
         executed = false
         node.else_if_conditions.each do |condition|
           else_if_test, else_if_stmt = condition
           else_if_type, else_if_value = interpret!(else_if_test, env)
-          Utils.runtime_error('Else-if condition must be boolean', node.line) unless else_if_type == :type_bool
 
-          next unless else_if_value == BOOL_TRUE
+          next unless is_truthy?(else_if_type, else_if_value)
 
           interpret!(else_if_stmt, env.new_env)
           executed = true
           break
         end
-
         # if no other condition was fullfiled, execute else (albo) statement
         interpret!(node.else_stmt, env.new_env) if !executed && node.else_stmt
       end
+
     elsif node.is_a? OneLinerIfStmt
       test_type, test_value = interpret!(node.test, env)
-      Utils.runtime_error('Condition must be boolean', node.line) unless test_type == :type_bool
+      interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value)
 
       interpret!(node.then_stmt, env) if test_value == BOOL_TRUE
 
@@ -680,6 +676,17 @@ class Interpreter
     true
   end
 
+  def is_truthy?(type, value)
+    case type
+    when :type_bool
+      value == BOOL_TRUE
+    when :type_null
+      false
+    else
+      Utils.runtime_error('Condition must be boolean or null', line)
+    end
+  end
+
   def get_access_path(node, env)
     if node.is_a?(Identifier)
       node.name
@@ -734,20 +741,18 @@ class Interpreter
     end
   end
 
-  def format_object_value(value)
-    value.transform_values do |v|
-      if v.is_a?(Hash)
-        if v[:type] == :type_array
-          format_array_value(v[:value])
-        elsif v[:type] == :type_object
-          format_object_value(v[:value])
-        else
-          v[:value]
-        end
-      else
-        v
-      end
+  def format_object_value(object)
+    pairs = object.map do |key, value|
+      formatted_value = if value.is_a?(Hash)
+                          [value[:type], value[:value]]
+                        else
+                          [:type_string, value]
+                        end
+
+      formatted = format_value(formatted_value[0], formatted_value[1])
+      "#{key}: #{formatted}" # usuwamy dodatkowe \"
     end
+    "{#{pairs.join(', ')}}"
   end
 end
 
