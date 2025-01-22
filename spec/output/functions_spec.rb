@@ -94,6 +94,16 @@ RSpec.describe 'Functions', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('11')
     end
+
+    it 'can operate on values returned from function calls' do
+      code = 'funkcja suma(a,b){
+      zwroc a + b
+      }
+      niech x = suma(2,3) + suma(4,5) + suma(35,30) * suma(1,3)
+      pokaz x'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('274')
+    end
   end
 
   describe 'Variable scope and closures' do

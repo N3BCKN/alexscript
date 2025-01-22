@@ -108,29 +108,16 @@ class Parser
         expect(:tok_rparen) # )
         expr = FuncCall.new(identifier.lexeme, f_args, previous_token.line)
         break
-      elsif match(:tok_lsquare) # [ -> to access array element by calling its index, eg tablica[0]
+      elsif match(:tok_lsquare) # [ -> to access array/object element
         key = expression
         expect(:tok_rsquare) # ]
+
         if match(:tok_assign) # =
           value = expression
-          # check if val is string (key to obj) or int (array index)
-          if key.is_a?(Int)
-            expr = ArrayAssignment.new(expr, key, value, identifier.line)
-          elsif key.is_a?(Str)
-            expr = ObjectAssignment.new(expr, key, value, identifier.line)
-          else
-            Utils.parse_error('Invalid key type - must be integer for arrays or string for objects',
-                              previous_token.line)
-          end
+          expr = ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
           break
-        elsif key.is_a?(Int)
-          # Podobnie dla dostępu
-          expr = ArrayAccess.new(expr, key, identifier.line)
-        elsif key.is_a?(Str)
-          expr = ObjectAccess.new(expr, key, identifier.line)
         else
-          Utils.parse_error('Invalid key type - must be integer for arrays or string for objects',
-                            previous_token.line)
+          expr = ObjectOrArrayAccess.new(expr, key, identifier.line)
         end
       elsif match(:tok_dot) # . -> method calls
         method_name = expect(:tok_identifier).lexeme
@@ -570,10 +557,8 @@ class Parser
       elsif left.is_a?(FuncCall)
         # handle function calls and array access statements
         FuncCallStmt.new(left, previous_token.line)
-      elsif left.is_a?(ArrayAccess)
-        ArrayAccessStmt.new(left, previous_token.line)
-      elsif left.is_a?(ArrayAssignment)
-        ArrayAssignmentStmt.new(left, previous_token.line)
+      elsif left.is_a?(ObjectOrArrayAccess)
+        ObjectOrArrayAccessStmt.new(left, previous_token.line)
       elsif left.is_a?(MethodCall)
         MethodCallStmt.new(left, previous_token.line)
       elsif left.is_a?(Input)

@@ -390,28 +390,6 @@ class ArrayLiteral < Expr
   end
 end
 
-# example: array[0]
-class ArrayAccess < Expr
-  attr_reader :array, :index, :line
-
-  def initialize(array, index, line)
-    validate_types([array], Expr, 'array')
-    validate_types([index], Expr, 'index')
-    @array = array
-    @index = index
-    @line = line
-  end
-
-  def pretty_print(level = 0)
-    [
-      "#{indent(level)}ArrayAccess(",
-      "#{indent(level)}array: #{@array.pretty_print(level)}",
-      "#{indent(level)}index: #{@index.pretty_print(level)}",
-      "#{indent(level)})"
-    ].join("\n")
-  end
-end
-
 class ArrayAccessStmt < Stmt
   attr_reader :expression, :line
 
@@ -428,42 +406,17 @@ class ArrayAccessStmt < Stmt
   end
 end
 
-# eg: tablica[2] = 5
-class ArrayAssignment < Stmt
-  attr_reader :array, :index, :value, :line
-
-  def initialize(array, index, value, line)
-    validate_types([array], Expr, 'array')
-    validate_types([index], Expr, 'index')
-    validate_types([value], Expr, 'value')
-    @array = array
-    @index = index
-    @value = value
-    @line = line
-  end
-
-  def pretty_print(level = 0)
-    [
-      "#{indent(level)}ArrayAssignment(",
-      "#{indent(level)}array: #{@array.pretty_print(level)}",
-      "#{indent(level)}index: #{@index.pretty_print(level)}",
-      "#{indent(level)}value: #{@value.pretty_print(level)}",
-      "#{indent(level)})"
-    ].join("\n")
-  end
-end
-
-class ArrayAssignmentStmt < Stmt
+class ObjectOrArrayAccessStmt < Stmt
   attr_reader :expression, :line
 
   def initialize(expression, line)
-    validate_types([expression], Stmt)
+    validate_types([expression], ObjectOrArrayAccess)
     @expression = expression
     @line = line
   end
 
   def pretty_print(level = 0)
-    ["#{indent(level)}ArrayAssignmentStmt(",
+    ["#{indent(level)}ObjectOrArrayAccessStmt(",
      @expression.pretty_print(level + 1),
      "#{indent(level)})"].join("\n")
   end
@@ -492,46 +445,62 @@ class ObjectLiteral < Expr
   end
 end
 
-class ObjectAccess < Expr
-  attr_reader :object, :key, :line
+# I've decided to put both arrays and objects into the very same AST model
+# since it was hard for parser to figure out which one was called with an identifier (var) as a key/index
+# (niech x = "5", array[x], obiekt[x])
+# especially since parser should not get access to the resources from env, to figure it out in this case
+# now it's a interpreter job to distinguish them
+class ObjectOrArrayAccess < Expr
+  attr_reader :array, :index, :line
 
-  def initialize(object, key, line)
-    validate_types([object], Identifier, 'object')
-    validate_types([key], Expr, 'key')
-    @object = object
-    @key = key
+  def initialize(array, index, line)
+    # can be identifier or other ObjectOrArrayAccess
+    unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
+      raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
+    end
+
+    validate_types([index], Expr, 'index')
+    @array = array
+    @index = index
     @line = line
   end
 
   def pretty_print(level = 0)
     [
-      "#{indent(level)}ObjectAccess(",
-      "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
-      "#{indent(level + 1)}key: #{@key.pretty_print(level + 1)}",
+      "#{indent(level)}ObjectOrArrayAccess(",
+      "#{indent(level + 1)}array/object: #{@array.pretty_print(level + 1)}",
+      "#{indent(level + 1)}index/key: #{@index.pretty_print(level + 1)}",
       "#{indent(level)})"
     ].join("\n")
   end
 end
 
-class ObjectAssignment < Expr
-  attr_reader :object, :key, :value, :line
+# same story as above, obiekt[x] = 5 and array[x] = 5 were confusing parser as a separate ast object
+class ObjectOrArrayAssignment < Expr
+  attr_reader :array, :index, :value, :line
 
-  def initialize(object, key, value, line)
-    validate_types([object], Identifier, 'object')
-    validate_types([key], Expr, 'key')
+  def initialize(array, index, value, line)
+    # can be identifier or other ObjectOrArrayAssignment
+    unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
+      raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
+    end
+
+    validate_types([index], Expr, 'index')
     validate_types([value], Expr, 'value')
-    @object = object
-    @key = key
+    @array = array
+    @index = index
     @value = value
     @line = line
   end
 
   def pretty_print(level = 0)
-    ["#{indent(level)}ObjectAssignment(",
-     "#{indent(level + 1)}object: #{@object.pretty_print(level + 1)}",
-     "#{indent(level + 1)}key: #{@key.pretty_print(level + 1)}",
-     "#{indent(level + 1)}value: #{@value.pretty_print(level + 1)}",
-     "#{indent(level)})"].join("\n")
+    [
+      "#{indent(level)}ObjectOrArrayAssignment(",
+      "#{indent(level + 1)}array/object: #{@array.pretty_print(level + 1)}",
+      "#{indent(level + 1)}index/key: #{@index.pretty_print(level + 1)}",
+      "#{indent(level + 1)}value: #{@value.pretty_print(level + 1)}",
+      "#{indent(level)})"
+    ].join("\n")
   end
 end
 

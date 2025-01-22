@@ -534,61 +534,9 @@ class Interpreter
       end
 
       [:type_array, elements]
-    elsif node.is_a? ArrayAccess
-      array_var = env.get_var(node.array.name)
-      unless array_var[:type] == :type_array
-        Utils.runtime_error("Variable #{node.array.name} is not an array",
-                            node.line)
-      end
-
-      index_type, index_value = interpret!(node.index, env)
-      Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
-
-      array = array_var[:value]
-      if index_value <= -array.length || index_value >= array.length
-        Utils.runtime_error('Array index out of bounds',
-                            node.line)
-      end
-
-      [array[index_value][:type], array[index_value][:value]]
     elsif node.is_a? ArrayAccessStmt
       interpret!(node.expression, env)
-    elsif node.is_a? ArrayAssignment
-      # interpret entire array first
-      if node.array.is_a?(ArrayAccess)
-        array_type, array_value = interpret!(node.array, env)
-      else
-        array_var = env.get_var(node.array.name)
-        unless array_var[:type] == :type_array
-          Utils.runtime_error("Variable #{node.array.name} is not an array",
-                              node.line)
-        end
-        array_type = array_var[:type]
-        array_value = array_var[:value]
-      end
-
-      index_type, index_value = interpret!(node.index, env)
-      Utils.runtime_error('Array index must be an integer', node.line) unless index_type == :type_int
-      Utils.runtime_error('Index out of bounds', node.line) if index_value < 0 || index_value >= array_value.length
-
-      value_type, value = interpret!(node.value, env)
-      array_value[index_value] = { type: value_type, value: value }
-
-      # if it's a nested access, update main array
-      if node.array.is_a?(ArrayAccess)
-        parent_array = env.get_var(node.array.array.name)
-        parent_index_type, parent_index_value = interpret!(node.array.index, env)
-        parent_array[:value][parent_index_value] = { type: :type_array, value: array_value }
-      end
-
-      # save new value in local environment
-      if node.array.is_a?(ArrayAccess)
-        env.set_var(node.array.array.name, parent_array[:value], :type_array)
-      else
-        env.set_var(node.array.name, array_value, :type_array)
-      end
-
-    elsif node.is_a? ArrayAssignmentStmt
+    elsif node.is_a? ObjectOrArrayAccessStmt
       interpret!(node.expression, env)
     elsif node.is_a? ObjectLiteral
       pairs = {}
@@ -598,54 +546,75 @@ class Interpreter
       end
 
       [:type_object, pairs]
-    elsif node.is_a? ObjectAccess
-      object_var = env.get_var(node.object.name)
-      unless object_var[:type] == :type_object
-        Utils.runtime_error("Variable #{node.object.name} is not an object",
-                            node.line)
+    elsif node.is_a? ObjectOrArrayAccess
+      if node.array.is_a?(Identifier)
+        object_var = env.get_var(node.array.name)
+      else
+        type, value = interpret!(node.array, env)
+        object_var = { type: type, value: value }
       end
 
-      key_type, key_value = interpret!(node.key, env)
-      Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+      key_type, key_value = interpret!(node.index, env)
 
-      value = object_var[:value][key_value]
-      Utils.runtime_error("Undefined key #{key_value}", node.line) unless value
-
-      [value[:type], value[:value]]
-
-    elsif node.is_a? ObjectAssignment
-      object_var = env.get_var(node.object.name)
-      unless object_var[:type] == :type_object
-        Utils.runtime_error("Variable #{node.object.name} is not an object",
-                            node.line)
+      case object_var[:type]
+      when :type_array
+        Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
+        Utils.runtime_error('Index out of bounds', node.line) if key_value < 0 || key_value >= object_var[:value].length
+        element = object_var[:value][key_value]
+        [element[:type], element[:value]]
+      when :type_object
+        Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+        value = object_var[:value][key_value]
+        Utils.runtime_error("Undefined key #{key_value}", node.line) unless value
+        [value[:type], value[:value]]
+      else
+        Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
+      end
+    elsif node.is_a? ObjectOrArrayAssignment
+      if node.array.is_a?(Identifier)
+        object_var = env.get_var(node.array.name)
+        Utils.runtime_error("Undefined variable #{get_access_path(node, env)}", node.line) unless object_var
+      else
+        type, value = interpret!(node.array, env)
+        object_var = { type: type, value: value }
       end
 
-      key_type, key_value = interpret!(node.key, env)
-      Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
-
+      key_type, key_value = interpret!(node.index, env)
       value_type, value = interpret!(node.value, env)
-      object_var[:value][key_value] = { type: value_type, value: value }
 
-      # save edited value in env
-      env.set_var(node.object.name, object_var[:value], :type_object)
+      case object_var[:type]
+      when :type_array
+        Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
+        Utils.runtime_error('Index out of bounds', node.line) if key_value < 0 || key_value >= object_var[:value].length
+
+        object_var[:value][key_value] = { type: value_type, value: value }
+      when :type_object
+        Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+        object_var[:value][key_value] = { type: value_type, value: value }
+      else
+        Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
+      end
+
+      # actualize var in env for a direct access only
+      env.set_var(node.array.name, object_var[:value], object_var[:type]) if node.array.is_a?(Identifier)
 
       [value_type, value]
     elsif node.is_a? MethodCall
-      # Najpierw interpretujemy obiekt na którym wywoływana jest metoda
+      # first interpret object
       object_type, object_value = interpret!(node.object, env)
       Utils.runtime_error('Cannot call method on undefined object', node.line) unless object_value
 
       # evaluate all arguments of method
       evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 
-      # # Pobieramy typ obiektu i wywołujemy odpowiednią metodę z environment
+      # fetch object type and call a proper method from env
       # object_type = object_var[:type]
       # object_value = object_var[:value]
 
       begin
         result = env.call_method(object_type, node.method_name, object_value, evaluated_args, node.line)
 
-        # Określamy typ zwracanej wartości
+        # set type of the returned value
         result_type = case result
                       when Integer then :type_int
                       when Float then :type_float
@@ -709,6 +678,20 @@ class Interpreter
     return false unless val[:value] && val[:value][:declaration] && val[:value][:env]
 
     true
+  end
+
+  def get_access_path(node, env)
+    if node.is_a?(Identifier)
+      node.name
+    elsif node.is_a?(ObjectOrArrayAccess)
+      base = get_access_path(node.array, env)
+      key_type, key_value = interpret!(node.index, env)
+      "#{base}[#{key_value}]"
+    elsif node.is_a?(ObjectOrArrayAssignment)
+      base = get_access_path(node.array, env)
+      key_type, key_value = interpret!(node.index, env)
+      "#{base}[#{key_value}]"
+    end
   end
 
   def to_bool_value(ruby_bool)

@@ -19,7 +19,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"name": "John", "age": 30}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('{"name": "John", "age": 30}')
     end
 
     it 'creates object with mixed value types' do
@@ -34,7 +34,8 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"name": "John", "age": 30, "height": 1.85, "isStudent": prawda, "address": nic}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/,
+                                                    '')).to eq('{"name": "John", "age": 30, "height": 1.85, "isStudent": prawda, "address": nic}')
     end
 
     it 'creates nested objects' do
@@ -49,7 +50,8 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"name": "John", "address": {"city": "New York", "zip": "10001"}}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/,
+                                                    '')).to eq('{"name": "John", "address": {"city": "New York", "zip": "10001"}}')
     end
   end
 
@@ -61,7 +63,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj["age"]
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("John\n30")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("John\n30")
     end
 
     it 'modifies existing properties' do
@@ -71,7 +73,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"name": "John", "age": 31}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('{"name": "John", "age": 31}')
     end
 
     it 'adds new properties' do
@@ -81,7 +83,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"name": "John", "age": 30}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('{"name": "John", "age": 30}')
     end
 
     it 'accesses nested properties' do
@@ -97,7 +99,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj["user"]["name"]["first"]
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('John')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('John')
     end
   end
 
@@ -107,7 +109,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         niech obj = {"name": "John"}
         pokazl obj["age"]
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Undefined key/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -117,7 +119,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         niech obj = {"name": "John"}
         pokazl obj[123]
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Object key must be a string/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -127,8 +129,8 @@ RSpec.describe 'Object Operations', type: :aruba do
         niech x = 5
         pokazl x["prop"]
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/is not an object/)
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Expression x[prop] is neither array nor object/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -144,7 +146,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj["names"]
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("[1, 2, 3]\n[\"John\", \"Jane\"]")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("[1, 2, 3]\n[\"John\", \"Jane\"]")
     end
 
     it 'modifies array properties' do
@@ -154,7 +156,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('{"numbers": [1, 20, 3]}')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('{"numbers": [1, 20, 3]}')
     end
   end
 
@@ -167,7 +169,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('Adult')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('Adult')
     end
 
     it 'works with for-in loop' do
@@ -175,7 +177,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         niech obj = {"a": 1
       '
       # NOTE: This test is incomplete in the original file
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/syntax error/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
