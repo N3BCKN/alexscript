@@ -296,7 +296,7 @@ class Interpreter
     elsif node.is_a? PrintlnStmt
       expression_type, expression_value = interpret!(node.value, env)
       formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
-      puts(formatted_value)
+      p(formatted_value)
 
     elsif node.is_a? IfStmt
       test_type, test_value = interpret!(node.test, env)
