@@ -234,6 +234,8 @@ class Interpreter
       elsif node.op.token_type == :tok_not
         if operand_type == :type_bool
           [:type_bool, to_bool_value(!from_bool_value(operand_value))]
+        elsif operand_type == :type_null
+          [:type_bool, BOOL_TRUE] # !nic returns true
         else
           runtime_error_unop(operand_value, node)
         end
@@ -288,13 +290,13 @@ class Interpreter
       # [var[:type], new_value]
     elsif node.is_a? PrintStmt
       expression_type, expression_value = interpret!(node.value, env)
-      formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
+      formatted_value = format_value(expression_type, expression_value)
       print("#{formatted_value} ")
 
     elsif node.is_a? PrintlnStmt
       expression_type, expression_value = interpret!(node.value, env)
       formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
-      p(formatted_value)
+      puts(formatted_value)
 
     elsif node.is_a? IfStmt
       test_type, test_value = interpret!(node.test, env)
@@ -321,8 +323,6 @@ class Interpreter
     elsif node.is_a? OneLinerIfStmt
       test_type, test_value = interpret!(node.test, env)
       interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value)
-
-      interpret!(node.then_stmt, env) if test_value == BOOL_TRUE
 
     elsif node.is_a? BreakLoop
       raise BreakException.new
