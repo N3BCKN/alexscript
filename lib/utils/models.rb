@@ -158,7 +158,7 @@ end
 
 # Examples: addition (x + y), multiplication (x * y), comparison (x > y)
 class BinOp < Expr
-  attr_reader :left, :right, :op
+  attr_reader :left, :right, :op, :line
 
   def initialize(op, left, right, line)
     validate_types([op], Token, 'operator')

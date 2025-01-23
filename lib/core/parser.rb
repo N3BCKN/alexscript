@@ -197,7 +197,7 @@ class Parser
   def addition
     expr = multiplication
 
-    while match(:tok_plus) || match(:tok_minus)
+    while match(:tok_plus) || match(:tok_minus) || match(:tok_append) # <<
       op = previous_token
       right = multiplication
       expr = BinOp.new(op, expr, right, op.line)

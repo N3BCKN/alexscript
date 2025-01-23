@@ -181,6 +181,14 @@ class Interpreter
         else
           runtime_error(left_value, right_value, node)
         end
+      elsif node.op.token_type == :tok_append # <<
+        if left_type == :type_array
+          left_value << { type: right_type, value: right_value }
+          env.set_var(node.left.name, left_value, left_type)
+          [:type_array, left_value]
+        else
+          Utils.runtime_error('Operator << can only be used with arrays', node.line)
+        end
       elsif node.op.token_type == :tok_smalleroreq # <=
         case [left_type, right_type]
         when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
