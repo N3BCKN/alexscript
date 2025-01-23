@@ -555,7 +555,9 @@ class Interpreter
       case object_var[:type]
       when :type_array
         Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
-        Utils.runtime_error('Index out of bounds', node.line) if key_value < 0 || key_value >= object_var[:value].length
+        length = object_var[:value].length
+        Utils.runtime_error('Index out of bounds', node.line) if key_value >= length || key_value < -length
+
         element = object_var[:value][key_value]
         [element[:type], element[:value]]
       when :type_object
@@ -581,7 +583,8 @@ class Interpreter
       case object_var[:type]
       when :type_array
         Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
-        Utils.runtime_error('Index out of bounds', node.line) if key_value < 0 || key_value >= object_var[:value].length
+        length = object_var[:value].length
+        Utils.runtime_error('Index out of bounds', node.line) if key_value >= length || key_value < -length
 
         object_var[:value][key_value] = { type: value_type, value: value }
       when :type_object

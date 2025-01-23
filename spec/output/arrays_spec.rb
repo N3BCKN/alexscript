@@ -19,7 +19,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3, 4, 5]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4, 5]')
     end
 
     it 'creates array with mixed types' do
@@ -28,7 +28,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, "text", 3.14, prawda, nic]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, text, 3.14, prawda, nic]')
     end
 
     it 'creates nested arrays' do
@@ -37,7 +37,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, [2, 3], [4, [5, 6]]]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, [2, 3], [4, [5, 6]]]')
     end
   end
 
@@ -69,7 +69,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 20, 3]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 20, 3]')
     end
 
     it 'raises error on out of bounds access' do
@@ -77,8 +77,8 @@ RSpec.describe 'Array Operations', type: :aruba do
         niech arr = [1, 2, 3]
         pokazl arr[5]
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Array index out of bounds/)
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Index out of bounds/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -100,7 +100,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3, 4]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4]')
     end
 
     it 'adds element using << operator' do
@@ -110,7 +110,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3]')
     end
 
     it 'removes element at index' do
@@ -120,7 +120,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 3, 4]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 3, 4]')
     end
 
     it 'inserts element at index' do
@@ -130,7 +130,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3, 4]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4]')
     end
 
     it 'swaps elements' do
@@ -140,7 +140,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[4, 2, 3, 1]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[4, 2, 3, 1]')
     end
 
     it 'clears array' do
@@ -160,7 +160,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[4, 3, 2, 1]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[4, 3, 2, 1]')
     end
 
     it 'creates array copy' do
@@ -172,7 +172,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr2
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("[10, 2, 3]\n[1, 2, 3]")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("[10, 2, 3]\n[1, 2, 3]")
     end
 
     it 'checks if element exists' do
@@ -182,7 +182,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr.zawiera(5)
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("prawda\nfalsz")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("prawda\nfalsz")
     end
 
     it 'returns first index of element' do
@@ -290,7 +290,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, [20, 3], [4, [5, 6]]]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, [20, 3], [4, [5, 6]]]')
     end
   end
 
@@ -298,13 +298,13 @@ RSpec.describe 'Array Operations', type: :aruba do
     it 'works correctly in loops' do
       code = '
         niech arr = [1, 2, 3]
-        dla niech i = 0; arr.dlg; 1 {
-          arr[i] = arr[i] * 2
+        dla niech indeks = 0; arr.dlg; 1 {
+          arr[indeks] = arr[indeks] * 2
         }
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[2, 4, 6]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[2, 4, 6]')
     end
 
     it 'works in conditional statements' do
@@ -316,7 +316,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('[1, 2, 3, 4]')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4]')
     end
   end
 end

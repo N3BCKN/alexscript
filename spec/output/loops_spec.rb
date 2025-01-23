@@ -208,17 +208,17 @@ RSpec.describe 'Loops', type: :aruba do
   end
 
   describe 'Loop with array operations' do
-    # it 'modifies array in for loop' do
-    #   code = '
-    #     niech arr = [1, 2, 3, 4]
-    #     dla niech indeks = 0; arr.dlg; 1 {
-    #       arr[indeks] = arr[indeks] * 2
-    #     }
-    #     pokazl arr
-    #   '
-    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started.output.strip).to eq('[2, 4, 6, 8]')
-    # end
+    it 'modifies array in for loop' do
+      code = '
+        niech arr = [1, 2, 3, 4]
+        dla niech indeks = 0; arr.dlg; 1 {
+          arr[indeks] = arr[indeks] * 2
+        }
+        pokazl arr
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[2, 4, 6, 8]')
+    end
 
     it 'builds array in while loop' do
       code = '
@@ -258,17 +258,17 @@ RSpec.describe 'Loops', type: :aruba do
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
-    # it 'handles array bounds errors in loops' do
-    #   code = '
-    #     niech arr = [1, 2, 3]
-    #     dla niech indeks = 0; 5; 1 {
-    #       pokazl arr[indeks]
-    #     }
-    #   '
-    #   run_command "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started).to have_output(/Array index out of bounds/)
-    #   expect(last_command_started.exit_status).not_to eq(0)
-    # end
+    it 'handles array bounds errors in loops' do
+      code = '
+        niech arr = [1, 2, 3]
+        dla niech indeks = 0; 5; 1 {
+          pokazl arr[indeks]
+        }
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started.exit_status).not_to eq(0)
+    end
   end
 
   describe 'Variable scope and shadowing' do
@@ -415,15 +415,16 @@ RSpec.describe 'Loops', type: :aruba do
     #   expect(last_command_started.output.strip).to eq('0 1 2 3 4 5 6 7 8 9')
     # end
 
-    # it 'can iterate over objects with keys and values' do
-    #   code = '
-    #   niech obj = {"name": "John", "surname": "Doe", "age": 23, "occupation": "neet"}
-    #   dla klucz, wartosc w obj {
-    #     pokazl klucz + " : " + wartosc
-    #   }
-    #   '
-    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started.output.strip).to eq('0 1 2 3 4 5 6 7 8 9')
-    # end
+    it 'can iterate over objects with keys and values' do
+      code = '
+      niech obj = {"name": "John", "surname": "Doe", "age": 23, "occupation": "neet"}
+      dla klucz, wartosc w obj {
+        pokazl klucz + " : " + wartosc
+      }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/,
+                                                    '')).to eq("name : John\nsurname : Doe\nage : 23\noccupation : neet")
+    end
   end
 end

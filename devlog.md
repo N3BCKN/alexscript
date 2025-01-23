@@ -52,3 +52,4 @@ first fully working version with basic structures:
 ### 0.4.7
 * add function as arguments to other functions 
 * implement recursion limit (600)
+* implement nil (nic) as false in if/else conditions

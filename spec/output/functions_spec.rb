@@ -193,7 +193,7 @@ RSpec.describe 'Functions', type: :aruba do
         pokazl get_object()
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("[1, 2, 3]\n{key=>value}")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("[1, 2, 3]\n{key: value}")
     end
 
     it 'handles early returns' do
@@ -294,31 +294,31 @@ RSpec.describe 'Functions', type: :aruba do
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
-    # it 'handles stack overflow' do
-    #   code = '
-    #     funkcja recursive() {
-    #       recursive()
-    #     }
-    #     recursive()
-    #   '
-    #   run_command "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started).to have_output(/Stack overflow/)
-    #   expect(last_command_started.exit_status).not_to eq(0)
-    # end
+    it 'handles stack overflow' do
+      code = '
+        funkcja recursive() {
+          recursive()
+        }
+        recursive()
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/stack is too deep/)
+      expect(last_command_started.exit_status).not_to eq(0)
+    end
   end
 
   describe 'Function as values' do
-    # it 'assigns function to variable' do
-    #   code = '
-    #     funkcja test() {
-    #       zwroc 42
-    #     }
-    #     niech func = test
-    #     pokazl func()
-    #   '
-    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started.output.strip).to eq('42')
-    # end
+    it 'assigns function to variable' do
+      code = '
+        funkcja test() {
+          zwroc 42
+        }
+        niech func = test
+        pokazl func()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('42')
+    end
 
     it 'passes function as argument' do
       code = '
@@ -336,56 +336,56 @@ RSpec.describe 'Functions', type: :aruba do
   end
 
   describe 'Complex function scenarios' do
-    # it 'handles function with multiple returns and branches' do
-    #   code = '
-    #     funkcja complex(x) {
-    #       jesli x < 0 {
-    #         zwroc "negative"
-    #       } albojesli x == 0 {
-    #         niech y = 5
-    #         jesli y > 3 {
-    #           zwroc "special zero"
-    #         }
-    #         zwroc "zero"
-    #       } albo {
-    #         dla niech indeks = 0; x; 1 {
-    #           jesli indeks == 2 {
-    #             zwroc "early exit"
-    #           }
-    #         }
-    #         zwroc "positive"
-    #       }
-    #     }
-    #     pokazl complex(-1)
-    #     pokazl complex(0)
-    #     pokazl complex(5)
-    #   '
-    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("negative\nspecial zero\nearly exit")
-    # end
+    it 'handles function with multiple returns and branches' do
+      code = '
+        funkcja complex(x) {
+          jesli x < 0 {
+            zwroc "negative"
+          } albojesli x == 0 {
+            niech y = 5
+            jesli y > 3 {
+              zwroc "special zero"
+            }
+            zwroc "zero"
+          } albo {
+            dla niech indeks = 0; x; 1 {
+              jesli indeks == 2 {
+                zwroc "early exit"
+              }
+            }
+            zwroc "positive"
+          }
+        }
+        pokazl complex(-1)
+        pokazl complex(0)
+        pokazl complex(5)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("negative\nspecial zero\nearly exit")
+    end
 
-    # it 'combines functions with other language features' do
-    #   code = '
-    #     funkcja process_array(arr) {
-    #       niech sum = 0
-    #       dla niech indeks = 0; arr.dlg; 1 {
-    #         jesli arr[indeks] == nic {
-    #           nastepny
-    #         }
-    #         sum = sum + arr[indeks]
-    #       }
-    #       zwroc sum
-    #     }
+    it 'combines functions with other language features' do
+      code = '
+        funkcja process_array(arr) {
+          niech sum = 0
+          dla niech indeks = 0; arr.dlg; 1 {
+            jesli arr[indeks] == nic {
+              nastepny
+            }
+            sum = sum + arr[indeks]
+          }
+          zwroc sum
+        }
 
-    #     funkcja create_data() {
-    #       niech arr = [1, nic, 3, nic, 5]
-    #       zwroc process_array(arr)
-    #     }
+        funkcja create_data() {
+          niech arr = [1, nic, 3, nic, 5]
+          zwroc process_array(arr)
+        }
 
-    #     pokazl create_data()
-    #   '
-    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
-    #   expect(last_command_started.output.strip).to eq('9')
-    # end
+        pokazl create_data()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('9')
+    end
   end
 end
