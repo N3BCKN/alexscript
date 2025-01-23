@@ -53,3 +53,6 @@ first fully working version with basic structures:
 * add function as arguments to other functions 
 * implement recursion limit (600)
 * implement nil (nic) as false in if/else conditions
+
+### 0.4.8
+* add "<<" operator to add elements to arrays

@@ -257,7 +257,7 @@ class Interpreter
       if node.op.token_type == :tok_or
         return [left_type, left_value] if left_value == BOOL_TRUE
       elsif node.op.token_type == :tok_and
-        return [left_type, left_value] if left_value == BOOL_FALSE
+        return [left_type, left_value] if left_value == BOOL_FALSE || left_type == :type_null
       end
 
       return interpret!(node.right, env) unless node.right.is_a?(Assignment)

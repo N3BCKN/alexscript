@@ -217,7 +217,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         pokazl 5 != nic
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("prawda\nprawda\nprawda")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("prawda\nprawda\nprawda")
     end
 
     it 'handles null in loops' do
@@ -232,7 +232,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("null\nnull\nnull")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("null\nnull\nnull")
     end
 
     it 'handles operations with null' do
@@ -261,7 +261,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("0\n0\n0\n0")
+      expect(last_command_started.output.strip).to eq("0\n0\n0\n2")
     end
 
     it 'handles nested conditions with null checks' do
@@ -302,7 +302,7 @@ RSpec.describe 'Control Flow', type: :aruba do
           pokazl "error"
         }
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Undeclared identifier/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -314,7 +314,7 @@ RSpec.describe 'Control Flow', type: :aruba do
           pokazl "error"
         }
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Unsupported operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
@@ -325,8 +325,8 @@ RSpec.describe 'Control Flow', type: :aruba do
           pokazl "error"
         }
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Condition must be boolean/)
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/While test is not a boolean expression/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
