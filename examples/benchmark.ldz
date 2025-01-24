@@ -1,0 +1,22 @@
+niech a = 0
+
+# Execution time: 16.158513s (old way)
+# Execution time: 10.64498s (34.12% increase)
+# Execution time: 5.275796s (while instead of loop)
+# dopoki a <= 1000000{
+#   a = a + 1
+# }
+
+
+# Execution time: 17.368446s (old way)
+# Execution time: 11.695242s (new way) ( 32,66% increase )
+petla {
+  jesli a == 1000000 to zakoncz
+  a = a + 1
+}
+
+# Execution time: 15.804475s (old way)
+# Execution time: 7.757123s (50.91% increase)
+# dla niech a = 0; 1000000 {
+#   a = a + 1 
+# }

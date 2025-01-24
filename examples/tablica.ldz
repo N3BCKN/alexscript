@@ -1,0 +1,3 @@
+               niech x = 5
+               falsz i x = 10 
+               pokazl x

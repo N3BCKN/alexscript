@@ -3,8 +3,9 @@
 require 'colorize'
 require 'slop'
 
-require_relative './core/core'
-require_relative './utils/utils'
+require_relative('core/core')
+require_relative('ast/ast')
+require_relative('utils/utils')
 
 opts = Slop.parse do |o|
   o.bool '-f', '--full', 'run in full mode'

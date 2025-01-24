@@ -1,0 +1,6 @@
+require_relative('./methodregistry')
+require_relative('./arraymethods')
+require_relative('./floatmethods')
+require_relative('./objectmethods')
+require_relative('./stringmethods')
+require_relative('./integermethods')

@@ -1,0 +1,8 @@
+require_relative './base'
+require_relative './control'
+require_relative './functions'
+require_relative './literals'
+require_relative './objects'
+require_relative './operations'
+require_relative './variables'
+require_relative './loops'

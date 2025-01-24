@@ -1,0 +1,5 @@
+importuj('../test.ldz')
+importuj('../test.ldz')
+importuj('importowana.ldz')
+
+pokazl c

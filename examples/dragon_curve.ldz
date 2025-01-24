@@ -1,0 +1,114 @@
+/* this is a benchmark program for future tests 
+0.1.0 - 319.482847s (complex) / 0.426236s (simplified)
+
+*/
+niech kat = 15
+niech x   = 25 
+niech y   = 60
+
+funkcja potega(baza, wykladnik){
+  zwroc baza ^ wykladnik
+}
+
+funkcja silnia(n){
+  niech res = 1
+  dla niech indeks = 1; n {
+    res = res * indeks
+  }
+  zwroc res
+}
+
+/*
+
+funkcja cos(a) {
+  a = a * 3.141592 / 180
+
+  niech wartosc = 1
+  niech znak = -1
+  niech n = 200
+  niech indeks = 2
+
+  dopoki indeks < n {
+    wartosc = wartosc + (potega(a, indeks) / silnia(indeks) * znak)
+    indeks = indeks + 2
+    znak = znak * -1
+  }
+
+  zwroc wartosc
+}
+
+funkcja sin(a) {
+  a = a * 3.141592 / 180
+
+  niech wartosc = a
+  niech znak = -1
+  niech n = 200
+  niech indeks = 3
+
+  dopoki indeks < n {
+    wartosc = wartosc + (potega(a, indeks) / silnia(indeks) * znak)
+    indeks = indeks + 2
+    znak = znak * -1
+  }
+
+  zwroc wartosc
+}
+
+*/
+
+funkcja cos(a){
+  a = a % 360
+  jesli a == 0{
+    zwroc 1
+  }
+  albojesli a == 90{
+    zwroc 0
+  }
+    albojesli a == 180{
+    zwroc -1
+  }
+  albojesli a == 270{
+    zwroc 0
+  }
+  albojesli a == 360{
+    zwroc 1
+  }
+  zwroc -9999
+}
+
+funkcja sin(a){
+    a = a % 360
+  jesli a == 0{
+    zwroc 0
+  }
+  albojesli a == 90{
+    zwroc 1
+  }
+    albojesli a == 180{
+    zwroc 0
+  }
+  albojesli a == 270{
+    zwroc -1
+  }
+  albojesli a == 360{
+    zwroc 0
+  }
+  zwroc -9999
+}
+
+funkcja dragon(rozmiar, poziom, d){
+  jesli poziom == 0 {
+    x = x - cos(kat) * rozmiar
+    y = y + sin(kat) * rozmiar
+    pokazl("line " + x + " " + y)
+  }
+  albo{
+    dragon(rozmiar / 1.4142135624, poziom - 1, 1)
+    kat = kat - d * 90
+    dragon(rozmiar / 1.4142135624, poziom - 1, -1)
+  }
+}
+
+
+
+dragon(60, 12, 1)
