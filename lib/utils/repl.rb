@@ -10,8 +10,8 @@ module Utils
     CONT_PROMPT = '... '
 
     def initialize
-      @interpreter = Interpreter.new
-      @env = Environment.new # new global env
+      @interpreter = Core::Interpreter.new
+      @env = Core::Environment.new # new global env
       @current_prompt = MAIN_PROMPT.dup
       puts "Lodz Programming Language REPL 2024-#{CURRENT_YEAR} version #{VERSION}"
       puts "(wpisz 'wyjscie()' aby zakończyć)"
@@ -24,16 +24,18 @@ module Utils
         input = read_multiline_input
 
         begin
-          lexer = Lexer.new(input)
+          lexer = Core::Lexer.new(input)
           tokens = lexer.tokenize!
 
-          parser = Parser.new(tokens)
+          parser = Core::Parser.new(tokens)
           ast = parser.parse!
 
           result = @interpreter.interpret!(ast, @env)
 
           # wait for the new line if it's 'pokaz/pokazl'
-          puts "=> #{result[1]}" if !(ast.is_a?(PrintStmt) || ast.is_a?(PrintlnStmt)) && (result && !result[1].nil?)
+          if !(ast.is_a?(AST::PrintStmt) || ast.is_a?(AST::PrintlnStmt)) && (result && !result[1].nil?)
+            puts "=> #{result[1]}"
+          end
         rescue StandardError => e
           puts "Błąd: #{e.message}"
         end
