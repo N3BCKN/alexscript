@@ -166,7 +166,7 @@ module Core
     # Creates and adds a new token to the tokens array
     def add_token(token_type)
       current_token = @source[@start...@current]
-      @tokens << Token.new(token_type, current_token, @line)
+      @tokens << Utils::Token.new(token_type, current_token, @line)
     end
 
     # Returns the next character without advancing position
@@ -238,7 +238,7 @@ module Core
       final_pos = @current
       advance
       text = @source[@start...final_pos]
-      @tokens << Token.new(:tok_string, text, @line)
+      @tokens << Utils::Token.new(:tok_string, text, @line)
     end
 
     # Returns character at position current + 1

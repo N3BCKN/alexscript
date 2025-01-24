@@ -6,7 +6,7 @@ module AST
     attr_reader :left, :right, :op, :line
 
     def initialize(op, left, right, line)
-      validate_types([op], Token, 'operator')
+      validate_types([op], Utils::Token, 'operator')
       validate_types([left], Expr, 'left operand')
       validate_types([right], Expr, 'right operand')
       @op    = op
@@ -29,7 +29,7 @@ module AST
     attr_reader :op, :operand
 
     def initialize(op, operand, line)
-      validate_types([op], Token, 'operator')
+      validate_types([op], Utils::Token, 'operator')
       validate_types([operand], Expr, 'operand')
       @op      = op
       @operand = operand
@@ -48,7 +48,7 @@ module AST
     attr_reader :left, :right, :op
 
     def initialize(op, left, right, line)
-      validate_types([op], Token)
+      validate_types([op], Utils::Token)
       validate_types([left, right], Expr)
 
       @op = op
@@ -88,7 +88,7 @@ module AST
 
     def initialize(left, operator, right, line)
       validate_types([left], Identifier, 'left')
-      validate_types([operator], Token, 'operator')
+      validate_types([operator], Utils::Token, 'operator')
       validate_types([right], Expr, 'right')
       @left = left
       @operator = operator

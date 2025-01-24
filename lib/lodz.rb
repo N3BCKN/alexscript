@@ -13,7 +13,7 @@ opts = Slop.parse do |o|
 end
 
 # switch to REPL when no arguments
-Repl.new if ARGV.empty?
+Utils::Repl.new if ARGV.empty?
 
 filename = ARGV[0]
 
@@ -44,7 +44,7 @@ if opts.full?
   puts '***************************************'.colorize(:white)
 end
 
-lexer = Lexer.new(source)
+lexer = Core::Lexer.new(source)
 tokens = lexer.tokenize!
 
 if opts.full?
@@ -55,7 +55,7 @@ if opts.full?
   puts '***************************************'.colorize(:white)
 end
 
-parser = Parser.new(tokens)
+parser = Core::Parser.new(tokens)
 ast = parser.parse!
 
 if opts.full?
@@ -66,7 +66,7 @@ if opts.full?
   puts '***************************************'.colorize(:white)
 end
 
-interpreter = Interpreter.new
+interpreter = Core::Interpreter.new
 puts interpreter.interpret_ast(ast)
 
 if opts.time?

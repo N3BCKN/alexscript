@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Core
-  class State
+  class Environment
     attr_reader :variables, :functions, :parent
 
     @@call_depth = 0
@@ -11,7 +11,7 @@ module Core
       @variables = {}
       @parent = parent
       @functions = {}
-      @built_in_methods = BuiltInMethods::MethodRegistry.new
+      @built_in_methods = Utils::Methods::MethodRegistry.new
     end
 
     def get_var(name)

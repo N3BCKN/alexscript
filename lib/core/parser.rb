@@ -64,18 +64,18 @@ module Core
     # <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string> | <identifier>
     # Handles basic expressions and parenthesized expressions
     def primary
-      return Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
-      return Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
-      return Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
-      return Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
-      return Null.new(previous_token.line) if match(:tok_null)
+      return AST::Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
+      return AST::Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
+      return AST::Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
+      return AST::Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
+      return AST::Null.new(previous_token.line) if match(:tok_null)
       return array_statement if match(:tok_lsquare) # [ -> start array parsing
       return input_statement if match(:tok_input)
 
       if match(:tok_lparen) # (
         expr = expression
         Utils.parse_error("Expected ')' after expression", previous_token.line) unless match(:tok_rparen) # )
-        return Grouping.new(expr, previous_token.line)
+        return AST::Grouping.new(expr, previous_token.line)
       end
 
       if match(:tok_lcurly) # {
@@ -94,18 +94,18 @@ module Core
         end
 
         expect(:tok_rcurly) # }
-        return ObjectLiteral.new(pairs, previous_token.line)
+        return AST::ObjectLiteral.new(pairs, previous_token.line)
       end
 
       # handle function calls | array access | method calls
       identifier = expect(:tok_identifier)
-      expr = Identifier.new(identifier.lexeme, identifier.line)
+      expr = AST::Identifier.new(identifier.lexeme, identifier.line)
 
       loop do
         if match(:tok_lparen) # (
           f_args = arguments
           expect(:tok_rparen) # )
-          expr = FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+          expr = AST::FuncCall.new(identifier.lexeme, f_args, previous_token.line)
           break
         elsif match(:tok_lsquare) # [ -> to access array/object element
           key = expression
@@ -113,10 +113,10 @@ module Core
 
           if match(:tok_assign) # =
             value = expression
-            expr = ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
+            expr = AST::ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
             break
           else
-            expr = ObjectOrArrayAccess.new(expr, key, identifier.line)
+            expr = AST::ObjectOrArrayAccess.new(expr, key, identifier.line)
           end
         elsif match(:tok_dot) # . -> method calls
           method_name = expect(:tok_identifier).lexeme
@@ -130,7 +130,7 @@ module Core
             end
             expect(:tok_rparen) # )
           end
-          expr = MethodCall.new(expr, method_name, arguments, identifier.line)
+          expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
         else
           break
         end
@@ -145,7 +145,7 @@ module Core
       if match(:tok_not) || match(:tok_minus) || match(:tok_plus)
         op = previous_token
         operand = unary
-        return UnOp.new(op, operand, op.line)
+        return AST::UnOp.new(op, operand, op.line)
       end
 
       primary
@@ -158,7 +158,7 @@ module Core
       while match(:tok_caret)
         op = previous_token
         right = exponent
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -171,7 +171,7 @@ module Core
       while match(:tok_mod)
         op = previous_token
         right = exponent
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -185,7 +185,7 @@ module Core
       while match(:tok_star) || match(:tok_slash)
         op = previous_token
         right = modulo
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -199,7 +199,7 @@ module Core
       while match(:tok_plus) || match(:tok_minus) || match(:tok_append) # <<
         op = previous_token
         right = multiplication
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -211,7 +211,7 @@ module Core
       while match(:tok_greater) || match(:tok_greateroreq) || match(:tok_smalleroreq) || match(:tok_smaller)
         op = previous_token
         right = addition
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -223,7 +223,7 @@ module Core
       while match(:tok_eq) || match(:tok_noteq)
         op = previous_token
         right = comparison
-        expr = BinOp.new(op, expr, right, op.line)
+        expr = AST::BinOp.new(op, expr, right, op.line)
       end
 
       expr
@@ -238,11 +238,12 @@ module Core
                   identifier = advance
                   expect(:tok_assign)
                   value = expression
-                  AssignmentExpr.new(Identifier.new(identifier.lexeme, identifier.line), value, identifier.line)
+                  AST::AssignmentExpr.new(AST::Identifier.new(identifier.lexeme, identifier.line), value,
+                                          identifier.line)
                 else
                   equality
                 end
-        expr = LogicalOp.new(op, expr, right, op.line)
+        expr = AST::LogicalOp.new(op, expr, right, op.line)
       end
       expr
     end
@@ -256,11 +257,12 @@ module Core
                   identifier = advance
                   expect(:tok_assign)
                   value = expression
-                  AssignmentExpr.new(Identifier.new(identifier.lexeme, identifier.line), value, identifier.line)
+                  AST::AssignmentExpr.new(AST::Identifier.new(identifier.lexeme, identifier.line), value,
+                                          identifier.line)
                 else
                   logical_and
                 end
-        expr = LogicalOp.new(op, expr, right, op.line)
+        expr = AST::LogicalOp.new(op, expr, right, op.line)
       end
       expr
     end
@@ -274,7 +276,7 @@ module Core
       return unless match(:tok_print)
 
       value = expression
-      PrintStmt.new(value, previous_token.line)
+      AST::PrintStmt.new(value, previous_token.line)
     end
 
     # <println_statement> :== "pokazl" <expression>
@@ -282,7 +284,7 @@ module Core
       return unless match(:tok_println)
 
       value = expression
-      PrintlnStmt.new(value, previous_token.line)
+      AST::PrintlnStmt.new(value, previous_token.line)
     end
 
     # <if_statement> ::= "jesli" <expression> "albojesli" <stmts>*? {<stmts> "albo" <stmts>}?
@@ -293,7 +295,7 @@ module Core
       if next?(:tok_then) # if ... then ... statement
         advance
         then_stmt = statement
-        OneLinerIfStmt.new(test, then_stmt, previous_token.line)
+        AST::OneLinerIfStmt.new(test, then_stmt, previous_token.line)
       else
         expect(:tok_lcurly) # {
         then_stmt = statements
@@ -318,7 +320,7 @@ module Core
           else_stmts = nil
         end
 
-        IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
+        AST::IfStmt.new(test, then_stmt, else_stmts, else_if_conditions, previous_token.line)
       end
     end
 
@@ -330,7 +332,7 @@ module Core
       # handle empty arrays
       if next?(:tok_rsquare)
         advance
-        return ArrayLiteral.new([], previous_token.line)
+        return AST::ArrayLiteral.new([], previous_token.line)
       end
 
       # iterate over array elements
@@ -346,7 +348,7 @@ module Core
       end
 
       expect(:tok_rsquare) # ]
-      ArrayLiteral.new(elements, previous_token.line)
+      AST::ArrayLiteral.new(elements, previous_token.line)
     end
 
     def while_statement
@@ -356,7 +358,7 @@ module Core
       body_statement = statements
       expect(:tok_rcurly) # }
 
-      WhileStmt.new(test, body_statement, previous_token.line)
+      AST::WhileStmt.new(test, body_statement, previous_token.line)
     end
 
     # <for_statement> :== "dla" <identifier> "=" <start> ";" <end> (";" <increment>)? "{" <body_statement> "]"
@@ -375,19 +377,20 @@ module Core
         body_statement = statements
         expect(:tok_rcurly)
 
-        ForStmt.new(identifier, start_statement, end_statement, step_statement, body_statement, previous_token.line)
+        AST::ForStmt.new(identifier, start_statement, end_statement, step_statement, body_statement,
+                         previous_token.line)
       else # loops for collections
-        element_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+        element_identifier = AST::Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
 
         if match(:tok_comma) # for objects: dla klucz, wartosc w obj
-          value_identifier = Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+          value_identifier = AST::Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
           expect(:tok_in)
           object = expression
           expect(:tok_lcurly)
           body_statement = statements
           expect(:tok_rcurly)
 
-          ForInObjectStmt.new(element_identifier, value_identifier, object, body_statement, previous_token.line)
+          AST::ForInObjectStmt.new(element_identifier, value_identifier, object, body_statement, previous_token.line)
         else # dla arrays: dla element w arr
           expect(:tok_in)
           collection = expression
@@ -395,7 +398,7 @@ module Core
           body_statement = statements
           expect(:tok_rcurly)
 
-          ForInArrayStmt.new(element_identifier, collection, body_statement, previous_token.line)
+          AST::ForInArrayStmt.new(element_identifier, collection, body_statement, previous_token.line)
         end
       end
     end
@@ -406,7 +409,7 @@ module Core
       expect(:tok_lcurly) # {
       body_statement = statements
       expect(:tok_rcurly) # }
-      LoopStmt.new(body_statement, previous_token.line)
+      AST::LoopStmt.new(body_statement, previous_token.line)
     end
 
     # <func_decl> :== "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
@@ -420,14 +423,14 @@ module Core
 
       # if next token is "}", function body is empty
       body_statement = if next?(:tok_rcurly)
-                         Stmts.new([], previous_token.line) # empty statements list
+                         AST::Stmts.new([], previous_token.line) # empty statements list
                        else
                          statements
                        end
 
       expect(:tok_rcurly) # }
 
-      FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
+      AST::FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
     end
 
     # <local_assign> ::= "lokalna" <asign>
@@ -436,7 +439,7 @@ module Core
       left = expression
       expect(:tok_assign)
       right = expression
-      LocalAssignment.new(left, right, previous_token.line)
+      AST::LocalAssignment.new(left, right, previous_token.line)
     end
 
     # <exit_statement> ::= "wyjscie" "(" <expression>? ")"
@@ -446,7 +449,7 @@ module Core
       message = expression unless next?(:tok_rparen)
       expect(:tok_rparen) # (
 
-      ExitStmt.new(message, previous_token.line)
+      AST::ExitStmt.new(message, previous_token.line)
     end
 
     # <exit_statement> ::= "wczytaj"  "(" <expression>? ")"
@@ -474,9 +477,9 @@ module Core
       params_num = 0
       until next?(:tok_rparen)
         params_num += 1
-        Utils.parse_error('Number of params in function exceeded 255', previous_token.line) if params_num > 255
+        AST::Utils.parse_error('Number of params in function exceeded 255', previous_token.line) if params_num > 255
         name = expect(:tok_identifier)
-        f_params << Param.new(name.lexeme, previous_token.line)
+        f_params << AST::Param.new(name.lexeme, previous_token.line)
         expect(:tok_comma) unless next?(:tok_rparen)
       end
       f_params
@@ -486,7 +489,7 @@ module Core
     def return_statement
       expect(:tok_return)
       value = expression
-      ReturnStatement.new(value, previous_token.line)
+      AST::ReturnStatement.new(value, previous_token.line)
     end
 
     # <variable_statment> :== "niech" <expression> <assign> "=" <expression>
@@ -495,7 +498,7 @@ module Core
       left = expression
       expect(:tok_assign)
       right = expression
-      VariableDeclaration.new(left, right, previous_token.line)
+      AST::VariableDeclaration.new(left, right, previous_token.line)
     end
 
     # <global_variable_statment> :== "globalna" "niech" <expression> <assign> "=" <expression>
@@ -505,7 +508,7 @@ module Core
       left = expression
       expect(:tok_assign)
       right = expression
-      GlobalVariableDeclaration.new(left, right, previous_token.line)
+      AST::GlobalVariableDeclaration.new(left, right, previous_token.line)
     end
 
     def statement
@@ -531,10 +534,10 @@ module Core
         loop_statement
       elsif token == :tok_break
         advance
-        BreakLoop.new(previous_token.line)
+        AST::BreakLoop.new(previous_token.line)
       elsif token == :tok_continue
         advance
-        ContinueLoop.new(previous_token.line)
+        AST::ContinueLoop.new(previous_token.line)
       elsif token == :tok_func
         func_decl
       elsif token == :tok_return
@@ -547,25 +550,25 @@ module Core
         left = expression
         if match(:tok_assign)
           right = expression
-          Assignment.new(left, right, previous_token.line)
+          AST::Assignment.new(left, right, previous_token.line)
         elsif match(:tok_pluseq) || match(:tok_minuseq) ||
               match(:tok_stareq) || match(:tok_slasheq)
           operator = previous_token
           right = expression
-          CompoundAssignment.new(left, operator, right, previous_token.line)
-        elsif left.is_a?(FuncCall)
+          AST::CompoundAssignment.new(left, operator, right, previous_token.line)
+        elsif left.is_a?(AST::FuncCall)
           # handle function calls and array access statements
-          FuncCallStmt.new(left, previous_token.line)
-        elsif left.is_a?(ObjectOrArrayAccess)
-          ObjectOrArrayAccessStmt.new(left, previous_token.line)
-        elsif left.is_a?(MethodCall)
-          MethodCallStmt.new(left, previous_token.line)
-        elsif left.is_a?(Input)
-          InputStmt.new(left, previous_token.line)
-        elsif left.is_a?(Expr)
-          ExpressionStmt.new(left, previous_token.line)
+          AST::FuncCallStmt.new(left, previous_token.line)
+        elsif left.is_a?(AST::ObjectOrArrayAccess)
+          AST::ObjectOrArrayAccessStmt.new(left, previous_token.line)
+        elsif left.is_a?(AST::MethodCall)
+          AST::MethodCallStmt.new(left, previous_token.line)
+        elsif left.is_a?(AST::Input)
+          AST::InputStmt.new(left, previous_token.line)
+        elsif left.is_a?(AST::Expr)
+          AST::ExpressionStmt.new(left, previous_token.line)
         else
-          Utils.parse_error('Unexpected expression', previous_token.line)
+          AST::Utils.parse_error('Unexpected expression', previous_token.line)
         end
       end
     end
@@ -573,7 +576,7 @@ module Core
     def statements
       stmts = []
       stmts << statement while @current < @tokens.size && !next?(:tok_rcurly)
-      Stmts.new(stmts, previous_token.line) unless stmts.empty?
+      AST::Stmts.new(stmts, previous_token.line) unless stmts.empty?
     end
 
     # <program> ::= <statements>*

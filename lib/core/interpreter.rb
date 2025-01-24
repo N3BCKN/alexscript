@@ -9,19 +9,19 @@ module Core
     end
 
     def interpret!(node, env)
-      if node.is_a? Int
+      if node.is_a? AST::Int
         [:type_int, node.value.to_i]
-      elsif node.is_a? Flt
+      elsif node.is_a? AST::Flt
         [:type_float, node.value.to_f]
-      elsif node.is_a? Str
+      elsif node.is_a? AST::Str
         [:type_string, node.value.to_s]
-      elsif node.is_a? Bool
+      elsif node.is_a? AST::Bool
         [:type_bool, node.value]
-      elsif node.is_a? Null
+      elsif node.is_a? AST::Null
         [:type_null, 'nic']
-      elsif node.is_a? Grouping
+      elsif node.is_a? AST::Grouping
         interpret!(node.value, env)
-      elsif node.is_a? Identifier
+      elsif node.is_a? AST::Identifier
         # check if it's a variable
         var_raw = env.get_var(node.name)
 
@@ -35,7 +35,7 @@ module Core
 
         Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
         [var_raw[:type], var_raw[:value]]
-      elsif node.is_a? Assignment
+      elsif node.is_a? AST::Assignment
         var = env.get_var(node.left.name)
         if var.nil?
           Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
@@ -47,7 +47,7 @@ module Core
         right_type, right_value = interpret!(node.right, env)
         # assign new value or overwrite existing one
         env.set_var(node.left.name, right_value, right_type)
-      elsif node.is_a? AssignmentExpr
+      elsif node.is_a? AST::AssignmentExpr
         var = env.get_var(node.left.name)
         if var.nil?
           Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
@@ -60,21 +60,21 @@ module Core
         # assign new value and overwrite existing one
         env.set_var(node.left.name, right_value, right_type)
         [right_type, right_value]
-      elsif node.is_a? VariableDeclaration
+      elsif node.is_a? AST::VariableDeclaration
         right_type, right_value = interpret!(node.right, env)
         # declare new variable
         var_name = node.left.name
         is_constant = var_name.match?(/^[A-Z_]+$/) # declare as constant if CAPITALIZED
 
         env.set_local_var(var_name, right_value, right_type, is_constant)
-      elsif node.is_a? GlobalVariableDeclaration
+      elsif node.is_a? AST::GlobalVariableDeclaration
         global_env = env.get_global_env
 
         right_type, right_value = interpret!(node.right, env)
 
         # declare new variable in global scope
         global_env.set_local_var(node.left.name, right_value, right_type)
-      elsif node.is_a? BinOp
+      elsif node.is_a? AST::BinOp
 
         left_type, left_value = interpret!(node.left, env)
         right_type, right_value = interpret!(node.right, env)
@@ -217,7 +217,7 @@ module Core
           end
         end
 
-      elsif node.is_a? UnOp
+      elsif node.is_a? AST::UnOp
         operand_type, operand_value = interpret!(node.operand, env)
 
         if node.op.token_type == :tok_plus
@@ -250,7 +250,7 @@ module Core
 
       # short-circut evaluation for logical operators, left 'and' is false => false, left 'or' is true => true
       # otherwise search for the right side
-      elsif node.is_a? LogicalOp
+      elsif node.is_a? AST::LogicalOp
         left_type, left_value = interpret!(node.left, env)
 
         if node.op.token_type == :tok_or
@@ -259,19 +259,19 @@ module Core
           return [left_type, left_value] if left_value == BOOL_FALSE || left_type == :type_null
         end
 
-        return interpret!(node.right, env) unless node.right.is_a?(Assignment)
+        return interpret!(node.right, env) unless node.right.is_a?(AST::Assignment)
 
         # if right side is an assignment, eg: falsz i x = 10
         right_type, right_value = interpret!(node.right.right, env)
         env.set_var(node.right.left.name, right_value, right_type)
         [right_type, right_value]
-      elsif node.is_a? Stmts
+      elsif node.is_a? AST::Stmts
         i = 0
         while i < node.stmts.size
           interpret!(node.stmts[i], env)
           i += 1
         end
-      elsif node.is_a? CompoundAssignment
+      elsif node.is_a? AST::CompoundAssignment
         var = env.get_var(node.left.name)
         Utils.runtime_error("Undefined variable #{node.left.name}", node.line) unless var
         Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line) if var[:constant]
@@ -295,17 +295,17 @@ module Core
         env.set_var(node.left.name, new_value, var[:type])
 
         # [var[:type], new_value]
-      elsif node.is_a? PrintStmt
+      elsif node.is_a? AST::PrintStmt
         expression_type, expression_value = interpret!(node.value, env)
         formatted_value = format_value(expression_type, expression_value)
         print("#{formatted_value} ")
 
-      elsif node.is_a? PrintlnStmt
+      elsif node.is_a? AST::PrintlnStmt
         expression_type, expression_value = interpret!(node.value, env)
         formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
         p(formatted_value)
 
-      elsif node.is_a? IfStmt
+      elsif node.is_a? AST::IfStmt
         test_type, test_value = interpret!(node.test, env)
 
         if is_truthy?(test_type, test_value)
@@ -327,16 +327,16 @@ module Core
           interpret!(node.else_stmt, env.new_env) if !executed && node.else_stmt
         end
 
-      elsif node.is_a? OneLinerIfStmt
+      elsif node.is_a? AST::OneLinerIfStmt
         test_type, test_value = interpret!(node.test, env)
         interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value)
 
-      elsif node.is_a? BreakLoop
+      elsif node.is_a? AST::BreakLoop
         raise BreakException.new
-      elsif node.is_a? ContinueLoop
+      elsif node.is_a? AST::ContinueLoop
         raise ContinueException.new
 
-      elsif node.is_a? WhileStmt
+      elsif node.is_a? AST::WhileStmt
         # Create a new environment for the while loop scope
         loop_env = env.new_env
 
@@ -359,7 +359,7 @@ module Core
             break
           end
         end
-      elsif node.is_a? LoopStmt
+      elsif node.is_a? AST::LoopStmt
         loop_env = env.new_env
         while true
           # Execute body in the loop's environment
@@ -371,7 +371,7 @@ module Core
             break
           end
         end
-      elsif node.is_a? ForStmt
+      elsif node.is_a? AST::ForStmt
         var_name = node.identifier.name
         index_type, index_value = interpret!(node.start_statement, env)
         end_type, end_value = interpret!(node.end_statement, env)
@@ -411,7 +411,7 @@ module Core
             index_value += step
           end
         end
-      elsif node.is_a? ForInObjectStmt
+      elsif node.is_a? AST::ForInObjectStmt
         object_type, object_value = interpret!(node.object, env)
         Utils.runtime_error('Can only iterate over objects', node.line) unless object_type == :type_object
 
@@ -430,7 +430,7 @@ module Core
         rescue ContinueException
           next
         end
-      elsif node.is_a? ForInArrayStmt
+      elsif node.is_a? AST::ForInArrayStmt
         array_type, array_value = interpret!(node.array, env)
         Utils.runtime_error('Can only iterate over arrays', node.line) unless array_type == :type_array
 
@@ -450,10 +450,10 @@ module Core
         rescue ContinueException
           next
         end
-      elsif node.is_a? FuncDclr
+      elsif node.is_a? AST::FuncDclr
         # store entire parsed 'body' of the function with its current env
         env.set_func(node.name, [node, env]) # TODO: improve memory management here
-      elsif node.is_a? FuncCall
+      elsif node.is_a? AST::FuncCall
         env.increment_call_depth(node.line)  # increase stack depth to avoid too big recursion
         begin
           var = env.get_var(node.name)
@@ -485,7 +485,7 @@ module Core
 
           # evalate args
           arguments = node.arguments.map do |arg|
-            if arg.is_a?(Identifier)
+            if arg.is_a?(AST::Identifier)
               # try to fetch it as a variable
               var = env.get_var(arg.name)
               if var
@@ -522,9 +522,9 @@ module Core
         ensure
           env.decrement_call_depth
         end
-      elsif node.is_a? FuncCallStmt
+      elsif node.is_a? AST::FuncCallStmt
         interpret!(node.expression, env)
-      elsif node.is_a? ArrayLiteral
+      elsif node.is_a? AST::ArrayLiteral
         elements = []
 
         # interpret each element of the array
@@ -537,11 +537,11 @@ module Core
         end
 
         [:type_array, elements]
-      elsif node.is_a? ArrayAccessStmt
+      elsif node.is_a? AST::ArrayAccessStmt
         interpret!(node.expression, env)
-      elsif node.is_a? ObjectOrArrayAccessStmt
+      elsif node.is_a? AST::ObjectOrArrayAccessStmt
         interpret!(node.expression, env)
-      elsif node.is_a? ObjectLiteral
+      elsif node.is_a? AST::ObjectLiteral
         pairs = {}
         node.pairs.each do |key, value_expr|
           value_type, value = interpret!(value_expr, env)
@@ -549,8 +549,8 @@ module Core
         end
 
         [:type_object, pairs]
-      elsif node.is_a? ObjectOrArrayAccess
-        if node.array.is_a?(Identifier)
+      elsif node.is_a? AST::ObjectOrArrayAccess
+        if node.array.is_a?(AST::Identifier)
           object_var = env.get_var(node.array.name)
         else
           type, value = interpret!(node.array, env)
@@ -575,8 +575,8 @@ module Core
         else
           Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
         end
-      elsif node.is_a? ObjectOrArrayAssignment
-        if node.array.is_a?(Identifier)
+      elsif node.is_a? AST::ObjectOrArrayAssignment
+        if node.array.is_a?(AST::Identifier)
           object_var = env.get_var(node.array.name)
           Utils.runtime_error("Undefined variable #{get_access_path(node, env)}", node.line) unless object_var
         else
@@ -602,10 +602,10 @@ module Core
         end
 
         # actualize var in env for a direct access only
-        env.set_var(node.array.name, object_var[:value], object_var[:type]) if node.array.is_a?(Identifier)
+        env.set_var(node.array.name, object_var[:value], object_var[:type]) if node.array.is_a?(AST::Identifier)
 
         [value_type, value]
-      elsif node.is_a? MethodCall
+      elsif node.is_a? AST::MethodCall
         # first interpret object
         object_type, object_value = interpret!(node.object, env)
         Utils.runtime_error('Cannot call method on undefined object', node.line) unless object_value
@@ -636,19 +636,19 @@ module Core
         rescue StandardError => e
           Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}", node.line)
         end
-      elsif node.is_a? MethodCallStmt
+      elsif node.is_a? AST::MethodCallStmt
         interpret!(node.expression, env)
-      elsif node.is_a? ExpressionStmt
+      elsif node.is_a? AST::ExpressionStmt
         interpret!(node.expression, env)
-      elsif node.is_a? ReturnStatement
+      elsif node.is_a? AST::ReturnStatement
         raise ReturnError.new(interpret!(node.value, env))
-      elsif node.is_a? ExitStmt
+      elsif node.is_a? AST::ExitStmt
         if node.code
           exit(node.code.value)
         else
           exit
         end
-      elsif node.is_a? Input
+      elsif node.is_a? AST::Input
         if node.prompt
           prompt_type, prompt_value = interpret!(node.prompt, env)
           puts(prompt_value)
@@ -658,7 +658,7 @@ module Core
         input = input.chomp if input
 
         [:type_string, input]
-      elsif node.is_a? InputStmt
+      elsif node.is_a? AST::InputStmt
         interpret!(node.expression, env)
       end
     end
@@ -699,13 +699,13 @@ module Core
     end
 
     def get_access_path(node, env)
-      if node.is_a?(Identifier)
+      if node.is_a?(AST::Identifier)
         node.name
-      elsif node.is_a?(ObjectOrArrayAccess)
+      elsif node.is_a?(AST::ObjectOrArrayAccess)
         base = get_access_path(node.array, env)
         key_type, key_value = interpret!(node.index, env)
         "#{base}[#{key_value}]"
-      elsif node.is_a?(ObjectOrArrayAssignment)
+      elsif node.is_a?(AST::ObjectOrArrayAssignment)
         base = get_access_path(node.array, env)
         key_type, key_value = interpret!(node.index, env)
         "#{base}[#{key_value}]"
