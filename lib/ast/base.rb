@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
+require('byebug')
 module AST
   class Node
     private
 
-    def validate_types(values, expected_type, param_name = 'value')
+    def validate_types(values, expected_types, param_name = 'value')
+      expected_types = [expected_types] unless expected_types.is_a?(Array)
       values = [values] unless values.is_a?(Array)
 
-      i = 0
-      while i < values.length
-        value = values[i]
-        unless value.is_a?(expected_type)
-          raise TypeError, "Invalid #{param_name}: Expected #{expected_type}, got #{value.class}"
-        end
+      values.each do |value|
+        next if expected_types.any? { |type| value.is_a?(type) }
 
-        i += 1
+        # byebug
+        expected = expected_types.map(&:name).join(' or ')
+        raise TypeError, "Invalid #{param_name}: Expected #{expected}, got #{value.class}"
       end
     end
 
@@ -51,7 +51,7 @@ module AST
 
     def initialize(stmts, line)
       @stmts = stmts || []
-      validate_types(@stmts, Stmt, 'expression') unless @stmts.empty?
+      validate_types(@stmts, [Stmt], 'expression') unless @stmts.empty?
       @line = line
     end
 
@@ -72,7 +72,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], Expr)
+      validate_types([expression], [Expr])
       @expression = expression
       @line = line
     end

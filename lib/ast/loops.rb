@@ -6,7 +6,7 @@ module AST
     attr_reader :body_statement, :line
 
     def initialize(body_statement, line)
-      validate_types([body_statement], Stmts)
+      validate_types([body_statement], [Stmts])
       @body_statement = body_statement
       @line = line
     end
@@ -25,10 +25,10 @@ module AST
     attr_accessor :identifier, :start_statement, :end_statement, :step_statement, :body_statement
 
     def initialize(identifier, start_statement, end_statement, step_statement, body_statement, line)
-      validate_types([identifier], Identifier)
-      validate_types([start_statement, end_statement], Expr)
-      validate_types([step_statement], Expr) unless step_statement.nil?
-      validate_types([body_statement], Stmts)
+      validate_types([identifier], [Identifier])
+      validate_types([start_statement, end_statement], [Expr])
+      validate_types([step_statement], [Expr]) unless step_statement.nil?
+      validate_types([body_statement], [Stmts])
       @identifier = identifier
       @start_statement = start_statement
       @end_statement = end_statement
@@ -56,8 +56,8 @@ module AST
     attr_reader :test, :body_statement, :line
 
     def initialize(test, body_statement, line)
-      validate_types([test], Expr)
-      validate_types([body_statement], Stmts)
+      validate_types([test], [Expr])
+      validate_types([body_statement], [Stmts])
       @test = test
       @body_statement = body_statement
       @line = line # dodajemy przypisanie line!
@@ -78,10 +78,10 @@ module AST
     attr_reader :key_identifier, :value_identifier, :object, :body_statement, :line
 
     def initialize(key_identifier, value_identifier, object, body_statement, line)
-      validate_types([key_identifier], Identifier, 'key identifier')
-      validate_types([value_identifier], Identifier, 'value identifier') unless value_identifier.nil?
-      validate_types([object], Expr, 'object')
-      validate_types([body_statement], Stmts, 'body')
+      validate_types([key_identifier], [Identifier], 'key identifier')
+      validate_types([value_identifier], [Identifier], 'value identifier') unless value_identifier.nil?
+      validate_types([object], [Expr], 'object')
+      validate_types([body_statement], [Stmts], 'body')
       @key_identifier = key_identifier
       @value_identifier = value_identifier # może być nil
       @object = object
@@ -108,9 +108,9 @@ module AST
     attr_reader :element_identifier, :array, :body_statement, :line
 
     def initialize(element_identifier, array, body_statement, line)
-      validate_types([element_identifier], Identifier, 'element identifier')
-      validate_types([array], Expr, 'array')
-      validate_types([body_statement], Stmts, 'body')
+      validate_types([element_identifier], [Identifier], 'element identifier')
+      validate_types([array], [Expr], 'array')
+      validate_types([body_statement], [Stmts], 'body')
       @element_identifier = element_identifier
       @array = array
       @body_statement = body_statement

@@ -6,9 +6,9 @@ module AST
     attr_reader :left, :right, :op, :line
 
     def initialize(op, left, right, line)
-      validate_types([op], Utils::Token, 'operator')
-      validate_types([left], Expr, 'left operand')
-      validate_types([right], Expr, 'right operand')
+      validate_types([op], [Utils::Token], 'operator')
+      validate_types([left], [Expr], 'left operand')
+      validate_types([right], [Expr], 'right operand')
       @op    = op
       @left  = left
       @right = right
@@ -29,8 +29,8 @@ module AST
     attr_reader :op, :operand
 
     def initialize(op, operand, line)
-      validate_types([op], Utils::Token, 'operator')
-      validate_types([operand], Expr, 'operand')
+      validate_types([op], [Utils::Token], 'operator')
+      validate_types([operand], [Expr], 'operand')
       @op      = op
       @operand = operand
       @line    = line
@@ -48,8 +48,8 @@ module AST
     attr_reader :left, :right, :op
 
     def initialize(op, left, right, line)
-      validate_types([op], Utils::Token)
-      validate_types([left, right], Expr)
+      validate_types([op], [Utils::Token])
+      validate_types([left, right], [Expr])
 
       @op = op
       @left = left
@@ -68,7 +68,7 @@ module AST
     attr_reader :value
 
     def initialize(value, line)
-      validate_types([value], Expr, 'expression')
+      validate_types([value], [Expr], 'expression')
       @value = value
       @line  = line
     end
@@ -87,9 +87,9 @@ module AST
     attr_reader :left, :operator, :right, :line
 
     def initialize(left, operator, right, line)
-      validate_types([left], Identifier, 'left')
-      validate_types([operator], Utils::Token, 'operator')
-      validate_types([right], Expr, 'right')
+      validate_types([left], [Identifier], 'left')
+      validate_types([operator], [Utils::Token], 'operator')
+      validate_types([right], [Expr], 'right')
       @left = left
       @operator = operator
       @right = right
@@ -110,9 +110,9 @@ module AST
     attr_reader :object, :method_name, :arguments, :line
 
     def initialize(object, method_name, arguments, line)
-      validate_types([object], Expr, 'object')
-      validate_types([method_name], String, 'method_name')
-      validate_types(arguments, Expr, 'arguments') unless arguments.nil?
+      validate_types([object], [Expr], 'object')
+      validate_types([method_name], [String], 'method_name')
+      validate_types(arguments, [Expr], 'arguments') unless arguments.nil?
       @object = object
       @method_name = method_name
       @arguments = arguments || []
@@ -134,7 +134,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], Expr)
+      validate_types([expression], [Expr])
       @expression = expression
       @line = line
     end

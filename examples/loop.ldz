@@ -31,12 +31,16 @@
         # pokaz rekursja_limit(1)
 
 
-        niech arr = []
-        niech x = 0
-        dopoki x < 3 {
-          arr.dodaj(x * x)
-          x = x + 1
-        }
-        pokazl arr
-        niech tablica = [1,2,3]
-        pokaz tablica
+        # niech arr = []
+        # niech x = 0
+        # dopoki x < 3 {
+        #   arr.dodaj(x * x)
+        #   x = x + 1
+        # }
+        # pokazl arr
+        # niech tablica = [1,2,3]
+        # pokaz tablica
+
+
+               niech arr = [1, 2, 3]
+               pokazl arr[2.5]

@@ -6,7 +6,7 @@ module AST
     attr_reader :elements, :line
 
     def initialize(elements, line)
-      validate_types(elements, Expr, 'array elements')
+      validate_types(elements, [Expr], 'array elements')
       @elements = elements
       @line = line
     end
@@ -25,7 +25,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], ArrayAccess)
+      validate_types([expression], [ArrayAccess])
       @expression = expression
       @line = line
     end
@@ -41,7 +41,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], ObjectOrArrayAccess)
+      validate_types([expression], [ObjectOrArrayAccess])
       @expression = expression
       @line = line
     end
@@ -58,7 +58,7 @@ module AST
     attr_reader :pairs, :line
 
     def initialize(pairs, line)
-      validate_types([pairs], Hash, 'object')
+      validate_types([pairs], [Hash], 'object')
       @pairs = pairs
       @line = line
     end
@@ -86,11 +86,13 @@ module AST
 
     def initialize(array, index, line)
       # can be identifier or other ObjectOrArrayAccess
-      unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
-        raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
-      end
+      #
+      # unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
+      #   raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
+      # end
 
-      validate_types([index], Expr, 'index')
+      validate_types([array], [Identifier, ObjectOrArrayAccess], 'index')
+      validate_types([index], [Expr], 'index')
       @array = array
       @index = index
       @line = line
@@ -112,12 +114,9 @@ module AST
 
     def initialize(array, index, value, line)
       # can be identifier or other ObjectOrArrayAssignment
-      unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
-        raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
-      end
-
-      validate_types([index], Expr, 'index')
-      validate_types([value], Expr, 'value')
+      validate_types([array], [Identifier, ObjectOrArrayAccess], 'index')
+      validate_types([index], [Expr], 'index')
+      validate_types([value], [Expr], 'value')
       @array = array
       @index = index
       @value = value

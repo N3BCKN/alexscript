@@ -19,7 +19,7 @@ module AST
     attr_reader :left, :right, :line
 
     def initialize(left, right, line)
-      validate_types([left, right], Expr)
+      validate_types([left, right], [Expr])
       @left = left
       @right = right
       @line = line
@@ -39,8 +39,8 @@ module AST
     attr_reader :left, :right, :line
 
     def initialize(left, right, line)
-      validate_types([left], Identifier, 'left')
-      validate_types([right], Expr, 'right')
+      validate_types([left], [Identifier], 'left')
+      validate_types([right], [Expr], 'right')
       @left = left
       @right = right
       @line = line
@@ -61,7 +61,7 @@ module AST
     attr_reader :left, :right, :line
 
     def initialize(left, right, line)
-      validate_types([left, right], Expr)
+      validate_types([left, right], [Expr])
       @left = left
       @right = right
       @line = line
@@ -82,7 +82,7 @@ module AST
     attr_reader :left, :right, :line
 
     def initialize(left, right, line)
-      validate_types([left, right], Expr)
+      validate_types([left, right], [Expr])
       @left = left
       @right = right
       @line = line
