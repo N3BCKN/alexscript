@@ -6,7 +6,7 @@ module AST
     attr_reader :value
 
     def initialize(value, line)
-      validate_types([value], Integer)
+      validate_types([value], [Integer])
       @value = value
       @line  = line
     end
@@ -21,7 +21,7 @@ module AST
     attr_reader :value
 
     def initialize(value, line)
-      validate_types([value], String)
+      validate_types([value], [String])
       @value = value
       @line = line
     end
@@ -36,7 +36,7 @@ module AST
     attr_reader :value
 
     def initialize(value, line)
-      validate_types([value], Float)
+      validate_types([value], [Float])
       @value = value
       @line  = line
     end

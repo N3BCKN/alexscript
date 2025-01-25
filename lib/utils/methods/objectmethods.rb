@@ -5,6 +5,7 @@ module Utils
     class ObjectMethods < BaseTypeHandler
       def register_methods
         register_method('typ', ->(obj) { 'obiekt' })
+        register_method('dlg', ->(obj) { obj.size })
         register_method('klucze', ->(obj) { obj.keys })
         register_method('wartosci', ->(obj) { obj.values })
       end

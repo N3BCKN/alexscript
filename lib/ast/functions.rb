@@ -6,8 +6,8 @@ module AST
     attr_reader :name, :params, :body_statement
 
     def initialize(name, params, body_statement, line)
-      validate_types([name], String)
-      validate_types(params, Param) unless params.nil? # TODO: dobule check this
+      validate_types([name], [String])
+      validate_types(params, [Param]) unless params.nil? # TODO: dobule check this
       validate_types([body_statement], Stmts)
 
       @name = name
@@ -39,7 +39,7 @@ module AST
     attr_reader :name
 
     def initialize(name, line)
-      validate_types([name], String)
+      validate_types([name], [String])
       @name = name
       @line = line
     end
@@ -55,7 +55,7 @@ module AST
     attr_reader :name, :arguments, :line
 
     def initialize(name, arguments, line)
-      validate_types([name], String)
+      validate_types([name], [String])
       # validate_types(arguments, Array) unless arguments.nil? # TODO: dobule check this
       @name = name
       @arguments = arguments
@@ -83,7 +83,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], FuncCall)
+      validate_types([expression], [FuncCall])
       @expression = expression
       @line = line
     end
@@ -99,7 +99,7 @@ module AST
     attr_reader :value, :line
 
     def initialize(value, line)
-      validate_types([value], Expr)
+      validate_types([value], [Expr])
       @value = value
       @line = line
     end

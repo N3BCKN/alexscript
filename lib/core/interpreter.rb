@@ -308,7 +308,7 @@ module Core
       elsif node.is_a? AST::IfStmt
         test_type, test_value = interpret!(node.test, env)
 
-        if is_truthy?(test_type, test_value)
+        if is_truthy?(test_type, test_value, node.line)
           interpret!(node.then_stmt, env.new_env)
         else
           # check else-if statements
@@ -317,7 +317,7 @@ module Core
             else_if_test, else_if_stmt = condition
             else_if_type, else_if_value = interpret!(else_if_test, env)
 
-            next unless is_truthy?(else_if_type, else_if_value)
+            next unless is_truthy?(else_if_type, else_if_value, node.line)
 
             interpret!(else_if_stmt, env.new_env)
             executed = true
@@ -329,7 +329,7 @@ module Core
 
       elsif node.is_a? AST::OneLinerIfStmt
         test_type, test_value = interpret!(node.test, env)
-        interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value)
+        interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value, node.line)
 
       elsif node.is_a? AST::BreakLoop
         raise BreakException.new
@@ -619,20 +619,22 @@ module Core
 
         begin
           result = env.call_method(object_type, node.method_name, object_value, evaluated_args, node.line)
-
-          # set type of the returned value
-          result_type = case result
-                        when Integer then :type_int
-                        when Float then :type_float
-                        when String then :type_string
-                        when TrueClass, FalseClass then :type_bool
-                        when Array then :type_array
-                        when NilClass then :type_null
-                        else
-                          Utils.runtime_error("Unexpected return type from method #{node.method_name}", node.line)
-                        end
-
-          [result_type, result]
+          if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+            result
+          else
+            # set type of the returned value
+            result_type = case result
+                          when Integer then :type_int
+                          when Float then :type_float
+                          when String then :type_string
+                          when TrueClass, FalseClass then :type_bool
+                          when Array then :type_array
+                          when NilClass then :type_null
+                          else
+                            Utils.runtime_error("Unexpected return type from method #{node.method_name}", node.line)
+                          end
+            [result_type, result]
+          end
         rescue StandardError => e
           Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}", node.line)
         end
@@ -687,7 +689,7 @@ module Core
       true
     end
 
-    def is_truthy?(type, value)
+    def is_truthy?(type, value, line)
       case type
       when :type_bool
         value == BOOL_TRUE

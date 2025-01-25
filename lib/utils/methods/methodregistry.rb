@@ -3,6 +3,9 @@
 module Utils
   module Methods
     class MethodRegistry
+      # TODO: at this point many build-in methods are based on Ruby methods
+      # the are memory consuming, with another extra layer, please rewrtie them all from scratch
+      # when proper exeception mechanism will be implemented
       def initialize
         @methods = {
           type_array: ArrayMethods.new,

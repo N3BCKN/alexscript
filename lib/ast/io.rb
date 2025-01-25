@@ -6,7 +6,7 @@ module AST
     attr_reader :value, :ending
 
     def initialize(value, line)
-      validate_types([value], Expr, 'expression')
+      validate_types([value], [Expr], 'expression')
       @value = value
       @line = line
     end
@@ -25,7 +25,7 @@ module AST
     attr_reader :value, :ending
 
     def initialize(value, line)
-      validate_types([value], Expr, 'expression')
+      validate_types([value], [Expr], 'expression')
       @value = value
       @line = line
     end
@@ -44,7 +44,7 @@ module AST
     attr_reader :code, :line
 
     def initialize(code, line)
-      validate_types([code], Int) unless code.nil?
+      validate_types([code], [Int]) unless code.nil?
       @code = code
       @line = line
     end
@@ -65,7 +65,7 @@ module AST
     attr_reader :prompt, :line
 
     def initialize(prompt, line)
-      validate_types([prompt], Expr, 'prompt') unless prompt.nil?
+      validate_types([prompt], [Expr], 'prompt') unless prompt.nil?
       @prompt = prompt
       @line = line
     end
@@ -86,7 +86,7 @@ module AST
     attr_reader :expression, :line
 
     def initialize(expression, line)
-      validate_types([expression], Input)
+      validate_types([expression], [Input])
       @expression = expression
       @line = line
     end

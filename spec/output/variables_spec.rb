@@ -1,5 +1,4 @@
 require 'aruba/rspec'
-require 'byebug'
 
 RSpec.describe 'Cli', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
