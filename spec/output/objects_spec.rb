@@ -183,4 +183,77 @@ RSpec.describe 'Object Operations', type: :aruba do
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
+
+  describe 'build in methods' do
+    it 'returns a proper type from object' do
+      code = 'niech obj = {"a": 1}
+      pokazl obj.typ()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('obiekt')
+    end
+
+    it 'returns a lenght of an object' do
+      code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+      pokazl obj.dlg()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('4')
+    end
+
+    it 'returns keys of an object' do
+      code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+      pokazl obj.klucze()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[a, b, c, d]')
+    end
+
+    it 'returns values of an object' do
+      code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+      pokazl obj.wartosci()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4]')
+    end
+
+    it 'checks if object has a key' do
+      code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+      pokazl obj.ma_klucz("a")
+      pokazl obj.ma_klucz("e")'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("prawda\nfalsz")
+    end
+
+    it 'checks if object has a value' do
+      code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+      pokazl obj.ma_wartosc(999)
+      pokazl obj.ma_wartosc(1)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("falsz\nprawda")
+    end
+
+    # it 'clears an object' do
+    #   code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+    #   obj.wyczysc()
+    #   pokazl obj'
+    #   require('byebug')
+    #   byebug
+    #   run_command_and_stop "ruby #{main_file_path} ' # {code}'"
+    #   expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('{}')
+    # end
+
+    # it 'turns object into an array' do
+    #   code = 'niech obj = {"a": 1, "b": 2, "c":3, "d": 4}
+    #   pokazl obj.na_tablice()'
+    #   run_command_and_stop "ruby #{main_file_path} ' # {code}'"
+    #   expect(last_command_started.output.strip.gsub(/[\\"]/,
+    #                                                 '')).to eq('[["a", {:type=>:type_int, :value=>1}], ["b", {:type=>:type_int, :value=>2}], ["c", {:type=>:type_int, :value=>3}], ["d", {:type=>:type_int, :value=>4}]]')
+    # end
+
+    # it 'checks if object is empty' do
+    #   code = 'niech obj1 = {"a": 1, "b": 2, "c":3, "d": 4}
+    #   niech obj2 = {}
+    #   pokazl obj1.pusty()
+    #   pokazl obj2.pusty()'
+    #   run_command_and_stop "ruby #{main_file_path} ' # {code}'"
+    #   expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("falsz\nprawda")
+    # end
+  end
 end

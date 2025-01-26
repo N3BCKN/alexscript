@@ -630,6 +630,7 @@ module Core
                           when TrueClass, FalseClass then :type_bool
                           when Array then :type_array
                           when NilClass then :type_null
+                          when Hash then :type_object
                           else
                             Utils.runtime_error("Unexpected return type from method #{node.method_name}", node.line)
                           end
