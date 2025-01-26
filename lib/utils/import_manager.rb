@@ -7,22 +7,13 @@ module Utils
     def initialize
       @imported_files = Set.new
       @current_import_stack = []
+      @environments = {} # Przechowuje środowiska dla każdego pliku
     end
 
-    def import_file(file_path, current_file = nil)
-      # if there is a current file treat it like a relative path
-      if current_file
-        current_dir = File.dirname(File.expand_path(current_file))
-        absolute_path = File.expand_path(file_path, current_dir)
-      else
-        absolute_path = File.expand_path(file_path)
-      end
-
-      if @current_import_stack.include?(absolute_path)
-        raise "Circular import detected: #{@current_import_stack.join(' -> ')} -> #{file_path}"
-      end
-
-      return if @imported_files.include?(absolute_path)
+    def import_file(file_path, current_file = nil, parent_env = nil)
+      absolute_path = resolve_path(file_path, current_file)
+      check_circular_import(absolute_path)
+      return @environments[absolute_path] if @imported_files.include?(absolute_path)
 
       @current_import_stack.push(absolute_path)
 
@@ -31,15 +22,35 @@ module Utils
         lexer = Core::Lexer.new(code)
         parser = Core::Parser.new(lexer.tokenize!)
         interpreter = Core::Interpreter.new
-        interpreter.set_current_file(absolute_path)
-        interpreter.interpret_ast(parser.parse!)
 
+        env = Core::Environment.new(parent_env) # new env with parrent
+        interpreter.set_current_file(absolute_path)
+        interpreter.interpret_ast(parser.parse!, env)
+
+        @environments[absolute_path] = env
         @imported_files.add(absolute_path)
-      rescue StandardError => e
-        raise "In file #{file_path}: #{e.message}"
+
+        env
       ensure
         @current_import_stack.pop
       end
+    end
+
+    private
+
+    def resolve_path(file_path, current_file)
+      if current_file
+        current_dir = File.dirname(File.expand_path(current_file))
+        File.expand_path(file_path, current_dir)
+      else
+        File.expand_path(file_path)
+      end
+    end
+
+    def check_circular_import(absolute_path)
+      return unless @current_import_stack.include?(absolute_path)
+
+      raise "Circular import detected: #{@current_import_stack.join(' -> ')} -> #{absolute_path}"
     end
   end
 end

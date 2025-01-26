@@ -679,7 +679,8 @@ module Core
         interpret!(node.expression, env)
       elsif node.is_a? AST::ImportStmt
         begin
-          @import_manager.import_file(node.file_path, @current_file)
+          imported_env = @import_manager.import_file(node.file_path, @current_file, env)
+          env.merge(imported_env) # merge imported env with parent env (main file which imports file)
         rescue StandardError => e
           Utils.runtime_error("Import error: #{e.message}", node.line)
         end
@@ -687,9 +688,9 @@ module Core
     end
 
     # entry point of interpreter creating brand new global/parent environment
-    def interpret_ast(node)
-      env = Environment.new
-      interpret!(node, env)
+    def interpret_ast(node, env = nil)
+      environment = env || Environment.new
+      interpret!(node, environment)
     end
 
     private

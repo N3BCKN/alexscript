@@ -1,3 +1,11 @@
 pokazl 'import ok'
 
+funkcja test(){
+  pokazl "test"
+}
+
+funkcja test1(a){
+  pokazl a + 1
+}
+
 niech c = 'import ok'

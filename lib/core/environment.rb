@@ -87,6 +87,12 @@ module Core
       Environment.new(self)
     end
 
+    # merge env for imported files
+    def merge(other_env)
+      other_env.variables.each { |name, value| @variables[name] = value }
+      other_env.functions.each { |name, func| @functions[name] = func }
+    end
+
     def call_method(obj_type, method_name, receiver, args = [], line)
       method = @built_in_methods.get_method(obj_type, method_name)
       Utils.runtime_error("Unknown method #{method_name} for type #{obj_type}", line) unless method
