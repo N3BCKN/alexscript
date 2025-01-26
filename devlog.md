@@ -56,3 +56,13 @@ first fully working version with basic structures:
 
 ### 0.4.8
 * add "<<" operator to add elements to arrays
+
+### 0.4.9
+* add build in methods for arrays
+* add build in methods for objects
+* add build in methods for floats
+* add build in methods for ints 
+* add build in methods for strings
+
+### 0.4.10
+* allow for concatenation of strings with arrays and objects

@@ -272,6 +272,7 @@ module Core
       postfix(expr)
     end
 
+    # methods called on expresions, eg: "5".typ()
     def postfix(expr)
       loop do
         break unless match(:tok_dot)
