@@ -1,4 +1,5 @@
 require_relative('./token')
 require_relative('./repl')
 require_relative('./errors')
+require_relative('./import_manager')
 require_relative('./methods/methods')

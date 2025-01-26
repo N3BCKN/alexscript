@@ -455,15 +455,6 @@ module Core
       AST::FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
     end
 
-    # <local_assign> ::= "lokalna" <asign>
-    def local_assign
-      expect(:tok_local)
-      left = expression
-      expect(:tok_assign)
-      right = expression
-      AST::LocalAssignment.new(left, right, previous_token.line)
-    end
-
     # <exit_statement> ::= "wyjscie" "(" <expression>? ")"
     def exit_statement
       advance
@@ -533,6 +524,15 @@ module Core
       AST::GlobalVariableDeclaration.new(left, right, previous_token.line)
     end
 
+    # <import_statement> ::= "importuj" "(" <expression> ")"
+    def import_file_statement
+      advance
+      expect(:tok_lparen)
+      path = expect(:tok_string).lexeme
+      expect(:tok_rparen)
+      AST::ImportStmt.new(path, previous_token.line)
+    end
+
     def statement
       # predict next token
       token = peek.token_type
@@ -566,8 +566,8 @@ module Core
         return_statement
       elsif token == :tok_exit
         exit_statement
-      elsif token == :tok_local
-        local_assign
+      elsif token == :tok_import
+        import_file_statement
       else
         left = expression
         if match(:tok_assign)

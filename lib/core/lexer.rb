@@ -221,6 +221,7 @@ module Core
                    when 'zwroc' then :tok_return
                    when 'wyjscie' then :tok_exit
                    when 'wczytaj' then :tok_input
+                   when 'import' then :tok_import
                    else :tok_identifier
                    end
 
