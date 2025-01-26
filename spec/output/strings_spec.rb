@@ -3,6 +3,14 @@ require 'aruba/rspec'
 RSpec.describe 'Cli', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
 
+  describe 'concatenation' do
+    it 'can display a string with array' do
+      code = 'pokazl "napis" + [1,2,3,4]'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('napis[1, 2, 3, 4]')
+    end
+  end
+
   describe 'build in methods' do
     it 'performs methods on strings not assigned to variables' do
       code = 'pokazl "napis".typ()'
