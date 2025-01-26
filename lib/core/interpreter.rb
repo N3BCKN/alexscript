@@ -5,7 +5,13 @@ module Core
     BOOL_TRUE = 'prawda'
     BOOL_FALSE = 'falsz'
 
-    def init
+    def initialize
+      @import_manager = Utils::ImportManager.new
+      @current_file = 'main'
+    end
+
+    def set_current_file(file)
+      @current_file = file
     end
 
     def interpret!(node, env)
@@ -671,6 +677,12 @@ module Core
         [:type_string, input]
       elsif node.is_a? AST::InputStmt
         interpret!(node.expression, env)
+      elsif node.is_a? AST::ImportStmt
+        begin
+          @import_manager.import_file(node.file_path, @current_file)
+        rescue StandardError => e
+          Utils.runtime_error("Import error: #{e.message}", node.line)
+        end
       end
     end
 

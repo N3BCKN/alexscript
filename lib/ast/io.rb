@@ -99,4 +99,23 @@ module AST
       ].join("\n")
     end
   end
+
+  # eg importuj(path/to/file)
+  class ImportStmt < Stmt
+    attr_reader :file_path, :line
+
+    def initialize(file_path, line)
+      validate_types([file_path], [String])
+      @file_path = file_path
+      @line = line
+    end
+
+    def pretty_print(level = 0)
+      [
+        "#{indent(level)}ImportStatement(",
+        "#{indent(level + 1)}path: #{@file_path}",
+        "#{indent(level)})"
+      ].join("\n")
+    end
+  end
 end

@@ -67,6 +67,7 @@ if opts.full?
 end
 
 interpreter = Core::Interpreter.new
+interpreter.set_current_file(source_file)
 puts interpreter.interpret_ast(ast)
 
 if opts.time?
