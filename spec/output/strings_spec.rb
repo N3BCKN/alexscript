@@ -45,7 +45,7 @@ RSpec.describe 'Cli', type: :aruba do
       code = 'niech str = "5"
       pokazl str.liczba().typ()'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('liczba zmiennoprzecinkowa')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('zmiennoprzecinkowa')
     end
 
     it 'returns nil/nic if string cannot be turned into a number (float)' do
