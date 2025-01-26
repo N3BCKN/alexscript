@@ -1,5 +1,5 @@
-import('../test.ldz')
-import('../test.ldz')
+# import('../test.ldz')
+# import('../test.ldz')
 import('importowana.ldz')
 
 pokazl c
