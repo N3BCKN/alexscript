@@ -4,6 +4,12 @@ RSpec.describe 'Array Operations', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
 
   describe 'build in methods' do
+    it 'performs methods on ints not assigned to variables' do
+      code = 'pokazl 4.typ()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('calkowita')
+    end
+
     it 'rerurns type properly' do
       code = 'niech x = 4
       pokazl x.typ()'

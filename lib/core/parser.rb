@@ -268,7 +268,28 @@ module Core
     end
 
     def expression
-      logical_or
+      expr = logical_or
+      postfix(expr)
+    end
+
+    def postfix(expr)
+      loop do
+        break unless match(:tok_dot)
+
+        method_name = expect(:tok_identifier).lexeme
+        arguments = []
+        if match(:tok_lparen)
+          unless next?(:tok_rparen)
+            loop do
+              arguments << expression
+              break unless match(:tok_comma)
+            end
+          end
+          expect(:tok_rparen)
+        end
+        expr = AST::MethodCall.new(expr, method_name, arguments, previous_token.line)
+      end
+      expr
     end
 
     # <print_statement> :== "pokaz" <expression>

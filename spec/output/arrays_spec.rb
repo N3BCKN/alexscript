@@ -84,6 +84,14 @@ RSpec.describe 'Array Operations', type: :aruba do
   end
 
   describe 'Built-in array methods' do
+    it 'performs methods on array not assigned to variables' do
+      code = 'pokazl [1,2,3].typ()
+      pokazl [1,2,3].suma()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("tablica\n6")
+    end
+
     it 'returns array length' do
       code = '
         niech arr = [1, 2, 3, 4, 5]

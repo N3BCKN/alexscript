@@ -185,6 +185,12 @@ RSpec.describe 'Object Operations', type: :aruba do
   end
 
   describe 'build in methods' do
+    it 'performs methods on array not assigned to variables' do
+      code = 'pokazl {}.typ()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('obiekt')
+    end
+
     it 'returns a proper type from object' do
       code = 'niech obj = {"a": 1}
       pokazl obj.typ()'
