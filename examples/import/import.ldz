@@ -1,5 +1,5 @@
-importuj('../test.ldz')
-importuj('../test.ldz')
-importuj('importowana.ldz')
+import('../test.ldz')
+import('../test.ldz')
+import('importowana.ldz')
 
 pokazl c

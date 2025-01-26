@@ -19,6 +19,7 @@ filename = ARGV[0]
 
 if filename&.end_with?('.ldz')
   begin
+    source_file = File.expand_path(ARGV[0])
     source = File.read(filename)
     puts "File '#{filename}' has been read successfully."
   rescue Errno::ENOENT
