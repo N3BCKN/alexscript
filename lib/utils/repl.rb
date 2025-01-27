@@ -4,7 +4,7 @@ require 'readline'
 
 module Utils
   class Repl
-    VERSION = '0.3.1'
+    VERSION = '0.4.11'
     CURRENT_YEAR = Time.now.year
     MAIN_PROMPT = '>> '
     CONT_PROMPT = '... '
