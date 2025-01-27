@@ -349,9 +349,9 @@ module Core
         interpret!(node.then_stmt, env) if is_truthy?(test_type, test_value, node.line)
 
       elsif node.is_a? AST::BreakLoop
-        raise BreakException.new
+        raise Utils::BreakException.new
       elsif node.is_a? AST::ContinueLoop
-        raise ContinueException.new
+        raise Utils::ContinueException.new
 
       elsif node.is_a? AST::WhileStmt
         # Create a new environment for the while loop scope
@@ -370,9 +370,9 @@ module Core
           # Execute body in the loop's environment
           begin
             interpret!(node.body_statement, loop_env)
-          rescue ContinueException
+          rescue Utils::ContinueException
             next
-          rescue BreakException
+          rescue Utils::BreakException
             break
           end
         end
@@ -382,9 +382,9 @@ module Core
           # Execute body in the loop's environment
           begin
             interpret!(node.body_statement, loop_env)
-          rescue ContinueException
+          rescue Utils::ContinueException
             next
-          rescue BreakException
+          rescue Utils::BreakException
             break
           end
         end
@@ -405,8 +405,8 @@ module Core
             begin
               loop_env.set_var(var_name, index_value, :type_int)
               interpret!(node.body_statement, loop_env)
-            rescue ContinueException
-            rescue BreakException
+            rescue Utils::ContinueException
+            rescue Utils::BreakException
               break
             end
             index_value += step
@@ -421,8 +421,8 @@ module Core
             begin
               loop_env.set_var(var_name, index_value, :type_int)
               interpret!(node.body_statement, loop_env)
-            rescue ContinueException
-            rescue BreakException
+            rescue Utils::ContinueException
+            rescue Utils::BreakException
               break
             end
             index_value += step
@@ -442,9 +442,9 @@ module Core
           loop_env.set_var(node.value_identifier.name, value[:value], value[:type]) if node.value_identifier
 
           interpret!(node.body_statement, loop_env)
-        rescue BreakException
+        rescue Utils::BreakException
           break
-        rescue ContinueException
+        rescue Utils::ContinueException
           next
         end
       elsif node.is_a? AST::ForInArrayStmt
@@ -462,9 +462,9 @@ module Core
           end
 
           interpret!(node.body_statement, loop_env)
-        rescue BreakException
+        rescue Utils::BreakException
           break
-        rescue ContinueException
+        rescue Utils::ContinueException
           next
         end
       elsif node.is_a? AST::FuncDclr
@@ -530,7 +530,7 @@ module Core
           begin
             interpret!(func_declr.body_statement, new_func_env)
             result || [:type_null, 'nic'] # return 'nic' if function does not return any value with direct return 'zwroc' statement
-          rescue ReturnError => e
+          rescue Utils::ReturnError => e
             e.value
           end
         ensure
@@ -658,7 +658,7 @@ module Core
       elsif node.is_a? AST::ExpressionStmt
         interpret!(node.expression, env)
       elsif node.is_a? AST::ReturnStatement
-        raise ReturnError.new(interpret!(node.value, env))
+        raise Utils::ReturnError.new(interpret!(node.value, env))
       elsif node.is_a? AST::ExitStmt
         if node.code
           exit(node.code.value)
@@ -785,22 +785,9 @@ module Core
                           end
 
         formatted = format_value(formatted_value[0], formatted_value[1])
-        "#{key}: #{formatted}" # usun dodatkowe"
+        "#{key}: #{formatted}"
       end
       "{#{pairs.join(', ')}}"
     end
   end
-
-  # TODO: export this to another file
-  class ReturnError < StandardError
-    attr_reader :value
-
-    def initialize(value)
-      @value = value
-      super()
-    end
-  end
-
-  class BreakException < StandardError; end
-  class ContinueException < StandardError; end
 end

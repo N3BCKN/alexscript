@@ -18,4 +18,16 @@ module Utils
     puts "[#{file_info}, line: #{line}] -> " + message.colorize(:red)
     exit(1)
   end
+
+  class ReturnError < StandardError
+    attr_reader :value
+
+    def initialize(value)
+      @value = value
+      super()
+    end
+  end
+
+  class BreakException < StandardError; end
+  class ContinueException < StandardError; end
 end
