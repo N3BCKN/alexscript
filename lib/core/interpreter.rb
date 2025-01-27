@@ -12,9 +12,12 @@ module Core
 
     def set_current_file(file)
       @current_file = file
+      Utils::ContextTracker.current_file = file
     end
 
     def interpret!(node, env)
+      Utils::ContextTracker.current_line = node.line if node.respond_to?(:line) # always set line first
+
       if node.is_a? AST::Int
         [:type_int, node.value.to_i]
       elsif node.is_a? AST::Flt
@@ -36,17 +39,17 @@ module Core
           func = env.get_func(node.name)
           return [:type_function, { declaration: func[0], env: func[1] }] if func
 
-          Utils.runtime_error("Undeclared identifier #{node.name}", node.line)
+          Utils.runtime_error("Undeclared identifier #{node.name}")
         end
 
-        Utils.runtime_error("Uninitialized identifier #{node.name}", node.line) if var_raw[:type].nil?
+        Utils.runtime_error("Uninitialized identifier #{node.name}") if var_raw[:type].nil?
         [var_raw[:type], var_raw[:value]]
       elsif node.is_a? AST::Assignment
         var = env.get_var(node.left.name)
         if var.nil?
-          Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
+          Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment")
         elsif var[:constant]
-          Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line)
+          Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated")
         end
 
         # evaluate right side of the expression
@@ -56,9 +59,9 @@ module Core
       elsif node.is_a? AST::AssignmentExpr
         var = env.get_var(node.left.name)
         if var.nil?
-          Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment", node.line)
+          Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment")
         elsif var[:constant]
-          Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line)
+          Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated")
         end
 
         # evaluate right side of the expression
@@ -200,7 +203,7 @@ module Core
             env.set_var(node.left.name, left_value, left_type)
             [:type_array, left_value]
           else
-            Utils.runtime_error('Operator << can only be used with arrays', node.line)
+            Utils.runtime_error('Operator << can only be used with arrays')
           end
         elsif node.op.token_type == :tok_smalleroreq # <=
           case [left_type, right_type]
@@ -287,8 +290,8 @@ module Core
         end
       elsif node.is_a? AST::CompoundAssignment
         var = env.get_var(node.left.name)
-        Utils.runtime_error("Undefined variable #{node.left.name}", node.line) unless var
-        Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated", node.line) if var[:constant]
+        Utils.runtime_error("Undefined variable #{node.left.name}") unless var
+        Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated") if var[:constant]
 
         right_type, right_value = interpret!(node.right, env)
 
@@ -301,7 +304,7 @@ module Core
                     when :tok_stareq
                       var[:value] * right_value
                     when :tok_slasheq
-                      Utils.runtime_error('Division by zero', node.line) if right_value == 0
+                      Utils.runtime_error('Division by zero') if right_value == 0
                       var[:value] / right_value
                     end
 
@@ -359,7 +362,7 @@ module Core
           test_type, test_value = interpret!(node.test, env)
 
           # Validate the test condition type
-          Utils.runtime_error('While test is not a boolean expression', node.line) if test_type != :type_bool
+          Utils.runtime_error('While test is not a boolean expression') if test_type != :type_bool
 
           # Exit loop if condition is false
           break unless test_value == BOOL_TRUE
@@ -427,7 +430,7 @@ module Core
         end
       elsif node.is_a? AST::ForInObjectStmt
         object_type, object_value = interpret!(node.object, env)
-        Utils.runtime_error('Can only iterate over objects', node.line) unless object_type == :type_object
+        Utils.runtime_error('Can only iterate over objects') unless object_type == :type_object
 
         loop_env = env.new_env
 
@@ -446,7 +449,7 @@ module Core
         end
       elsif node.is_a? AST::ForInArrayStmt
         array_type, array_value = interpret!(node.array, env)
-        Utils.runtime_error('Can only iterate over arrays', node.line) unless array_type == :type_array
+        Utils.runtime_error('Can only iterate over arrays') unless array_type == :type_array
 
         loop_env = env.new_env
 
@@ -472,10 +475,7 @@ module Core
         begin
           var = env.get_var(node.name)
 
-          if var && !validate_function_value(var)
-            Utils.runtime_error("Invalid function value for #{node.name}",
-                                node.line)
-          end
+          Utils.runtime_error("Invalid function value for #{node.name}") if var && !validate_function_value(var)
 
           if var && var[:type] == :type_function
             # if it's a variable containing function
@@ -484,7 +484,7 @@ module Core
           else
             # if not, just check for a regulat function
             func = env.get_func(node.name)
-            Utils.runtime_error("Function #{node.name} was not declared in current scope", node.line) unless func
+            Utils.runtime_error("Function #{node.name} was not declared in current scope") unless func
             # fetch function declaration
             func_declr = func[0] # entire func declaration
             func_env   = func[1] # function env
@@ -493,7 +493,7 @@ module Core
           # check if number of args matches expected number of params in func delcaration
           if func_declr.params.size != node.arguments.size
             Utils.runtime_error(
-              "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead", node.line
+              "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead"
             )
           end
 
@@ -575,16 +575,16 @@ module Core
 
         case object_var[:type]
         when :type_array
-          Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
+          Utils.runtime_error('Array index must be an integer') unless key_type == :type_int
           length = object_var[:value].length
-          Utils.runtime_error('Index out of bounds', node.line) if key_value >= length || key_value < -length
+          Utils.runtime_error('Index out of bounds') if key_value >= length || key_value < -length
 
           element = object_var[:value][key_value]
           [element[:type], element[:value]]
         when :type_object
-          Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+          Utils.runtime_error('Object key must be a string') unless key_type == :type_string
           value = object_var[:value][key_value]
-          Utils.runtime_error("Undefined key #{key_value}", node.line) unless value
+          Utils.runtime_error("Undefined key #{key_value}") unless value
           [value[:type], value[:value]]
         else
           Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
@@ -603,16 +603,16 @@ module Core
 
         case object_var[:type]
         when :type_array
-          Utils.runtime_error('Array index must be an integer', node.line) unless key_type == :type_int
+          Utils.runtime_error('Array index must be an integer') unless key_type == :type_int
           length = object_var[:value].length
-          Utils.runtime_error('Index out of bounds', node.line) if key_value >= length || key_value < -length
+          Utils.runtime_error('Index out of bounds') if key_value >= length || key_value < -length
 
           object_var[:value][key_value] = { type: value_type, value: value }
         when :type_object
-          Utils.runtime_error('Object key must be a string', node.line) unless key_type == :type_string
+          Utils.runtime_error('Object key must be a string') unless key_type == :type_string
           object_var[:value][key_value] = { type: value_type, value: value }
         else
-          Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
+          Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object")
         end
 
         # actualize var in env for a direct access only
@@ -622,7 +622,7 @@ module Core
       elsif node.is_a? AST::MethodCall
         # first interpret object
         object_type, object_value = interpret!(node.object, env)
-        Utils.runtime_error('Cannot call method on undefined object', node.line) unless object_value
+        Utils.runtime_error('Cannot call method on undefined object') unless object_value
 
         # evaluate all arguments of method
         evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
@@ -632,7 +632,7 @@ module Core
         # object_value = object_var[:value]
 
         begin
-          result = env.call_method(object_type, node.method_name, object_value, evaluated_args, node.line)
+          result = env.call_method(object_type, node.method_name, object_value, evaluated_args)
           if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
             result
           else
@@ -646,12 +646,12 @@ module Core
                           when NilClass then :type_null
                           when Hash then :type_object
                           else
-                            Utils.runtime_error("Unexpected return type from method #{node.method_name}", node.line)
+                            Utils.runtime_error("Unexpected return type from method #{node.method_name}")
                           end
             [result_type, result]
           end
         rescue StandardError => e
-          Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}", node.line)
+          Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}")
         end
       elsif node.is_a? AST::MethodCallStmt
         interpret!(node.expression, env)
@@ -682,7 +682,7 @@ module Core
           imported_env = @import_manager.import_file(node.file_path, @current_file, env)
           env.merge(imported_env) # merge imported env with parent env (main file which imports file)
         rescue StandardError => e
-          Utils.runtime_error("Import error: #{e.message}", node.line)
+          Utils.runtime_error("Import error: #{e.message}")
         end
       end
     end
@@ -785,7 +785,7 @@ module Core
                           end
 
         formatted = format_value(formatted_value[0], formatted_value[1])
-        "#{key}: #{formatted}" # usuwamy dodatkowe \"
+        "#{key}: #{formatted}" # usun dodatkowe"
       end
       "{#{pairs.join(', ')}}"
     end

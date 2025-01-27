@@ -12,6 +12,7 @@ module Utils
 
     def import_file(file_path, current_file = nil, parent_env = nil)
       absolute_path = resolve_path(file_path, current_file)
+      Utils::ContextTracker.current_file = absolute_path
       check_circular_import(absolute_path)
       return @environments[absolute_path] if @imported_files.include?(absolute_path)
 

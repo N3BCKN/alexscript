@@ -93,14 +93,14 @@ module Core
       other_env.functions.each { |name, func| @functions[name] = func }
     end
 
-    def call_method(obj_type, method_name, receiver, args = [], line)
+    def call_method(obj_type, method_name, receiver, args = [])
       method = @built_in_methods.get_method(obj_type, method_name)
-      Utils.runtime_error("Unknown method #{method_name} for type #{obj_type}", line) unless method
+      Utils.runtime_error("Unknown method #{method_name} for type #{obj_type}") unless method
 
       begin
         method.call(receiver, *args)
       rescue StandardError => e
-        Utils.runtime_error("Error executing method #{method_name}: #{e.message}", line)
+        Utils.runtime_error("Error executing method #{method_name}: #{e.message}")
       end
     end
   end

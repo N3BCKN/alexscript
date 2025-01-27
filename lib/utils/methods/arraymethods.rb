@@ -30,13 +30,13 @@ module Utils
 
         # on elements
         register_method('usun', lambda { |arr, index|
-          Utils.runtime_error('Index out of bounds', nil) if index < -arr.length || index >= arr.length
+          Utils.runtime_error('Index out of bounds') if index < -arr.length || index >= arr.length
           arr.delete_at(index)
           arr
         })
 
         register_method('wstaw', lambda { |arr, index, element|
-          Utils.runtime_error('Index out of bounds', nil) if index < -arr.length || index > arr.length
+          Utils.runtime_error('Index out of bounds') if index < -arr.length || index > arr.length
           arr.insert(index, { type: get_element_type(element), value: element })
           arr
         })
@@ -99,7 +99,7 @@ module Utils
 
         # on ranges
         register_method('wycinek', lambda { |arr, start, koniec|
-          Utils.runtime_error('Index out of bounds', nil) if start < 0 || koniec >= arr.length
+          Utils.runtime_error('Index out of bounds') if start < 0 || koniec >= arr.length
           arr[start..koniec]
         })
 
@@ -136,7 +136,7 @@ module Utils
       def validate_numeric_array(arr)
         return if arr.all? { |e| e[:type] == :type_int || e[:type] == :type_float }
 
-        Utils.runtime_error('Array must contain only numbers', nil)
+        Utils.runtime_error('Array must contain only numbers')
       end
 
       def create_typed_response(type, value)

@@ -40,3 +40,7 @@ pokazl arr.indeks(23121.11)
 pokazl arr.indeks(1234)
 
 pokazl arr.odwroc()
+
+arr << '1'
+
+pokazl arr.suma()
