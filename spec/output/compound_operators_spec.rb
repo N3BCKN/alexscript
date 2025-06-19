@@ -196,7 +196,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         x /= 0
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Division by zero/)
+      expect(last_command_started).to have_output(/Dzielenie przez zero/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -258,7 +258,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         x += undefined_var
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -293,7 +293,7 @@ RSpec.describe 'Compound Operators', type: :aruba do
         CONSTANT += 3
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/cannot be mutated/)
+      expect(last_command_started).to have_output(/Zmienna CONSTANT jest stala/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 

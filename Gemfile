@@ -7,6 +7,6 @@ gem 'rubocop'
 gem 'slop'
 
 group :development, :test do
-  gem 'aruba'
+  gem 'aruba', '~> 2.3'
   gem 'rspec'
 end

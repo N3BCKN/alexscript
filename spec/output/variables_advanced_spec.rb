@@ -117,7 +117,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl undeclared_var
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started).to have_exit_status(1)
     end
 
@@ -128,7 +128,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl text - num
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Unsupported operator/)
+      expect(last_command_started).to have_output(/Niewspierany operator - pomiedzy hello a 5/)
       expect(last_command_started).to have_exit_status(1)
     end
 
@@ -138,7 +138,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         CONST = 10
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/cannot be mutated/)
+      expect(last_command_started).to have_output(/Zmienna CONST jest stala i nie moze byc zmieniana/)
       expect(last_command_started).to have_exit_status(1)
     end
   end
@@ -181,7 +181,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl x
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started).to have_exit_status(1)
     end
   end
@@ -216,7 +216,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl x * y
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Unsupported operator/)
+      expect(last_command_started).to have_output(/Niewspierany operator/)
       expect(last_command_started).to have_exit_status(1)
     end
   end

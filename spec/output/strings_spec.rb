@@ -88,7 +88,7 @@ RSpec.describe 'Cli', type: :aruba do
       code = 'niech str = "Hello, World"
       pokazl str.indeks(9999)'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started).to have_output(/ndeks poza zakresem/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 

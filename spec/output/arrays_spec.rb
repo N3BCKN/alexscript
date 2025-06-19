@@ -78,7 +78,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr[5]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started).to have_output(/Indeks poza zakresem/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -138,7 +138,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started).to have_output(/Indeks poza zakresem/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -159,7 +159,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started).to have_output(/Indeks poza zakresem/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -377,7 +377,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr.suma()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Array must contain only numbers/)
+      expect(last_command_started).to have_output(/Tablica moze zawierac wylacznie liczby/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -389,7 +389,7 @@ RSpec.describe 'Array Operations', type: :aruba do
         pokazl arr[2.5]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Array index must be an integer/)
+      expect(last_command_started).to have_output(/Indeks tablicy musi byc liczbą całkowitą/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 

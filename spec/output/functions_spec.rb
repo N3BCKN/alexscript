@@ -78,7 +78,7 @@ RSpec.describe 'Functions', type: :aruba do
         test(1)
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/expected 2 arguments/)
+      expect(last_command_started).to have_output(/Funkcja test oczekiwala minimum 2 argumentów/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -245,20 +245,20 @@ RSpec.describe 'Functions', type: :aruba do
         too_deep()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/stack is too deep/)
+      expect(last_command_started).to have_output(/zbyt glebokie zagniezdzenie stosu/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
-    it 'returns a proper value when recursion is not reacheing its limit' do
+    it 'returns a proper value when recursion is not reaching its limit' do
       code = '
         funkcja rekursja_limit(n){
-          jesli n == 599 to zwroc n
+          jesli n == 500 to zwroc n
           zwroc rekursja_limit(n+1)
         }
         pokaz rekursja_limit(1)
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('599')
+      expect(last_command_started.output.strip).to eq('500')
     end
   end
 
@@ -268,7 +268,7 @@ RSpec.describe 'Functions', type: :aruba do
         undefined_function()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Function undefined_function was not declared in current scope/)
+      expect(last_command_started).to have_output(/Funkcja undefined_function nie zostala zadeklarowana/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -278,7 +278,7 @@ RSpec.describe 'Functions', type: :aruba do
         x()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Invalid function value for x/)
+      expect(last_command_started).to have_output(/Niepoprawna wartosc funkcji dla x/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -290,7 +290,7 @@ RSpec.describe 'Functions', type: :aruba do
         pokazl test() + 1
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Expected 'tok_identifier', found '}'/)
+      expect(last_command_started).to have_output(/Oczekiwano 'tok_identifier', znaleziono '}'/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -302,7 +302,7 @@ RSpec.describe 'Functions', type: :aruba do
         recursive()
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/stack is too deep/)
+      expect(last_command_started).to have_output(/zbyt glebokie zagniezdzenie stosu/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -388,4 +388,71 @@ RSpec.describe 'Functions', type: :aruba do
       expect(last_command_started.output.strip).to eq('9')
     end
   end
+
+  describe 'default params' do 
+    it 'uses default param if was not directly given in function call' do 
+      code = '
+        funkcja test(a, b = "default"){
+          pokaz a
+          pokaz b 
+        }
+
+        test(5)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('5 default')
+    end 
+
+    it 'omnits default param when it something instead was given in function call' do 
+      code = '
+        funkcja test(a, b = "default"){
+          pokaz a
+          pokaz b 
+        }
+
+        test(5, "given param")
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('5 given param')
+    end 
+
+    it 'returns an error when default param is first and there are more params futher on' do
+      code = '
+      funkcja test(a = "default", b, c){
+        pokaz a
+        pokaz b 
+      }
+    '
+    run_command "ruby #{main_file_path} '#{code}'"
+    expect(last_command_started).to have_output(/Parametry bez wartosci domyslnych nie moga występowac po parametrach z wartosciami domyslnymi/)
+    expect(last_command_started.exit_status).not_to eq(0)
+    end 
+  end 
+
+  describe 'rest params' do 
+    it 'can receive rest params' do 
+      code = '
+        funkcja sum(a, *numbers) {
+          niech score = a
+          dla n w numbers {
+            score += n
+          }
+          zwroc score
+        }
+        pokazl sum(5, 1, 2, 3, 4) 
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('15')
+    end
+
+    it 'can use rest params only at the end of the function declaration' do
+      code = '
+        funkcja test(*a, b){
+        }
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/musi być ostatnim parametrem w linii/)
+      expect(last_command_started.exit_status).not_to eq(0)
+    end 
+  end 
 end

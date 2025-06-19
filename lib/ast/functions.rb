@@ -15,12 +15,22 @@ module AlexScript
         @params = params
         @body_statement = body_statement
         @line = line
+        @private = false 
+      end
+
+      def set_private(is_private)
+        @private = is_private
+      end
+    
+      def private?
+        @private
       end
 
       def pretty_print(level = 0)
         function_string = []
-        function_string << "#{indent(level)}FunctionDeclaration("
+        function_string << "#{indent(level)}FunctionDeclaration(#{@private ? 'private ' : ''}"
         function_string << "#{indent(level)} name: #{@name}"
+        # function_string[0] = "#{indent(level)}FunctionDeclaration(#{@private ? 'private ' : ''}"
 
         i = 0
         while i < @params.length
@@ -37,16 +47,31 @@ module AlexScript
 
     # single function parameter
     class Param < Dclr
-      attr_reader :name
+      attr_reader :name, :default_value, :line, :rest
 
-      def initialize(name, line)
+      def initialize(name, line, default_value = nil, rest = false)
         validate_types([name], [String])
         @name = name
         @line = line
+        @default_value = default_value
+        @rest = rest
+      end
+
+      def has_default?
+        !@default_value.nil?
+      end
+      
+      def rest?
+        @rest
       end
 
       def pretty_print(level = 0)
-        "#{indent(level)}Param(#{@name})"
+        rest_str = @rest ? "*" : ""
+        if @default_value
+          "#{indent(level)}Param(#{rest_str}#{@name}, default=#{@default_value.pretty_print(0)})"
+        else
+          "#{indent(level)}Param(#{rest_str}#{@name})"
+        end
       end
     end
 
@@ -57,7 +82,7 @@ module AlexScript
 
       def initialize(name, arguments, line)
         validate_types([name], [String])
-        # validate_types(arguments, Array) unless arguments.nil? # TODO: dobule check this
+        validate_types(arguments, Expr) unless arguments.empty? # TODO: dobule check this
         @name = name
         @arguments = arguments
         @line = line
@@ -109,6 +134,32 @@ module AlexScript
         ["#{indent(level)}Return(",
          @value.pretty_print(level + 1),
          "#{indent(level)})"].join("\n")
+      end
+    end
+    
+    class InstanceMethodCall < Expr
+      attr_reader :object, :method_name, :arguments, :line
+
+      def initialize(object, method_name, arguments, line)
+        validate_types([object], [Expr])
+        validate_types([method_name], [String])
+        @object = object
+        @method_name = method_name
+        @arguments = arguments || []
+        @line = line
+      end
+
+      def pretty_print(level = 0)
+        args_str = @arguments.map { |arg| arg.pretty_print(level + 2) }.join("\n")
+        [
+          "#{indent(level)}InstanceMethodCall(",
+          "#{indent(level+1)}object: #{@object.pretty_print(0)}",
+          "#{indent(level+1)}method: #{@method_name}",
+          "#{indent(level+1)}arguments: [",
+          args_str,
+          "#{indent(level+1)}]",
+          "#{indent(level)})"
+        ].join("\n")
       end
     end
   end

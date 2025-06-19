@@ -16,7 +16,7 @@ module AlexScript
           register_method('malymi', ->(str) { str.downcase })
           register_method('odwroc', ->(str) { str.reverse })
           register_method('wyczysc', ->(str) { str.strip })
-          register_method('rozdziel', ->(str, separator) { str.split(separator) })
+          register_method('rozdziel', ->(str, separator = nil) { str.split(separator) })
 
           register_method('liczba', lambda { |str|
             return [:type_null, 'nic'] unless float?(str)

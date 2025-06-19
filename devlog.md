@@ -19,7 +19,6 @@ first fully working version with basic structures:
 * break and continue (zakoncz/nastepny) procedures in loops
 * if one liner statements (jesli... to....)
 
-
 ## 0.3.0
 
 * implement arrays with basic funcitonalities 
@@ -67,6 +66,24 @@ first fully working version with basic structures:
 ### 0.4.10
 * allow for concatenation of strings with arrays and objects
 
-
 ### 0.4.11
 * import files 
+
+### 0.5.11
+* implement exceptions
+
+### 0.5.12
+* add default function params 
+
+### 0.5.13
+* add rest param (*args) to function declarations
+
+### 0.6.13
+* add OOP 
+* classes and instances
+* classes inheritance 
+* private methods 
+* static methods and static variables
+
+### 0.6.14
+* standard libraries (Mat, Czas, Socket)

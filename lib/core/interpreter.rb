@@ -9,6 +9,15 @@ module AlexScript
       def initialize
         @import_manager = Utils::ImportManager.new
         @current_file = 'main'
+        @exception_registry = {}
+
+        @exception_registry['WyjatekPodstawowy'] = Utils::WyjatekPodstawowy
+        @exception_registry['BladWykonania'] = Utils::BladWykonania
+        @exception_registry['BladSkladni'] = Utils::BladSkladni
+        @exception_registry['BladTypu'] = Utils::BladTypu
+        @exception_registry['BladZakresu'] = Utils::BladZakresu
+        @exception_registry['BladArgumentu'] = Utils::BladArgumentu
+        @exception_registry['BladNazwy'] = Utils::BladNazwy
       end
 
       def set_current_file(file)
@@ -40,17 +49,17 @@ module AlexScript
             func = env.get_func(node.name)
             return [:type_function, { declaration: func[0], env: func[1] }] if func
 
-            Utils.runtime_error("Undeclared identifier #{node.name}")
+            Utils.runtime_error("Niezadeklarowany identyfikator #{node.name}")
           end
 
-          Utils.runtime_error("Uninitialized identifier #{node.name}") if var_raw[:type].nil?
+          Utils.runtime_error("Niezainicjowany identyfikator #{node.name}") if var_raw[:type].nil?
           [var_raw[:type], var_raw[:value]]
         elsif node.is_a? AST::Assignment
           var = env.get_var(node.left.name)
           if var.nil?
-            Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment")
+            Utils.runtime_error("Zmienna #{node.left.name} musi byc zadeklarowana z 'niech' przed przypisaniem")
           elsif var[:constant]
-            Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated")
+            Utils.runtime_error("Zmienna #{node.left.name} jest stala i nie moze byc zmieniana")
           end
 
           # evaluate right side of the expression
@@ -60,9 +69,9 @@ module AlexScript
         elsif node.is_a? AST::AssignmentExpr
           var = env.get_var(node.left.name)
           if var.nil?
-            Utils.runtime_error("Variable #{node.left.name} must be declared with 'niech' before assignment")
+            Utils.runtime_error("Zmienna #{node.left.name} musi byc zadeklarowana z 'niech' przed przypisaniem")
           elsif var[:constant]
-            Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated")
+            Utils.runtime_error("Zmienna #{node.left.name} jest stala i nie moze byc zmieniana")
           end
 
           # evaluate right side of the expression
@@ -140,7 +149,7 @@ module AlexScript
               runtime_error(left_value, right_value, node)
             end
           elsif node.op.token_type == :tok_slash # division /
-            Utils.runtime_error('Division by zero', node.op.line) if right_value == 0
+            Utils.runtime_error('Dzielenie przez zero', node.op.line) if right_value == 0
 
             case [left_type, right_type]
             when %i[type_int type_int]
@@ -204,7 +213,7 @@ module AlexScript
               env.set_var(node.left.name, left_value, left_type)
               [:type_array, left_value]
             else
-              Utils.runtime_error('Operator << can only be used with arrays')
+              Utils.runtime_error('Operator << moze byc uzyty tylko z tablicami')
             end
           elsif node.op.token_type == :tok_smalleroreq # <=
             case [left_type, right_type]
@@ -291,8 +300,8 @@ module AlexScript
           end
         elsif node.is_a? AST::CompoundAssignment
           var = env.get_var(node.left.name)
-          Utils.runtime_error("Undefined variable #{node.left.name}") unless var
-          Utils.runtime_error("Variable #{node.left.name} is constant and cannot be mutated") if var[:constant]
+          Utils.runtime_error("Niezdefiniowana zmienna #{node.left.name}") unless var
+          Utils.runtime_error("Zmienna #{node.left.name} jest stala i nie moze byc zmieniana") if var[:constant]
 
           right_type, right_value = interpret!(node.right, env)
 
@@ -305,11 +314,11 @@ module AlexScript
                       when :tok_stareq
                         var[:value] * right_value
                       when :tok_slasheq
-                        Utils.runtime_error('Division by zero') if right_value == 0
+                        Utils.runtime_error('Dzielenie przez zero') if right_value == 0
                         var[:value] / right_value
                       end
 
-          # atcualise variable in current environment
+          # update variable in current environment
           env.set_var(node.left.name, new_value, var[:type])
 
           # [var[:type], new_value]
@@ -363,7 +372,7 @@ module AlexScript
             test_type, test_value = interpret!(node.test, env)
 
             # Validate the test condition type
-            Utils.runtime_error('While test is not a boolean expression') if test_type != :type_bool
+            Utils.runtime_error('Test while nie jest wyrazeniem boolowskim') if test_type != :type_bool
 
             # Exit loop if condition is false
             break unless test_value == BOOL_TRUE
@@ -431,7 +440,7 @@ module AlexScript
           end
         elsif node.is_a? AST::ForInObjectStmt
           object_type, object_value = interpret!(node.object, env)
-          Utils.runtime_error('Can only iterate over objects') unless object_type == :type_object
+          Utils.runtime_error('Moze iterowac tylko po obiektach') unless object_type == :type_object
 
           loop_env = env.new_env
 
@@ -450,7 +459,7 @@ module AlexScript
           end
         elsif node.is_a? AST::ForInArrayStmt
           array_type, array_value = interpret!(node.array, env)
-          Utils.runtime_error('Can only iterate over arrays') unless array_type == :type_array
+          Utils.runtime_error('Moze iterowac tylko po tablicach') unless array_type == :type_array
 
           loop_env = env.new_env
 
@@ -459,7 +468,7 @@ module AlexScript
             if element.is_a?(Hash)
               loop_env.set_var(node.element_identifier.name, element[:value], element[:type])
             else
-              loop_env.set_var(node.element_identifier.name, element, get_type(element))
+              loop_env.set_var(node.element_identifier.name, element, get_type(element)) # TODO: FIX THIS MISSING get_type METHOD ASAP
             end
 
             interpret!(node.body_statement, loop_env)
@@ -471,72 +480,233 @@ module AlexScript
         elsif node.is_a? AST::FuncDclr
           # store entire parsed 'body' of the function with its current env
           env.set_func(node.name, [node, env]) # TODO: improve memory management here
-        elsif node.is_a? AST::FuncCall
-          env.increment_call_depth(node.line)  # increase stack depth to avoid too big recursion
-          begin
-            var = env.get_var(node.name)
-
-            Utils.runtime_error("Invalid function value for #{node.name}") if var && !validate_function_value(var)
-
-            if var && var[:type] == :type_function
-              # if it's a variable containing function
-              func_declr = var[:value][:declaration]
-              func_env = var[:value][:env]
-            else
-              # if not, just check for a regulat function
-              func = env.get_func(node.name)
-              Utils.runtime_error("Function #{node.name} was not declared in current scope") unless func
-              # fetch function declaration
-              func_declr = func[0] # entire func declaration
-              func_env   = func[1] # function env
-            end
-
-            # check if number of args matches expected number of params in func delcaration
-            if func_declr.params.size != node.arguments.size
-              Utils.runtime_error(
-                "Function #{node.name} expected #{func_declr.params.size} arguments, got #{node.arguments.size} instead"
-              )
-            end
-
-            # evalate args
-            arguments = node.arguments.map do |arg|
-              if arg.is_a?(AST::Identifier)
-                # try to fetch it as a variable
-                var = env.get_var(arg.name)
-                if var
-                  [var[:type], var[:value]]
-                else
-                  # if var not found, try to fetch a function
-                  func_value = env.get_func_as_value(arg.name)
-                  Utils.runtime_error("Undefined variable or function #{arg.name}", arg.line) unless func_value
-                  func_value
-                end
-              else
-                interpret!(arg, env)
-              end
-            end
-            node.arguments.each { |arg| arguments << interpret!(arg, env) }
-
-            # new nested env for function, derrived from the original env of the function where it was declared
-            # (eg, could be nested func or smth)
-            new_func_env = func_env.new_env
-
-            # create local variables for called function, derrived from args
-            # eg. my_func(1,2,3), my_func(a,b,c) => a = 1, b = 2, c = 3
-            func_declr.params.zip(arguments).each do |param, argval|
-              new_func_env.set_local_var(param.name, argval[1], argval[0])
-            end
-
-            # interpret function declaration body, wrap in into a rescue block to catch a return statement
-            begin
-              interpret!(func_declr.body_statement, new_func_env)
-              result || [:type_null, 'nic'] # return 'nic' if function does not return any value with direct return 'zwroc' statement
-            rescue Utils::ReturnError => e
-              e.value
-            end
-          ensure
-            env.decrement_call_depth
-          end
+				elsif node.is_a? AST::FuncCall
+					env.increment_call_depth(node.line)
+					begin
+						# new code: first check if we're in a class instance context
+						current_instance = env.get_instance
+						class_method_called = false
+						
+						if current_instance
+							# we're in an instance method - first look for method in current class
+							# then in base classes (including private ones)
+							
+							# initialize variables to store found method
+							method_info = nil
+							found_class_def = nil
+							
+							# start from current class
+							current_class_name = current_instance[:class_name]
+							
+							# go through class hierarchy searching for method
+							while current_class_name && !method_info
+								current_class_def = env.get_class(current_class_name)
+								break unless current_class_def
+								
+								# check if method exists in this class
+								if current_class_def[:methods] && current_class_def[:methods][node.name]
+									method_info = current_class_def[:methods][node.name]
+									found_class_def = current_class_def
+									break
+								end
+								
+								# move to base class
+								current_class_name = current_class_def[:parent]
+							end
+							
+							if method_info
+								class_method_called = true
+								# this is a method call from class hierarchy (can be private)
+								
+								# evaluate arguments
+								arguments = node.arguments.map do |arg|
+									if arg.is_a?(AST::Identifier)
+										var = env.get_var(arg.name)
+										if var
+											[var[:type], var[:value]]
+										else
+											func_value = env.get_func_as_value(arg.name)
+											Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
+											func_value
+										end
+									else
+										interpret!(arg, env)
+									end
+								end
+								
+								# handle parameters, similar to regular functions
+								func_declr = method_info[:declaration]
+								func_env = method_info[:env]
+								
+								# rest type parameters
+								rest_param = func_declr.params.find(&:rest?)
+								min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
+								max_args = rest_param ? Float::INFINITY : func_declr.params.size
+								
+								# validate argument count
+								if node.arguments.size < min_args
+									Utils.runtime_error(
+										"Metoda #{node.name} oczekiwala minimum #{min_args} argumentów, otrzymała #{node.arguments.size}"
+									)
+								end
+								
+								unless rest_param
+									if node.arguments.size > max_args
+										Utils.runtime_error(
+											"Metoda #{node.name} oczekiwala maksymalnie #{max_args} argumentów, otrzymała #{node.arguments.size}"
+										)
+									end
+								end
+								
+								# create new environment for method
+								new_func_env = func_env.new_env
+								new_func_env.set_instance(current_instance)
+								
+								# handle regular parameters
+								rest_idx = func_declr.params.index(&:rest?)
+								rest_position = rest_idx || func_declr.params.size
+								
+								normal_params = func_declr.params.reject(&:rest?)
+								normal_params.each_with_index do |param, idx|
+									if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
+										arg_val = arguments[idx]
+										new_func_env.set_local_var(param.name, arg_val[1], arg_val[0])
+									else
+										if param.has_default?
+											default_value = interpret!(param.default_value, func_env)
+											new_func_env.set_local_var(param.name, default_value[1], default_value[0])
+										else
+											Utils.runtime_error("Brakujacy argument #{param.name}")
+										end
+									end
+								end
+								
+								# handle rest parameter
+								if rest_param
+									rest_args = arguments[rest_position..-1] || []
+									rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+									new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+								end
+								
+								# execute method body
+								begin
+									Utils::ContextTracker.track_method_call(node.name) do
+										interpret!(func_declr.body_statement, new_func_env)
+									end
+									result = [:type_null, 'nic'] # return 'nic' if function does not return any value
+								rescue Utils::ReturnError => e
+									result = e.value
+								end
+							end
+						end
+						
+						# end of new code - proceed to standard function handling
+						# if no class method was found
+						unless class_method_called
+							var = env.get_var(node.name)
+					
+							Utils.runtime_error("Niepoprawna wartosc funkcji dla #{node.name}") if var && !validate_function_value(var)
+					
+							if var && var[:type] == :type_function
+								# if it's a variable containing function
+								func_declr = var[:value][:declaration]
+								func_env = var[:value][:env]
+							else
+								# if not, just check for a regular function
+								func = env.get_func(node.name)
+								Utils.runtime_error("Funkcja #{node.name} nie zostala zadeklarowana w obecnym zakresie") unless func
+								# fetch function declaration
+								func_declr = func[0] # entire func declaration
+								func_env   = func[1] # function env
+							end
+					
+							# check if there is a rest (*args) param in funct call
+							rest_param = func_declr.params.find(&:rest?)
+							
+							min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
+							max_args = rest_param ? Float::INFINITY : func_declr.params.size
+							
+							if node.arguments.size < min_args
+								Utils.runtime_error(
+									"Funkcja #{node.name} oczekiwala minimum #{min_args} argumentów, otrzymała #{node.arguments.size}"
+								)
+							end
+							
+							# check max number of args if rest param is not present 
+							unless rest_param
+								if node.arguments.size > max_args
+									Utils.runtime_error(
+										"Funkcja #{node.name} oczekiwala maksymalnie #{max_args} argumentów, otrzymała #{node.arguments.size}"
+									)
+								end
+							end
+					
+							# evaluate args
+							arguments = node.arguments.map do |arg|
+								if arg.is_a?(AST::Identifier)
+									# try to fetch it as a variable
+									var = env.get_var(arg.name)
+									if var
+										[var[:type], var[:value]]
+									else
+										# if var not found, try to fetch a function
+										func_value = env.get_func_as_value(arg.name)
+										Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
+										func_value
+									end
+								else
+									interpret!(arg, env)
+								end
+							end
+					
+							# new nested env for function
+							new_func_env = func_env.new_env
+					
+							# index of the rest param
+							rest_idx = func_declr.params.index(&:rest?)
+							rest_position = rest_idx || func_declr.params.size
+							
+							# assign values to regular parameters (before rest parameter)
+							normal_params = func_declr.params.reject(&:rest?)
+							normal_params.each_with_index do |param, idx|
+								if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
+									# use passed argument
+									arg_val = arguments[idx]
+									new_func_env.set_local_var(param.name, arg_val[1], arg_val[0])
+								else
+									# use default value
+									if param.has_default?
+										default_value = interpret!(param.default_value, func_env)
+										new_func_env.set_local_var(param.name, default_value[1], default_value[0])
+									else
+										Utils.runtime_error("Brakujacy argument #{param.name}")
+									end
+								end
+							end
+							
+							# handle rest parameter if exists
+							if rest_param
+								rest_args = arguments[rest_position..-1] || []
+								
+								rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+								new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+							end
+					
+							# interpret function declaration body
+							begin
+								Utils::ContextTracker.track_method_call(node.name) do
+									interpret!(func_declr.body_statement, new_func_env)
+								end
+								result = [:type_null, 'nic'] # return 'nic' if function does not return any value
+							rescue Utils::ReturnError => e
+								result = e.value
+							end
+						end
+						
+						result
+					ensure
+						env.decrement_call_depth
+					end
         elsif node.is_a? AST::FuncCallStmt
           interpret!(node.expression, env)
         elsif node.is_a? AST::ArrayLiteral
@@ -562,7 +732,6 @@ module AlexScript
             value_type, value = interpret!(value_expr, env)
             pairs[key] = { type: value_type, value: value }
           end
-
           [:type_object, pairs]
         elsif node.is_a? AST::ObjectOrArrayAccess
           if node.array.is_a?(AST::Identifier)
@@ -576,24 +745,24 @@ module AlexScript
 
           case object_var[:type]
           when :type_array
-            Utils.runtime_error('Array index must be an integer') unless key_type == :type_int
+            Utils.runtime_error('Indeks tablicy musi byc liczbą całkowitą') unless key_type == :type_int
             length = object_var[:value].length
-            Utils.runtime_error('Index out of bounds') if key_value >= length || key_value < -length
+            Utils.runtime_error('Indeks poza zakresem') if key_value >= length || key_value < -length
 
             element = object_var[:value][key_value]
             [element[:type], element[:value]]
           when :type_object
-            Utils.runtime_error('Object key must be a string') unless key_type == :type_string
+            Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow') unless key_type == :type_string
             value = object_var[:value][key_value]
-            Utils.runtime_error("Undefined key #{key_value}") unless value
+            Utils.runtime_error("Niezdefiniowany klucz #{key_value}") unless value
             [value[:type], value[:value]]
           else
-            Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object", node.line)
+            Utils.runtime_error("Wyrazenie #{get_access_path(node, env)} nie jest ani tablica ani obiektem", node.line)
           end
         elsif node.is_a? AST::ObjectOrArrayAssignment
           if node.array.is_a?(AST::Identifier)
             object_var = env.get_var(node.array.name)
-            Utils.runtime_error("Undefined variable #{get_access_path(node, env)}", node.line) unless object_var
+            Utils.runtime_error("Niezdefiniowana zmienna #{get_access_path(node, env)}", node.line) unless object_var
           else
             type, value = interpret!(node.array, env)
             object_var = { type: type, value: value }
@@ -604,56 +773,302 @@ module AlexScript
 
           case object_var[:type]
           when :type_array
-            Utils.runtime_error('Array index must be an integer') unless key_type == :type_int
+            Utils.runtime_error('Indeks tablicy musi byc liczbą całkowitą') unless key_type == :type_int
             length = object_var[:value].length
-            Utils.runtime_error('Index out of bounds') if key_value >= length || key_value < -length
+            Utils.runtime_error('Indeks poza zakresem') if key_value >= length || key_value < -length
 
             object_var[:value][key_value] = { type: value_type, value: value }
           when :type_object
-            Utils.runtime_error('Object key must be a string') unless key_type == :type_string
+            Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow') unless key_type == :type_string
             object_var[:value][key_value] = { type: value_type, value: value }
           else
-            Utils.runtime_error("Expression #{get_access_path(node, env)} is neither array nor object")
+            Utils.runtime_error("Wyrazenie #{get_access_path(node, env)} nie jest ani tablica ani obiektem")
           end
 
-          # actualize var in env for a direct access only
+          # update var in env for a direct access only
           env.set_var(node.array.name, object_var[:value], object_var[:type]) if node.array.is_a?(AST::Identifier)
 
           [value_type, value]
-        elsif node.is_a? AST::MethodCall
-          # first interpret object
-          object_type, object_value = interpret!(node.object, env)
-          Utils.runtime_error('Cannot call method on undefined object') unless object_value
-
-          # evaluate all arguments of method
-          evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
-
-          # fetch object type and call a proper method from env
-          # object_type = object_var[:type]
-          # object_value = object_var[:value]
-
-          begin
-            result = env.call_method(object_type, node.method_name, object_value, evaluated_args)
-            if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
-              result
-            else
-              # set type of the returned value
-              result_type = case result
-                            when Integer then :type_int
-                            when Float then :type_float
-                            when String then :type_string
-                            when TrueClass, FalseClass then :type_bool
-                            when Array then :type_array
-                            when NilClass then :type_null
-                            when Hash then :type_object
-                            else
-                              Utils.runtime_error("Unexpected return type from method #{node.method_name}")
-                            end
-              [result_type, result]
-            end
-          rescue StandardError => e
-            Utils.runtime_error("Error executing method #{node.method_name}: #{e.message}")
-          end
+				elsif node.is_a? AST::MethodCall
+					# interpret object
+					object_type, object_value = interpret!(node.object, env)
+				
+					# check if this is a method call on a class (object is a class identifier)
+					if node.object.is_a?(AST::Identifier) && env.get_class(node.object.name)
+						class_name = node.object.name
+						class_def = env.get_class(class_name)
+						
+						# first check if this is a built-in info method for class
+						begin
+							# prepare arguments
+							evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+							
+							# add class name info to definition
+							class_with_name = class_def.dup
+							class_with_name[:name] = class_name
+							
+							# add environment access for methods that need it
+							evaluated_args.unshift(env) if [:przodkowie, :czy_dziedziczy_po].include?(node.method_name.to_sym)
+							
+							# try to call built-in class method
+							result = env.call_method(:type_class, node.method_name, class_with_name, evaluated_args)
+							
+							# determine result type
+							result_type = case result
+														when Integer then :type_int
+														when Float then :type_float
+														when String then :type_string
+														when TrueClass, FalseClass then :type_bool
+														when Array then :type_array
+														when NilClass then :type_null
+														when Hash then :type_object
+														else
+															:type_object # default treat as object
+														end
+							
+							return [result_type, result]
+						rescue StandardError => e
+							# if no built-in method, continue with normal static methods
+						end
+						
+						# look for static method in class hierarchy
+						method_info = nil
+						current_class_def = class_def
+						
+						while current_class_def && !method_info
+							# check if method exists in current class
+							if current_class_def[:static_methods] && current_class_def[:static_methods][node.method_name]
+								method_info = current_class_def[:static_methods][node.method_name]
+								break
+							end
+							
+							# if not, check base class
+							parent_name = current_class_def[:parent]
+							break unless parent_name
+							
+							current_class_def = env.get_class(parent_name)
+						end
+						
+						if method_info
+							# handle static method call
+							
+							# evaluate arguments
+							arguments = node.arguments.map { |arg| interpret!(arg, env) }
+							
+							# check argument count
+							params = method_info[:declaration].params
+							
+							# handle rest type parameters
+							rest_param = params.find(&:rest?)
+							min_args = params.count { |p| !p.has_default? && !p.rest? }
+							max_args = rest_param ? Float::INFINITY : params.size
+							
+							if arguments.size < min_args
+								Utils.runtime_error(
+									"Metoda statyczna #{node.method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+									node.line
+								)
+							end
+							
+							unless rest_param
+								if arguments.size > max_args
+									Utils.runtime_error(
+										"Metoda statyczna #{node.method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+										node.line
+									)
+								end
+							end
+							
+							# create new environment for static method
+							method_env = method_info[:env].new_env
+							
+							# assign arguments to parameters
+							rest_idx = params.index(&:rest?)
+							rest_position = rest_idx || params.size
+							
+							normal_params = params.reject(&:rest?)
+							normal_params.each_with_index do |param, idx|
+								if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+									method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+								elsif param.has_default?
+									default_value = interpret!(param.default_value, method_info[:env])
+									method_env.set_local_var(param.name, default_value[1], default_value[0])
+								else
+									Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+								end
+							end
+							
+							# handle rest parameter
+							if rest_param
+								rest_args = arguments[rest_position..-1] || []
+								rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+								method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+							end
+							
+							# execute static method body
+							begin	
+								Utils::ContextTracker.track_method_call(node.method_name) do
+									interpret!(method_info[:declaration].body_statement, method_env)
+								end
+								result = [:type_null, 'nic']  # by default return 'nic'
+							rescue Utils::ReturnError => e
+								result = e.value  # or specific value returned by method
+							end
+							
+							return result
+						else
+							Utils.runtime_error("Nieznana metoda statyczna '#{node.method_name}' w klasie #{class_name}", node.line)
+						end
+					end
+				
+					# handle class instance methods
+					if object_type == :type_instance
+						# first check if this is a built-in info method for instance
+						begin
+							# prepare arguments
+							evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+							
+							# add environment access for methods that need it
+							evaluated_args.unshift(env) if [:czy_instancja].include?(node.method_name.to_sym)
+							
+							# try to call built-in instance method
+							result = env.call_method(:type_instance, node.method_name, object_value, evaluated_args)
+							
+							# determine result type
+							result_type = case result
+														when Integer then :type_int
+														when Float then :type_float
+														when String then :type_string
+														when TrueClass, FalseClass then :type_bool
+														when Array then :type_array
+														when NilClass then :type_null
+														when Hash then :type_object
+														else
+															:type_object # default treat as object
+														end
+							
+							return [result_type, result]
+						rescue StandardError => e
+							# if no built-in method, continue with normal instance methods
+						end
+						
+						# find method in class hierarchy
+						method_result = env.find_method_in_hierarchy(object_value, node.method_name)
+						Utils.runtime_error("Nieznana metoda #{node.method_name} dla instancji klasy #{object_value[:class_name]}", node.line) unless method_result
+						
+						method_info = method_result[:method_info]
+						
+						# check if method is private
+						if method_info[:private]
+							current_instance = env.get_instance
+							# private method can be called:
+							# 1. from same instance
+							# 2. from methods of same class (or subclass if inherited)
+							
+							same_instance = current_instance == object_value
+							from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
+							from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
+							
+							unless same_instance || from_inside_class || from_subclass
+								Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
+							end
+						end
+											
+						# evaluate arguments
+						arguments = node.arguments.map { |arg| interpret!(arg, env) }
+						
+						# check argument count
+						params = method_info[:declaration].params
+						
+						# handle rest type parameters
+						rest_param = params.find(&:rest?)
+						min_args = params.count { |p| !p.has_default? && !p.rest? }
+						max_args = rest_param ? Float::INFINITY : params.size
+						
+						if arguments.size < min_args
+							Utils.runtime_error(
+								"Metoda #{node.method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+								node.line
+							)
+						end
+						
+						unless rest_param
+							if arguments.size > max_args
+								Utils.runtime_error(
+									"Metoda #{node.method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+									node.line
+								)
+							end
+						end
+						
+						# create new environment for method
+						method_env = method_info[:env].new_env
+						method_env.set_instance(object_value)
+						
+						# assign arguments to parameters
+						rest_idx = params.index(&:rest?)
+						rest_position = rest_idx || params.size
+						
+						normal_params = params.reject(&:rest?)
+						normal_params.each_with_index do |param, idx|
+							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+								method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+							elsif param.has_default?
+								default_value = interpret!(param.default_value, method_info[:env])
+								method_env.set_local_var(param.name, default_value[1], default_value[0])
+							else
+								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+							end
+						end
+						
+						# handle rest parameter
+						if rest_param
+							rest_args = arguments[rest_position..-1] || []
+							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+							method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+						end
+						
+						# execute method body
+						begin
+							Utils::ContextTracker.track_method_call(node.method_name) do
+								interpret!(method_info[:declaration].body_statement, method_env)
+							end
+							result = [:type_null, 'nic']  # by default return 'nic'
+						rescue Utils::ReturnError => e
+							result = e.value  # or specific value returned by method
+						end
+						
+						result
+					else
+						# keep existing handling for regular object methods
+						Utils.runtime_error('Nie można wywolac metody na niezdefiniowanym obiekcie') unless object_value
+				
+						# evaluate method arguments
+						evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+				
+						begin
+							result = env.call_method(object_type, node.method_name, object_value, evaluated_args)
+							if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+								result
+							else
+								# determine result type
+								result_type = case result
+															when Integer then :type_int
+															when Float then :type_float
+															when String then :type_string
+															when TrueClass, FalseClass then :type_bool
+															when Array then :type_array
+															when NilClass then :type_null
+															when Hash then :type_object
+															else
+																Utils.runtime_error("Niespodziewany typ zwrocony z metody #{node.method_name}")
+															end
+								[result_type, result]
+							end
+						rescue StandardError => e
+							Utils.runtime_error("Blad podczas wykonywania metody #{node.method_name}: #{e.message}")
+						end
+					end
         elsif node.is_a? AST::MethodCallStmt
           interpret!(node.expression, env)
         elsif node.is_a? AST::ExpressionStmt
@@ -683,26 +1098,620 @@ module AlexScript
             imported_env = @import_manager.import_file(node.file_path, @current_file, env)
             env.merge(imported_env) # merge imported env with parent env (main file which imports file)
           rescue StandardError => e
-            Utils.runtime_error("Import error: #{e.message}")
+            Utils.runtime_error("Blad importu: #{e.message}")
           end
+        elsif node.is_a? AST::ThrowStmt
+          if node.exception_type
+            # Format obiektu z typem i wiadomością
+            message_type, message_value = interpret!(node.expression, env)
+            
+            # check if object is registered
+            exception_class = @exception_registry[node.exception_type]
+            if exception_class.nil?
+              Utils.runtime_error("Nieznany typ wyjątku: #{node.exception_type}", node.line)
+            end
+            
+            # throw respective exception
+            raise exception_class.new(message_value, node.line)
+          else
+            expr_type, expr_value = interpret!(node.expression, env)
+            
+            if expr_type == :type_string
+              # throw base exc 
+              raise Utils::WyjatekPodstawowy.new(expr_value, node.line)
+            elsif expr_type == :type_object
+              # handle case when user passed object directly (not through {} syntax)
+              exception_type = expr_value['typ']
+              exception_message = expr_value['wiadomosc'] || ""
+              
+              exception_class = @exception_registry[exception_type] || Utils::WyjatekPodstawowy
+              raise exception_class.new(exception_message, node.line)
+            else
+              Utils.runtime_error("Nieprawidłowy typ dla rzuc: oczekiwano string lub obiekt", node.line)
+            end
+          end 
+        elsif node.is_a? AST::TryCatchStmt
+          try_env = env.new_env
+          
+          begin
+            interpret!(node.try_block, try_env)
+          rescue StandardError => e
+            # check if there is a matching catch block
+            caught = false
+            
+            node.catch_blocks.each do |catch_block|
+              # catch_block is AST::CatchBlock instance, so we use its properties
+              if catch_block.exception_type
+                # check exception type if specified
+                type_name = catch_block.exception_type.name
+                exception_class = @exception_registry[type_name]
+                
+                # if exception type doesn't match, move to next catch block
+                next unless exception_class && e.is_a?(exception_class)
+              end
+              
+              catch_env = env.new_env
+              
+              # create new 'e' object inside exception block context
+              exception_obj = {}
+              exception_obj['wiadomosc'] = {type: :type_string, value: e.message}
+              exception_obj['typ'] = {type: :type_string, value: e.class.name.split('::').last}
+              exception_obj['linia'] = {type: :type_int, value: (e.respond_to?(:line) ? e.line : nil)}
+
+              catch_env.set_local_var(catch_block.exception_var, exception_obj, :type_object)
+              
+              # execute catch block
+              interpret!(catch_block.body, catch_env)
+              caught = true
+              break
+            end
+            
+            # if no catch handled the exception, throw it further
+            raise e unless caught
+          ensure
+            # execute finally block if exists
+            interpret!(node.finally_block, env.new_env) if node.finally_block
+          end
+        elsif node.is_a? AST::ExceptionDeclaration
+          parent_name = node.parent || 'WyjatekPodstawowy'
+          parent_class = @exception_registry[parent_name]
+          
+          if parent_class.nil?
+            Utils.runtime_error("Nieznany typ wyjątku bazowego: #{parent_name}", node.line)
+          end
+          
+          exception_class = Class.new(parent_class)
+          @exception_registry[node.name] = exception_class
+          
+          exception_class.define_singleton_method(:name) { node.name }
+          
+          [:type_null, 'nic'] 
+				elsif node.is_a? AST::ClassDefinition
+					# new environment for class
+					class_env = env.new_env
+					
+					# class definition
+					class_def = {
+						parent: node.parent_class,
+						body: node.body,
+						methods: {},
+						static_methods: {},
+						static_vars: {},
+						is_abstract: node.is_abstract  # add abstractness flag
+					}
+					
+					# iterate through statements in class body
+					in_private_section = false
+					in_static_section = false
+					
+					node.body.stmts.each do |stmt|
+						if stmt.is_a?(AST::PrivateSection)
+							in_private_section = true
+							next
+						end
+						
+						if stmt.is_a?(AST::StaticKeyword)
+							in_static_section = true
+							next
+						end
+						
+						if stmt.is_a?(AST::FuncDclr)
+							if in_static_section
+								# static method
+								class_def[:static_methods][stmt.name] = {
+									declaration: stmt,
+									env: class_env,
+									private: in_private_section
+								}
+								in_static_section = false  # reset flag
+							else
+								# normal instance method
+								class_def[:methods][stmt.name] = {
+									declaration: stmt,
+									env: class_env,
+									private: in_private_section
+								}
+							end
+						end
+						
+						# handle static variables
+						if stmt.is_a?(AST::VariableDeclaration) && in_static_section
+							value_type, value_value = interpret!(stmt.right, class_env)
+							class_def[:static_vars][stmt.left.name] = { type: value_type, value: value_value }
+							in_static_section = false  # reset flag
+						end
+					end
+					
+					# save class definition in environment
+					env.define_class(node.name, class_def)
+  
+					[:type_null, 'nic'] 
+
+				elsif node.is_a? AST::ClassInstantiation
+					# get class definition
+					class_def = env.get_class(node.class_name)
+					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
+
+					# check if class is not abstract
+  				Utils.runtime_error("Nie można utworzyć instancji klasy abstrakcyjnej #{node.class_name}", node.line) if class_def[:is_abstract]
+					
+					# create new instance
+					instance = {
+						class_name: node.class_name,
+						instance_vars: {},  # instance variables
+						class_def: class_def  # reference to class definition
+					}
+					
+					# prepare constructor arguments
+					arguments = node.arguments.map do |arg|
+						interpret!(arg, env)
+					end
+					
+					# call constructor if exists
+					constructor = class_def[:methods]["konstruktor"]
+					if constructor
+						# create environment for constructor
+						constructor_env = constructor[:env].new_env
+						constructor_env.set_instance(instance)
+						
+						# check argument count
+						params = constructor[:declaration].params
+						
+						# handle rest type parameters
+						rest_param = params.find(&:rest?)
+						min_args = params.count { |p| !p.has_default? && !p.rest? }
+						max_args = rest_param ? Float::INFINITY : params.size
+						
+						if arguments.size < min_args
+							Utils.runtime_error(
+								"Konstruktor klasy #{node.class_name} oczekiwał minimum #{min_args} argumentów, otrzymał #{arguments.size}",
+								node.line
+							)
+						end
+						
+						unless rest_param
+							if arguments.size > max_args
+								Utils.runtime_error(
+									"Konstruktor klasy #{node.class_name} oczekiwał maksymalnie #{max_args} argumentów, otrzymał #{arguments.size}",
+									node.line
+								)
+							end
+						end
+						
+						# assign arguments to parameters
+						rest_idx = params.index(&:rest?)
+						rest_position = rest_idx || params.size
+						
+						normal_params = params.reject(&:rest?)
+						normal_params.each_with_index do |param, idx|
+							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+								constructor_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+							elsif param.has_default?
+								default_value = interpret!(param.default_value, constructor[:env])
+								constructor_env.set_local_var(param.name, default_value[1], default_value[0])
+							else
+								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+							end
+						end
+						
+						# handle rest parameter
+						if rest_param
+							rest_args = arguments[rest_position..-1] || []
+							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+							constructor_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+						end
+						
+						# execute constructor
+						begin
+							Utils::ContextTracker.track_method_call("konstruktor") do
+								interpret!(constructor[:declaration].body_statement, constructor_env)
+							end
+						rescue Utils::ReturnError
+							# ignore return value from constructor
+						end
+					end
+					
+					[:type_instance, instance]
+				elsif node.is_a? AST::InstanceVariable
+					instance = env.get_instance
+					Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", node.line) unless instance
+					
+					# get instance variable value
+					value = instance[:instance_vars][node.name]
+					if value.nil?
+						[:type_null, 'nic']  # uninitialized instance variable returns 'nic'
+					else
+						value
+					end				
+				elsif node.is_a? AST::InstanceVariableAssignment
+					instance = env.get_instance
+					Utils.runtime_error("Nie można przypisać zmiennej instancji poza kontekstem instancji", node.line) unless instance
+					
+					# evaluate value to assign
+					value_type, value_value = interpret!(node.value, env)
+					
+					# assign value to instance variable
+					instance[:instance_vars][node.name] = [value_type, value_value]
+					
+					[value_type, value_value]
+        elsif node.is_a? AST::InstanceMethodCall
+          # evaluate object
+          obj_type, obj_value = interpret!(node.object, env)
+          Utils.runtime_error("Próba wywołania metody na obiekcie, który nie jest instancją", node.line) unless obj_type == :type_instance
+          
+          # get class definition
+          class_def = obj_value[:class_def]
+          
+          # get method
+          method_def = class_def[:methods][node.method_name]
+          Utils.runtime_error("Nieznana metoda #{node.method_name}", node.line) unless method_def
+          
+          # check if method is private
+          if method_def[:private]
+            # check if we're in context of same instance
+            current_instance = env.get_instance
+            unless current_instance && current_instance.equal?(obj_value)
+              Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
+            end
+          end
+          
+          # evaluate arguments
+          arg_values = node.arguments.map { |arg| interpret!(arg, env) }
+          
+          # create environment for method
+          method_env = method_def[:env].new_env
+          method_env.set_instance(obj_value)  # set current instance
+          
+          # assign arguments to parameters
+          method_def[:declaration].params.zip(arg_values).each do |param, arg|
+            method_env.set_var(param.name, arg[1], arg[0])
+          end
+          
+          # execute method body
+					begin
+						Utils::ContextTracker.track_method_call(node.method_name) do
+							interpret!(method_def[:declaration].body, method_env)
+						end
+						[:type_null, 'nic']  # default return value
+					rescue Utils::ReturnError => e
+						e.value
+					end
+				elsif node.is_a? AST::InstanceVariableDeclaration
+					instance = env.get_instance
+					Utils.runtime_error("Nie można zadeklarować zmiennej instancji poza kontekstem instancji", node.line) unless instance
+					
+					# evaluate value
+					value_type, value_value = interpret!(node.value, env)
+					
+					# save instance variable
+					instance[:instance_vars][node.name] = [value_type, value_value]
+					
+					[value_type, value_value]
+				elsif node.is_a? AST::SuperMethodCall
+					# check if we're in instance context
+					instance = env.get_instance
+					Utils.runtime_error("Nie można użyć 'super' poza kontekstem instancji", node.line) unless instance
+					
+					# determine method name
+					current_method_name = nil
+					
+					if node.method_name.nil?
+						# 1. most important change: always try to read current method context
+						current_method_name = Utils::ContextTracker.current_method_name
+						
+						# 2. if context is unknown, check if we're in constructor
+						if current_method_name.nil?
+							# check if super() call is in first line of constructor
+							# by analyzing instance variables count and statement type in method body
+							if instance[:instance_vars].size <= 1
+								current_method_name = "konstruktor"
+							else
+								# if we can't determine context, block execution
+								Utils.runtime_error("Nie można określić kontekstu metody dla wywołania 'super()'", node.line)
+							end
+						end
+					else
+						# use explicitly provided method name
+						current_method_name = node.method_name
+					end
+					
+					# find method in parent class
+					method_result = env.find_parent_method(instance, current_method_name)
+					Utils.runtime_error("Nie znaleziono metody #{current_method_name} w klasie nadrzędnej", node.line) unless method_result
+					
+					method_info = method_result[:method_info]
+					
+					# evaluate arguments
+					arguments = node.arguments.map { |arg| interpret!(arg, env) }
+					
+					# check argument count
+					params = method_info[:declaration].params
+					
+					# handle rest type parameters
+					rest_param = params.find(&:rest?)
+					min_args = params.count { |p| !p.has_default? && !p.rest? }
+					max_args = rest_param ? Float::INFINITY : params.size
+					
+					if arguments.size < min_args
+						Utils.runtime_error(
+							"Metoda #{current_method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+							node.line
+						)
+					end
+					
+					unless rest_param
+						if arguments.size > max_args
+							Utils.runtime_error(
+								"Metoda #{current_method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+								node.line
+							)
+						end
+					end
+					
+					# create new environment for method
+					method_env = method_info[:env].new_env
+					method_env.set_instance(instance)  # use current instance
+					
+					# assign arguments to parameters
+					rest_idx = params.index(&:rest?)
+					rest_position = rest_idx || params.size
+					
+					normal_params = params.reject(&:rest?)
+					normal_params.each_with_index do |param, idx|
+						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+						elsif param.has_default?
+							default_value = interpret!(param.default_value, method_info[:env])
+							method_env.set_local_var(param.name, default_value[1], default_value[0])
+						else
+							Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+						end
+					end
+					
+					# handle rest parameter
+					if rest_param
+						rest_args = arguments[rest_position..-1] || []
+						rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+						method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+					end
+					
+					# execute method body
+					begin
+						# keep current method context so nested super calls work correctly
+						Utils::ContextTracker.track_method_call(current_method_name) do
+							interpret!(method_info[:declaration].body_statement, method_env)
+						end
+						result = [:type_null, 'nic']  # by default return 'nic'
+					rescue Utils::ReturnError => e
+						result = e.value  # or specific value returned by method
+					end
+					
+					result
+				elsif node.is_a? AST::StaticVariable
+					# get class definition
+					class_def = env.get_class(node.class_name)
+					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
+					
+					# look for static variable in whole class hierarchy
+					var = nil
+					current_class_def = class_def
+					
+					while current_class_def && !var
+						# check if variable exists in current class
+						if current_class_def[:static_vars] && current_class_def[:static_vars][node.name]
+							var = current_class_def[:static_vars][node.name]
+							break
+						end
+						
+						# if not, check base class
+						parent_name = current_class_def[:parent]
+						break unless parent_name
+						
+						current_class_def = env.get_class(parent_name)
+					end
+					
+					Utils.runtime_error("Nieznana zmienna statyczna '#{node.name}' w klasie #{node.class_name}", node.line) unless var
+					
+					[var[:type], var[:value]]
+				elsif node.is_a? AST::StaticVariableDeclaration
+					class_name = node.class_name
+					class_def = env.get_class(class_name)
+					
+					# check if class exists
+					if class_def.nil?
+						Utils.runtime_error("Nie można zdefiniować zmiennej statycznej dla nieistniejącej klasy #{class_name}", node.line)
+					end
+					
+					# check if we're not trying to overwrite existing static variable
+					if class_def[:static_vars][node.name] && node.name.match?(/^[A-Z_]+$/)
+						Utils.runtime_error("Statyczna stała #{class_name}.#{node.name} została już zdefiniowana i nie może być zmieniona", node.line)
+					end
+
+					value_type, value_value = interpret!(node.value, env)
+					env.set_static_var(node.class_name, node.name, value_value, value_type)
+					
+					[value_type, value_value]
+				elsif node.is_a? AST::StaticMethodCall
+					# get class definition
+					class_def = env.get_class(node.class_name)
+					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
+					
+					# look for static method in whole class hierarchy
+					method_info = nil
+					current_class_def = class_def
+					
+					while current_class_def && !method_info
+						# check if method exists in current class
+						if current_class_def[:static_methods] && current_class_def[:static_methods][node.method_name]
+							method_info = current_class_def[:static_methods][node.method_name]
+							break
+						end
+						
+						# if not, check base class
+						parent_name = current_class_def[:parent]
+						break unless parent_name
+						
+						current_class_def = env.get_class(parent_name)
+					end
+					
+					Utils.runtime_error("Nieznana metoda statyczna '#{node.method_name}' w klasie #{node.class_name}", node.line) unless method_info
+					
+					# evaluate arguments
+					arguments = node.arguments.map do |arg|
+						interpret!(arg, env)
+					end
+					
+					# check argument count
+					params = method_info[:declaration].params
+					
+					# handle rest type parameters
+					rest_param = params.find(&:rest?)
+					min_args = params.count { |p| !p.has_default? && !p.rest? }
+					max_args = rest_param ? Float::INFINITY : params.size
+					
+					if arguments.size < min_args
+						Utils.runtime_error(
+							"Metoda statyczna '#{node.method_name}' oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+							node.line
+						)
+					end
+					
+					unless rest_param
+						if arguments.size > max_args
+							Utils.runtime_error(
+								"Metoda statyczna '#{node.method_name}' oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+								node.line
+							)
+						end
+					end
+					
+					# create new environment for static method
+					method_env = method_info[:env].new_env
+					
+					# assign arguments to parameters
+					rest_idx = params.index(&:rest?)
+					rest_position = rest_idx || params.size
+					
+					normal_params = params.reject(&:rest?)
+					normal_params.each_with_index do |param, idx|
+						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+						elsif param.has_default?
+							default_value = interpret!(param.default_value, method_info[:env])
+							method_env.set_local_var(param.name, default_value[1], default_value[0])
+						else
+							Utils.runtime_error("Brakujący argument '#{param.name}'", node.line)
+						end
+					end
+					
+					# handle rest parameter
+					if rest_param
+						rest_args = arguments[rest_position..-1] || []
+						rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+						method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+					end
+					
+					# execute static method body
+					begin
+						interpret!(method_info[:declaration].body_statement, method_env)
+						result = [:type_null, 'nic']  # by default return 'nic'
+					rescue Utils::ReturnError => e
+						result = e.value  # or specific value returned by method
+					end
+					
+					result
+				elsif node.is_a? AST::RubyCall
+					module_path = node.module_path
+					method_name = node.method_name
+					
+					# evaluate arguments
+					args = node.arguments.map do |arg|
+						type, value = interpret!(arg, env)
+						{ type: type, value: value }
+					end
+					
+					# execute safe ruby call
+					# p "module: #{module_path}, method_name: #{method_name}, args: #{args}, file: #{@current_file}"
+					result = Utils::RubyEvaluator.safe_call(module_path, method_name, args, @current_file)
+					[result[:type], result[:value]]
+				elsif node.is_a? AST::RubyCallStmt
+					interpret!(node.expression, env)
+				elsif node.is_a? AST::RequireRubyStmt
+					begin
+						success = Utils::RubyEvaluator.require_library(node.library_name, @current_file)
+						[:type_bool, success ? 'prawda' : 'falsz']
+					rescue StandardError => e
+						Utils.runtime_error("Błąd podczas importu biblioteki Ruby: #{e.message}", node.line)
+					end
+				elsif node.is_a? AST::RubyObjCall
+					object_type, object_value = interpret!(node.object, env)
+					
+					# check if object is ruby_object type
+					if object_type != :type_ruby_object
+						Utils.runtime_error("Operacja ruby_obj wymaga obiektu Ruby, otrzymano: #{object_type}", node.line)
+					end
+					
+					# get ruby object id
+					object_id = object_value[:id]
+					
+					# evaluate arguments
+					args = node.arguments.map do |arg|
+						type, value = interpret!(arg, env)
+						{ type: type, value: value }
+					end
+					
+					# call method on ruby object
+					result = Utils::RubyEvaluator.call_object_method(object_id, node.method_name, args, @current_file)
+					
+					[result[:type], result[:value]]
+				
+				elsif node.is_a? AST::RubyObjCallStmt
+					interpret!(node.expression, env)
         end
       end
 
       # entry point of interpreter creating brand new global/parent environment
       def interpret_ast(node, env = nil)
-        environment = env || Environment.new
-        interpret!(node, environment)
+        begin
+          environment = env || Environment.new
+          interpret!(node, environment)
+        rescue StandardError => e
+          raise e if e.is_a?(Utils::WyjatekPodstawowy)
+          
+          # translate native ruby exception to AS one
+          raise Utils::ExceptionsTranslator.translate(e)
+        end
       end
 
       private
 
       def runtime_error(left_value, right_value, node)
-        Utils.runtime_error("Unsupported operator #{node.op.lexeme} between #{left_value} and #{right_value}",
+        Utils.runtime_error("Niewspierany operator #{node.op.lexeme} pomiedzy #{left_value} a #{right_value}",
                             node.op.line)
       end
 
       def runtime_error_unop(value, node)
-        Utils.runtime_error("Unsupported operator #{node.op.lexeme} with #{value}", node.op.line)
+        Utils.runtime_error("Niewspierany operator #{node.op.lexeme} z #{value}", node.op.line)
       end
 
       def validate_function_value(val)
@@ -719,7 +1728,7 @@ module AlexScript
         when :type_null
           false
         else
-          Utils.runtime_error('Condition must be boolean or null', line)
+          Utils.runtime_error('Warunek musi byc boolem lub "nic"', line)
         end
       end
 

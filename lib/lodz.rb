@@ -2,15 +2,42 @@
 
 require 'colorize'
 require 'slop'
+require 'byebug'
 
 require_relative('core/core')
 require_relative('ast/ast')
 require_relative('utils/utils')
 
 module AlexScript
-  VERSION = '0.4.11'
+  VERSION = '0.5.12'
 
   def self.start
+    begin
+      start_execution
+    rescue Utils::WyjatekPodstawowy => e # custom exceptions 
+      display_error(e)
+    rescue StandardError => e # ruby native exceptions translated
+      alex_exception = Utils::ExceptionsTranslator.translate(e)
+      display_error(alex_exception)
+    rescue Exception => e # just in case
+      alex_exception = Utils::ExceptionsTranslator.translate(e, "Krytyczny błąd programu")
+      display_error(alex_exception, true)
+    end
+  end
+
+  def self.display_error(exception, critical = false)
+    puts "🔴 #{exception}".colorize(critical ? :red : :light_red)
+    
+    # Display full depth of stack if its a critical error
+    # if critical # && ENV['ALEX_DEBUG'] ???
+    #   puts "\nStos wywołań:".colorize(:yellow)
+    #   exception.backtrace&.each { |line| puts "  #{line}".colorize(:yellow) }
+    # end
+    
+    exit(1)
+  end
+
+  def self.start_execution
     opts = Slop.parse do |o|
       o.bool '-f', '--full', 'run in full mode'
       o.bool '-t', '--time', 'measure time of execution'
@@ -27,12 +54,9 @@ module AlexScript
         source = File.read(filename)
         puts "File '#{filename}' has been read successfully."
       rescue Errno::ENOENT
-        puts "Error: File '#{filename}' doesn't exist"
-      rescue StandardError => e
-        puts "Error: #{e.message}"
+        raise Utils::BładZakresu.new("Plik '#{filename}' nie istnieje")
       end
     else
-      # puts "reading output directly from a console"
       source = ARGV[0]
     end
 
@@ -72,8 +96,9 @@ module AlexScript
     end
 
     interpreter = Core::Interpreter.new
-    interpreter.set_current_file(source_file)
-    puts interpreter.interpret_ast(ast)
+    interpreter.set_current_file(source_file) if source_file
+    wynik = interpreter.interpret_ast(ast)
+    puts wynik if wynik
 
     return unless opts.time?
 

@@ -243,7 +243,7 @@ RSpec.describe 'Loops', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -254,7 +254,7 @@ RSpec.describe 'Loops', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/While test is not a boolean expression/)
+      expect(last_command_started).to have_output(/Test while nie jest wyrazeniem boolowskim/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -263,10 +263,10 @@ RSpec.describe 'Loops', type: :aruba do
         niech arr = [1, 2, 3]
         dla niech indeks = 0; 5; 1 {
           pokazl arr[indeks]
-        }
+        } 
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Index out of bounds/)
+      expect(last_command_started).to have_output(/Indeks poza zakresem/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -293,7 +293,7 @@ RSpec.describe 'Loops', type: :aruba do
         pokazl temp
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -365,7 +365,7 @@ RSpec.describe 'Loops', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Can only iterate over arrays/)
+      expect(last_command_started).to have_output(/Moze iterowac tylko po tablicach/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 

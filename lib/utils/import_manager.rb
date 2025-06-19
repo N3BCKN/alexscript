@@ -5,6 +5,15 @@ require 'set'
 module AlexScript
   module Utils
     class ImportManager
+
+      # array of paths to standard libraries with the priority of import 
+      # and no need to specify path, eg: import('mat') => import('lib/std/libs/mat.ldz')
+      STANDARD_LIBRARIES = {
+        'mat' => File.expand_path('lib/std/libs/mat.ldz'),
+        'socket' => File.expand_path('lib/std/libs/socket.ldz'),
+        'czas' => File.expand_path('lib/std/libs/czas.ldz')
+      }
+
       def initialize
         @imported_files = Set.new
         @current_import_stack = []
@@ -12,6 +21,10 @@ module AlexScript
       end
 
       def import_file(file_path, current_file = nil, parent_env = nil)
+        if STANDARD_LIBRARIES.key?(file_path)
+          file_path = STANDARD_LIBRARIES[file_path]
+        end
+
         absolute_path = resolve_path(file_path, current_file)
         Utils::ContextTracker.current_file = absolute_path
         check_circular_import(absolute_path)
@@ -26,6 +39,7 @@ module AlexScript
           interpreter = Core::Interpreter.new
 
           env = Core::Environment.new(parent_env) # new env with parrent
+      
           interpreter.set_current_file(absolute_path)
           interpreter.interpret_ast(parser.parse!, env)
 

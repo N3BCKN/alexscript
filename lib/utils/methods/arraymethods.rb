@@ -137,7 +137,7 @@ module AlexScript
         def validate_numeric_array(arr)
           return if arr.all? { |e| e[:type] == :type_int || e[:type] == :type_float }
 
-          Utils.runtime_error('Array must contain only numbers')
+          Utils.runtime_error('Tablica moze zawierac wylacznie liczby')
         end
 
         def create_typed_response(type, value)

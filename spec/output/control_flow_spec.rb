@@ -303,7 +303,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -315,7 +315,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Unsupported operator/)
+      expect(last_command_started).to have_output(/Niewspierany operator > pomiedzy/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -326,7 +326,7 @@ RSpec.describe 'Control Flow', type: :aruba do
         }
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/While test is not a boolean expression/)
+      expect(last_command_started).to have_output(/Test while nie jest wyrazeniem boolowskim/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -379,7 +379,7 @@ RSpec.describe 'Control Flow', type: :aruba do
     it 'returns an error when then statement (to) is missing' do
       code = 'jesli prawda pokazl 5'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Expected 'tok_lcurly', found 'pokazl/)
+      expect(last_command_started).to have_output(/Oczekiwano 'tok_lcurly', znaleziono 'pokazl/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end

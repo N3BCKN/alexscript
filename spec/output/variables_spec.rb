@@ -56,7 +56,7 @@ RSpec.describe 'Cli', type: :aruba do
         pokazl x
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undeclared identifier x/)
+      expect(last_command_started).to have_output(/Niezadeklarowany identyfikator x/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -85,7 +85,7 @@ RSpec.describe 'Cli', type: :aruba do
         CONSTANT = 200
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/is constant and cannot be mutated/)
+      expect(last_command_started).to have_output(/Zmienna CONSTANT jest stala i nie moze byc zmieniana/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
@@ -210,14 +210,14 @@ RSpec.describe 'Arithmetic Operations', type: :aruba do
     it 'raises error on division by zero' do
       code = 'niech x = 5 / 0'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Division by zero/)
+      expect(last_command_started).to have_output(/Dzielenie przez zero/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
     it 'raises error on invalid operations' do
       code = 'niech x = "text" * 5'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Unsupported operator/)
+      expect(last_command_started).to have_output(/Niewspierany operator/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end

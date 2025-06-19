@@ -110,7 +110,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj["age"]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Undefined key/)
+      expect(last_command_started).to have_output(/Niezdefiniowany klucz/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -120,7 +120,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj[123]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Object key must be a string/)
+      expect(last_command_started).to have_output(/Klucz obiektu musi byc ciagiem znakow/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
@@ -179,7 +179,7 @@ RSpec.describe 'Object Operations', type: :aruba do
       '
       # NOTE: This test is incomplete in the original file
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Found '1' at the end of parsing/)
+      expect(last_command_started).to have_output(/Znaleziono '1' na koncu parsowania/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end

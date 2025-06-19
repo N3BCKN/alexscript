@@ -167,7 +167,7 @@ RSpec.describe 'Null value (nic) operations', type: :aruba do
         pokazl x.dlg
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Unknown method dlg for type type_null/)
+      expect(last_command_started).to have_output(/Blad podczas wykonywania metody dlg/)
       expect(last_command_started).to have_exit_status(1)
     end
 
@@ -177,7 +177,7 @@ RSpec.describe 'Null value (nic) operations', type: :aruba do
         pokazl x[0]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/is neither array nor object/)
+      expect(last_command_started).to have_output(/nie jest ani tablica ani obiektem/)
       expect(last_command_started).to have_exit_status(1)
     end
 
@@ -187,7 +187,7 @@ RSpec.describe 'Null value (nic) operations', type: :aruba do
         pokazl arr[nic]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Array index must be/)
+      expect(last_command_started).to have_output(/Indeks tablicy musi byc liczbą całkowitą/)
       expect(last_command_started).to have_exit_status(1)
     end
   end
