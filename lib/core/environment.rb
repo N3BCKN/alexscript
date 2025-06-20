@@ -13,7 +13,23 @@ module AlexScript
         @parent = parent
         @functions = {}
         @classes = {}
-        @built_in_methods = Utils::Methods::MethodRegistry.new
+      end
+
+      def call_method(obj_type, method_name, receiver, args = [])
+        if obj_type == :type_class && receiver.is_a?(String)
+          # Try built-in static method from stdlib first
+          begin
+            registry = Utils::StdLibRegistry.instance
+            return registry.execute_static_method(receiver, method_name, args)
+          rescue StandardError => e
+            # If method doesn't exist in registry, continue with normal handling
+          end
+        end
+
+        method = Utils::Methods::MethodRegistry.instance.get_method(obj_type, method_name)
+        Utils.runtime_error("Nieznana metoda #{method_name} dla typu #{obj_type}") unless method
+
+        method.call(receiver, *args)
       end
 
       def get_var(name)
@@ -70,7 +86,7 @@ module AlexScript
           current_class_name = class_def[:parent]
         end
         
-        nil  # method not found 
+        nil  # method not found
       end
 
       # finds method in parent class
@@ -316,28 +332,6 @@ module AlexScript
         if other_env.instance_variable_defined?(:@classes)
           other_env.instance_variable_get(:@classes).each { |name, class_def| @classes[name] = class_def }
         end
-      end
-
-      def call_method(obj_type, method_name, receiver, args = [])
-        if obj_type == :type_class && receiver.is_a?(String)
-          # try to call static method from library registry
-          begin
-            registry = Utils::StdLibRegistry.instance
-            return registry.execute_static_method(receiver, method_name, args)
-          rescue StandardError => e
-            # if method doesn't exist in registry, continue with normal handling
-          end
-        end
-
-        method = @built_in_methods.get_method(obj_type, method_name)
-        Utils.runtime_error("Nieznana metoda #{method_name} dla typu #{obj_type}") unless method
-
-        method.call(receiver, *args)
-        # begin
-        #   method.call(receiver, *args)
-        # rescue StandardError => e
-        #   Utils.runtime_error("Blad podsczas wykonywania metody #{method_name}: #{e.message}")
-        # end
       end
     end
   end
