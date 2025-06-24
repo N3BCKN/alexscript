@@ -923,36 +923,7 @@ module AlexScript
 				
 					# handle class instance methods
 					if object_type == :type_instance
-						# first check if this is a built-in info method for instance
-						begin
-							# prepare arguments
-							evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
-							
-							# add environment access for methods that need it
-							evaluated_args.unshift(env) if [:czy_instancja].include?(node.method_name.to_sym)
-							
-							# try to call built-in instance method
-							result = env.call_method(:type_instance, node.method_name, object_value, evaluated_args)
-							
-							# determine result type
-							result_type = case result
-														when Integer then :type_int
-														when Float then :type_float
-														when String then :type_string
-														when TrueClass, FalseClass then :type_bool
-														when Array then :type_array
-														when NilClass then :type_null
-														when Hash then :type_object
-														else
-															:type_object # default treat as object
-														end
-							
-							return [result_type, result]
-						rescue StandardError => e
-							# if no built-in method, continue with normal instance methods
-						end
-						
-						# find method in class hierarchy
+						# find method in class hierarchy using optimized lookup
 						method_result = env.find_method_in_hierarchy(object_value, node.method_name)
 						Utils.runtime_error("Nieznana metoda #{node.method_name} dla instancji klasy #{object_value[:class_name]}", node.line) unless method_result
 						
@@ -961,10 +932,6 @@ module AlexScript
 						# check if method is private
 						if method_info[:private]
 							current_instance = env.get_instance
-							# private method can be called:
-							# 1. from same instance
-							# 2. from methods of same class (or subclass if inherited)
-							
 							same_instance = current_instance == object_value
 							from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
 							from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
@@ -973,17 +940,18 @@ module AlexScript
 								Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
 							end
 						end
-											
+															
 						# evaluate arguments
 						arguments = node.arguments.map { |arg| interpret!(arg, env) }
 						
-						# check argument count
-						params = method_info[:declaration].params
+						# check argument count using preserved parameter information
+						param_names = method_info[:param_names]
+						param_defaults = method_info[:param_defaults]
+						param_rest_flags = method_info[:param_rest_flags]
 						
-						# handle rest type parameters
-						rest_param = params.find(&:rest?)
-						min_args = params.count { |p| !p.has_default? && !p.rest? }
-						max_args = rest_param ? Float::INFINITY : params.size
+						has_rest = method_info[:has_rest]
+						min_args = param_defaults.count(&:nil?) # params without defaults  
+						max_args = has_rest ? Float::INFINITY : param_names.size
 						
 						if arguments.size < min_args
 							Utils.runtime_error(
@@ -992,7 +960,7 @@ module AlexScript
 							)
 						end
 						
-						unless rest_param
+						unless has_rest
 							if arguments.size > max_args
 								Utils.runtime_error(
 									"Metoda #{node.method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
@@ -1005,37 +973,34 @@ module AlexScript
 						method_env = method_info[:env].new_env
 						method_env.set_instance(object_value)
 						
-						# assign arguments to parameters
-						rest_idx = params.index(&:rest?)
-						rest_position = rest_idx || params.size
-						
-						normal_params = params.reject(&:rest?)
-						normal_params.each_with_index do |param, idx|
-							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
-								method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
-							elsif param.has_default?
-								default_value = interpret!(param.default_value, method_info[:env])
-								method_env.set_local_var(param.name, default_value[1], default_value[0])
-							else
-								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+						# assign arguments to parameters using preserved names
+						param_names.each_with_index do |param_name, idx|
+							if idx < arguments.size && !param_rest_flags[idx]
+								# regular parameter with provided argument
+								method_env.set_local_var(param_name, arguments[idx][1], arguments[idx][0])
+							elsif param_defaults[idx] && !param_rest_flags[idx]
+								# parameter with default value
+								default_value = interpret!(param_defaults[idx], env)
+								method_env.set_local_var(param_name, default_value[1], default_value[0])
+							elsif param_rest_flags[idx]
+								# rest parameter - collect remaining arguments
+								rest_args = arguments[idx..-1] || []
+								rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+								method_env.set_local_var(param_name, rest_array_elements, :type_array)
+								break # rest parameter is always last
+							elsif param_defaults[idx].nil?
+								Utils.runtime_error("Brakujący argument #{param_name}", node.line)
 							end
 						end
 						
-						# handle rest parameter
-						if rest_param
-							rest_args = arguments[rest_position..-1] || []
-							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
-							method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
-						end
-						
-						# execute method body
+						# execute method body using preserved declaration
 						begin
 							Utils::ContextTracker.track_method_call(node.method_name) do
 								interpret!(method_info[:declaration].body_statement, method_env)
 							end
-							result = [:type_null, 'nic']  # by default return 'nic'
+							result = [:type_null, 'nic']
 						rescue Utils::ReturnError => e
-							result = e.value  # or specific value returned by method
+							result = e.value
 						end
 						
 						result
@@ -1268,10 +1233,11 @@ module AlexScript
 					end
 					
 					# call constructor if exists
-					constructor = class_def[:methods]["konstruktor"]
+					# byebug
+					constructor = class_def[:instance_methods]["konstruktor"]
 					if constructor
 						# create environment for constructor
-						constructor_env = constructor[:env].new_env
+						constructor_env = env.new_env
 						constructor_env.set_instance(instance)
 						
 						# check argument count
@@ -1413,29 +1379,17 @@ module AlexScript
 					Utils.runtime_error("Nie można użyć 'super' poza kontekstem instancji", node.line) unless instance
 					
 					# determine method name
-					current_method_name = nil
+					current_method_name = node.method_name || Utils::ContextTracker.current_method_name
 					
-					if node.method_name.nil?
-						# 1. most important change: always try to read current method context
-						current_method_name = Utils::ContextTracker.current_method_name
-						
-						# 2. if context is unknown, check if we're in constructor
-						if current_method_name.nil?
-							# check if super() call is in first line of constructor
-							# by analyzing instance variables count and statement type in method body
-							if instance[:instance_vars].size <= 1
-								current_method_name = "konstruktor"
-							else
-								# if we can't determine context, block execution
-								Utils.runtime_error("Nie można określić kontekstu metody dla wywołania 'super()'", node.line)
-							end
+					if current_method_name.nil?
+						if instance[:instance_vars].size <= 1
+							current_method_name = "konstruktor"
+						else
+							Utils.runtime_error("Nie można określić kontekstu metody dla wywołania 'super()'", node.line)
 						end
-					else
-						# use explicitly provided method name
-						current_method_name = node.method_name
 					end
 					
-					# find method in parent class
+					# find method in parent class using optimized lookup
 					method_result = env.find_parent_method(instance, current_method_name)
 					Utils.runtime_error("Nie znaleziono metody #{current_method_name} w klasie nadrzędnej", node.line) unless method_result
 					
@@ -1444,13 +1398,14 @@ module AlexScript
 					# evaluate arguments
 					arguments = node.arguments.map { |arg| interpret!(arg, env) }
 					
-					# check argument count
-					params = method_info[:declaration].params
+					# check argument count using preserved parameter information
+					param_names = method_info[:param_names]
+					param_defaults = method_info[:param_defaults]
+					param_rest_flags = method_info[:param_rest_flags]
 					
-					# handle rest type parameters
-					rest_param = params.find(&:rest?)
-					min_args = params.count { |p| !p.has_default? && !p.rest? }
-					max_args = rest_param ? Float::INFINITY : params.size
+					has_rest = method_info[:has_rest]
+					min_args = param_defaults.count(&:nil?)
+					max_args = has_rest ? Float::INFINITY : param_names.size
 					
 					if arguments.size < min_args
 						Utils.runtime_error(
@@ -1459,7 +1414,7 @@ module AlexScript
 						)
 					end
 					
-					unless rest_param
+					unless has_rest
 						if arguments.size > max_args
 							Utils.runtime_error(
 								"Metoda #{current_method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
@@ -1470,40 +1425,33 @@ module AlexScript
 					
 					# create new environment for method
 					method_env = method_info[:env].new_env
-					method_env.set_instance(instance)  # use current instance
+					method_env.set_instance(instance)
 					
-					# assign arguments to parameters
-					rest_idx = params.index(&:rest?)
-					rest_position = rest_idx || params.size
-					
-					normal_params = params.reject(&:rest?)
-					normal_params.each_with_index do |param, idx|
-						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
-							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
-						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env])
-							method_env.set_local_var(param.name, default_value[1], default_value[0])
-						else
-							Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+					# assign arguments to parameters using preserved names
+					param_names.each_with_index do |param_name, idx|
+						if idx < arguments.size && !param_rest_flags[idx]
+							method_env.set_local_var(param_name, arguments[idx][1], arguments[idx][0])
+						elsif param_defaults[idx] && !param_rest_flags[idx]
+							default_value = interpret!(param_defaults[idx], env)
+							method_env.set_local_var(param_name, default_value[1], default_value[0])
+						elsif param_rest_flags[idx]
+							rest_args = arguments[idx..-1] || []
+							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+							method_env.set_local_var(param_name, rest_array_elements, :type_array)
+							break
+						elsif param_defaults[idx].nil?
+							Utils.runtime_error("Brakujący argument #{param_name}", node.line)
 						end
-					end
-					
-					# handle rest parameter
-					if rest_param
-						rest_args = arguments[rest_position..-1] || []
-						rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
-						method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
 					end
 					
 					# execute method body
 					begin
-						# keep current method context so nested super calls work correctly
 						Utils::ContextTracker.track_method_call(current_method_name) do
 							interpret!(method_info[:declaration].body_statement, method_env)
 						end
-						result = [:type_null, 'nic']  # by default return 'nic'
+						result = [:type_null, 'nic']
 					rescue Utils::ReturnError => e
-						result = e.value  # or specific value returned by method
+						result = e.value
 					end
 					
 					result
@@ -1556,24 +1504,8 @@ module AlexScript
 					class_def = env.get_class(node.class_name)
 					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
 					
-					# look for static method in whole class hierarchy
-					method_info = nil
-					current_class_def = class_def
-					
-					while current_class_def && !method_info
-						# check if method exists in current class
-						if current_class_def[:static_methods] && current_class_def[:static_methods][node.method_name]
-							method_info = current_class_def[:static_methods][node.method_name]
-							break
-						end
-						
-						# if not, check base class
-						parent_name = current_class_def[:parent]
-						break unless parent_name
-						
-						current_class_def = env.get_class(parent_name)
-					end
-					
+					# get static method using new optimized lookup
+					method_info = env.get_static_method(node.class_name, node.method_name)
 					Utils.runtime_error("Nieznana metoda statyczna '#{node.method_name}' w klasie #{node.class_name}", node.line) unless method_info
 					
 					# evaluate arguments
@@ -1581,13 +1513,14 @@ module AlexScript
 						interpret!(arg, env)
 					end
 					
-					# check argument count
-					params = method_info[:declaration].params
+					# check argument count using preserved parameter information
+					param_names = method_info[:param_names]
+					param_defaults = method_info[:param_defaults]
+					param_rest_flags = method_info[:param_rest_flags]
 					
-					# handle rest type parameters
-					rest_param = params.find(&:rest?)
-					min_args = params.count { |p| !p.has_default? && !p.rest? }
-					max_args = rest_param ? Float::INFINITY : params.size
+					has_rest = method_info[:has_rest]
+					min_args = param_defaults.count(&:nil?) # params without defaults
+					max_args = has_rest ? Float::INFINITY : param_names.size
 					
 					if arguments.size < min_args
 						Utils.runtime_error(
@@ -1596,7 +1529,7 @@ module AlexScript
 						)
 					end
 					
-					unless rest_param
+					unless has_rest
 						if arguments.size > max_args
 							Utils.runtime_error(
 								"Metoda statyczna '#{node.method_name}' oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
@@ -1606,40 +1539,40 @@ module AlexScript
 					end
 					
 					# create new environment for static method
-					method_env = method_info[:env].new_env
+					method_env = env.new_env
 					
-					# assign arguments to parameters
-					rest_idx = params.index(&:rest?)
-					rest_position = rest_idx || params.size
-					
-					normal_params = params.reject(&:rest?)
-					normal_params.each_with_index do |param, idx|
-						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
-							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
-						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env])
-							method_env.set_local_var(param.name, default_value[1], default_value[0])
-						else
-							Utils.runtime_error("Brakujący argument '#{param.name}'", node.line)
+					# assign arguments to parameters using preserved names
+					param_names.each_with_index do |param_name, idx|
+						if idx < arguments.size && !param_rest_flags[idx]
+							# regular parameter with provided argument
+							method_env.set_local_var(param_name, arguments[idx][1], arguments[idx][0])
+						elsif param_defaults[idx] && !param_rest_flags[idx]
+							# parameter with default value
+							default_value = interpret!(param_defaults[idx], env)
+							method_env.set_local_var(param_name, default_value[1], default_value[0])
+						elsif param_rest_flags[idx]
+							# rest parameter - collect remaining arguments
+							rest_args = arguments[idx..-1] || []
+							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+							method_env.set_local_var(param_name, rest_array_elements, :type_array)
+							break # rest parameter is always last
+						elsif param_defaults[idx].nil?
+							Utils.runtime_error("Brakujący argument '#{param_name}'", node.line)
 						end
 					end
 					
-					# handle rest parameter
-					if rest_param
-						rest_args = arguments[rest_position..-1] || []
-						rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
-						method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
-					end
-					
-					# execute static method body
+					# execute static method body using preserved declaration
 					begin
-						interpret!(method_info[:declaration].body_statement, method_env)
-						result = [:type_null, 'nic']  # by default return 'nic'
+						Utils::ContextTracker.track_method_call(node.method_name) do
+							interpret!(method_info[:declaration].body_statement, method_env)
+						end
+						result = [:type_null, 'nic']
 					rescue Utils::ReturnError => e
-						result = e.value  # or specific value returned by method
+						result = e.value
 					end
 					
 					result
+
 				elsif node.is_a? AST::RubyCall
 					module_path = node.module_path
 					method_name = node.method_name
