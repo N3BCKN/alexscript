@@ -7,6 +7,11 @@ module AlexScript
 
       @@call_depth = 0
       @@max_call_depth = 600
+      
+      # method lookup cache for performance
+      @@method_cache = {}
+      @@cache_hits = 0
+      @@cache_misses = 0
 
       def initialize(parent = nil)
         @variables = {}
@@ -44,25 +49,60 @@ module AlexScript
         class_name = instance[:class_name]
         return nil unless class_name
         
+        # create cache key using interned strings
+        cache_key = "#{class_name.to_sym}##{method_name.to_sym}".to_sym
+        
+        # check method cache first
+        if @@method_cache.key?(cache_key)
+          @@cache_hits += 1
+          cached_result = @@method_cache[cache_key]
+          
+          # return cached result with fresh class_def reference
+          if cached_result
+            return {
+              class_name: cached_result[:class_name],
+              class_def: get_class(cached_result[:class_name]),
+              method_info: cached_result[:method_info]
+            }
+          else
+            return nil
+          end
+        end
+        
+        @@cache_misses += 1
         current_class_name = class_name
         
         while current_class_name
           class_def = get_class(current_class_name)
           break unless class_def
           
-          # check instance methods
-          if class_def[:instance_methods] && class_def[:instance_methods][method_name]
-            method_descriptor = class_def[:instance_methods][method_name]
-            return {
-              class_name: current_class_name,
-              class_def: class_def,
-              method_info: expand_method_descriptor(method_descriptor)
-            }
+          # check instance methods - try both interned and non-interned keys
+          if class_def[:instance_methods]
+            method_key = intern_string(method_name)
+            method_descriptor = class_def[:instance_methods][method_key] || class_def[:instance_methods][method_name]
+            
+            if method_descriptor
+              result = {
+                class_name: current_class_name,
+                class_def: class_def,
+                method_info: expand_method_descriptor(method_descriptor)
+              }
+              
+              # cache the result (without class_def to avoid memory bloat)
+              @@method_cache[cache_key] = {
+                class_name: current_class_name,
+                method_info: result[:method_info]
+              }
+              
+              return result
+            end
           end
           
           current_class_name = class_def[:parent]
         end
         
+        # cache negative result
+        @@method_cache[cache_key] = nil
         nil
       end
 
@@ -76,24 +116,58 @@ module AlexScript
         parent_name = class_def[:parent]
         return nil unless parent_name
         
+        # create cache key for parent method lookup
+        cache_key = "parent_#{class_name.to_sym}##{method_name.to_sym}".to_sym
+        
+        if @@method_cache.key?(cache_key)
+          @@cache_hits += 1
+          cached_result = @@method_cache[cache_key]
+          
+          if cached_result
+            return {
+              class_name: cached_result[:class_name],
+              class_def: get_class(cached_result[:class_name]),
+              method_info: cached_result[:method_info]
+            }
+          else
+            return nil
+          end
+        end
+        
+        @@cache_misses += 1
         current_class_name = parent_name
         
         while current_class_name
           class_def = get_class(current_class_name)
           break unless class_def
           
-          if class_def[:instance_methods] && class_def[:instance_methods][method_name]
-            method_descriptor = class_def[:instance_methods][method_name]
-            return {
-              class_name: current_class_name,
-              class_def: class_def,
-              method_info: expand_method_descriptor(method_descriptor)
-            }
+          if class_def[:instance_methods]
+            # try both interned and non-interned keys for compatibility
+            method_key = intern_string(method_name)
+            method_descriptor = class_def[:instance_methods][method_key] || class_def[:instance_methods][method_name]
+            
+            if method_descriptor
+              result = {
+                class_name: current_class_name,
+                class_def: class_def,
+                method_info: expand_method_descriptor(method_descriptor)
+              }
+              
+              # cache the result
+              @@method_cache[cache_key] = {
+                class_name: current_class_name,
+                method_info: result[:method_info]
+              }
+              
+              return result
+            end
           end
           
           current_class_name = class_def[:parent]
         end
         
+        # cache negative result
+        @@method_cache[cache_key] = nil
         nil
       end
 
@@ -161,43 +235,61 @@ module AlexScript
       def define_class(name, class_def)
         @classes ||= {}
         
+        # intern class name for memory efficiency
+        class_name = intern_string(name)
+        
         # optimize class definition storage
         optimized_class_def = {
-          parent: class_def[:parent],
+          parent: class_def[:parent] ? intern_string(class_def[:parent]) : nil,
           is_abstract: class_def[:is_abstract] || false,
-          static_vars: class_def[:static_vars] || {},
+          static_vars: {},
           instance_methods: {},
           static_methods: {}
         }
         
-        # convert instance methods to lightweight descriptors
+        # process static vars with interned keys
+        if class_def[:static_vars]
+          class_def[:static_vars].each do |var_name, var_info|
+            var_key = intern_string(var_name)
+            optimized_class_def[:static_vars][var_key] = var_info
+          end
+        end
+        
+        # convert instance methods to lightweight descriptors with interned keys
         if class_def[:methods]
           class_def[:methods].each do |method_name, method_info|
-            optimized_class_def[:instance_methods][method_name] = create_method_descriptor(method_info)
+            method_key = intern_string(method_name)
+            optimized_class_def[:instance_methods][method_key] = create_method_descriptor(method_info)
           end
         end
         
-        # convert static methods to lightweight descriptors  
+        # convert static methods to lightweight descriptors with interned keys  
         if class_def[:static_methods]
           class_def[:static_methods].each do |method_name, method_info|
-            optimized_class_def[:static_methods][method_name] = create_method_descriptor(method_info)
+            method_key = intern_string(method_name)
+            optimized_class_def[:static_methods][method_key] = create_method_descriptor(method_info)
           end
         end
         
-        @classes[name] = optimized_class_def
+        @classes[class_name] = optimized_class_def
+        
+        # clear method cache when new class is defined
+        clear_method_cache_for_class(class_name)
       end
 
       def get_static_var(class_name, var_name)
-        class_def = get_class(class_name)
-        return nil unless class_def && class_def[:static_vars]
+        class_def = get_class(class_name) 
+        return nil unless class_def
         
         # search in hierarchy for static variables
         current_class_def = class_def
-        current_class_name = class_name
         
         while current_class_def
-          if current_class_def[:static_vars] && current_class_def[:static_vars][var_name]
-            return current_class_def[:static_vars][var_name]
+          if current_class_def[:static_vars]
+            # try both interned and non-interned keys for compatibility
+            var_key = intern_string(var_name)
+            var_result = current_class_def[:static_vars][var_key] || current_class_def[:static_vars][var_name]
+            return var_result if var_result
           end
           
           parent_name = current_class_def[:parent]
@@ -210,16 +302,32 @@ module AlexScript
       end
 
       def get_static_method(class_name, method_name)
-        class_def = get_class(class_name)
+        class_def = get_class(class_name) # don't intern here, get_class handles it
         return nil unless class_def
         
-        # search in hierarchy for static methods
+        # create cache key for static method lookup
+        cache_key = "static_#{class_name.to_sym}##{method_name.to_sym}".to_sym
+        
+        if @@method_cache.key?(cache_key)
+          @@cache_hits += 1
+          cached_result = @@method_cache[cache_key]
+          return cached_result ? expand_method_descriptor(cached_result) : nil
+        end
+        
+        @@cache_misses += 1
         current_class_def = class_def
         
         while current_class_def
-          if current_class_def[:static_methods] && current_class_def[:static_methods][method_name]
-            method_descriptor = current_class_def[:static_methods][method_name]
-            return expand_method_descriptor(method_descriptor)
+          if current_class_def[:static_methods]
+            # try both interned and non-interned keys for compatibility
+            method_key = intern_string(method_name)
+            method_descriptor = current_class_def[:static_methods][method_key] || current_class_def[:static_methods][method_name]
+            
+            if method_descriptor
+              # cache the descriptor
+              @@method_cache[cache_key] = method_descriptor
+              return expand_method_descriptor(method_descriptor)
+            end
           end
           
           parent_name = current_class_def[:parent]
@@ -228,6 +336,8 @@ module AlexScript
           current_class_def = get_class(parent_name)
         end
         
+        # cache negative result
+        @@method_cache[cache_key] = nil
         nil
       end
 
@@ -247,10 +357,11 @@ module AlexScript
       end
 
       def set_static_var(class_name, var_name, value, type)
-        class_def = get_class(class_name)
+        class_def = get_class(class_name) # don't intern here, get_class handles it  
         Utils.runtime_error("Nieznana klasa #{class_name}") unless class_def
         
-        class_def[:static_vars][var_name] = { value: value, type: type }
+        var_key = intern_string(var_name)
+        class_def[:static_vars][var_key] = { value: value, type: type }
       end
 
       def set_local_var(name, value, type, is_constant = false)
@@ -264,9 +375,36 @@ module AlexScript
       def get_instance
         current = self
         while current
-          return current.instance_variable_get(:@current_instance) if current.instance_variable_defined?(:@current_instance)
+          if current.instance_variable_defined?(:@current_instance)
+            instance = current.instance_variable_get(:@current_instance)
+            return instance
+          end
           current = current.parent
         end
+        nil
+      end
+
+      def get_instance_method(class_name, method_name)
+        class_def = get_class(class_name)
+        return nil unless class_def
+        
+        # search in hierarchy for instance methods
+        current_class_def = class_def
+        
+        while current_class_def
+          if current_class_def[:instance_methods]
+            # try both interned and non-interned keys for compatibility
+            method_key = intern_string(method_name)
+            method_descriptor = current_class_def[:instance_methods][method_key] || current_class_def[:instance_methods][method_name]
+            return expand_method_descriptor(method_descriptor) if method_descriptor
+          end
+          
+          parent_name = current_class_def[:parent]
+          break unless parent_name
+          
+          current_class_def = get_class(parent_name)
+        end
+        
         nil
       end
 
@@ -306,10 +444,14 @@ module AlexScript
       end
       
       def get_class(name)
+        # use interned string for lookup
+        class_key = intern_string(name) if name.is_a?(String)
+        class_key ||= name # already interned
+        
         current = self
         while current
-          if current.instance_variable_defined?(:@classes) && current.instance_variable_get(:@classes)&.key?(name)
-            return current.instance_variable_get(:@classes)[name]
+          if current.instance_variable_defined?(:@classes) && current.instance_variable_get(:@classes)&.key?(class_key)
+            return current.instance_variable_get(:@classes)[class_key]
           end
           current = current.parent
         end
@@ -369,29 +511,61 @@ module AlexScript
 
       private
 
+      # string interning for memory efficiency
+      @@string_cache = {}
+      
+      def intern_string(str)
+        return str unless str.is_a?(String)
+        @@string_cache[str] ||= str.to_sym
+      end
+
+      # method cache management
+      def clear_method_cache_for_class(class_name)
+        # clear cache entries that might be affected by new class definition
+        @@method_cache.delete_if { |key, _| key.to_s.include?(class_name.to_s) }
+      end
+      
+      def self.cache_stats
+        total = @@cache_hits + @@cache_misses
+        hit_rate = total > 0 ? (@@cache_hits.to_f / total * 100).round(2) : 0
+        {
+          hits: @@cache_hits,
+          misses: @@cache_misses,
+          hit_rate: "#{hit_rate}%",
+          cache_size: @@method_cache.size
+        }
+      end
+      
+      def self.clear_cache
+        @@method_cache.clear
+        @@cache_hits = 0
+        @@cache_misses = 0
+      end
+
       # create lightweight method descriptor from full method info
       def create_method_descriptor(method_info)
         declaration = method_info[:declaration]
         
         {
-          # essential method metadata
-          name: declaration.name,
+          # essential method metadata with interned names
+          name: intern_string(declaration.name),
           private: method_info[:private] || false,
           line: declaration.line,
           
-          # parameter information preserved
+          # parameter information preserved - DON'T intern param names!
+          # interpreter needs original string names for variable lookup
           param_count: declaration.params.size,
-          param_names: declaration.params.map(&:name),
+          param_names: declaration.params.map(&:name), # keep as strings
           param_defaults: declaration.params.map { |p| p.has_default? ? p.default_value : nil },
           param_rest_flags: declaration.params.map(&:rest?),
           has_rest: declaration.params.any?(&:rest?),
           
           # keep reference to original AST for execution
-          # but don't store env to avoid cycles
           declaration: declaration,
           
-          # store creation environment reference but break cycle
-          env_id: method_info[:env].object_id
+          # CRITICAL FIX: keep reference to original environment for proper scope
+          # this is needed for method execution context
+          env: method_info[:env]
         }
       end
 
@@ -411,8 +585,8 @@ module AlexScript
           param_rest_flags: descriptor[:param_rest_flags],
           has_rest: descriptor[:has_rest],
           
-          # provide env reference - use current env as fallback
-          env: self
+          # provide original env reference for proper method execution
+          env: descriptor[:env] || self
         }
       end
     end

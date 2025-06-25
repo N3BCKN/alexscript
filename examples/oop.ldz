@@ -1,0 +1,18 @@
+               klasa Matematyka {
+                 funkcja konstruktor() {}
+                 
+                 funkcja kwadrat(x) {
+                   zwroc x * x
+                 }
+                 
+                 funkcja silnia(n) {
+                   jesli n <= 1 {
+                     zwroc 1
+                   }
+                   zwroc n * silnia(n-1)
+                 }
+               }
+               
+               niech mat = Matematyka.nowy()
+               pokazl mat.kwadrat(4)
+               pokazl mat.silnia(5)

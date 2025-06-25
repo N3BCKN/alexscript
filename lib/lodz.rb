@@ -12,6 +12,7 @@ module AlexScript
   VERSION = '0.5.12'
 
   def self.start
+    # start_execution
     begin
       start_execution
     rescue Utils::WyjatekPodstawowy => e # custom exceptions 

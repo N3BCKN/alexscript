@@ -1233,8 +1233,7 @@ module AlexScript
 					end
 					
 					# call constructor if exists
-					# byebug
-					constructor = class_def[:instance_methods]["konstruktor"]
+					constructor = env.get_instance_method(node.class_name, "konstruktor")
 					if constructor
 						# create environment for constructor
 						constructor_env = env.new_env
@@ -1456,31 +1455,11 @@ module AlexScript
 					
 					result
 				elsif node.is_a? AST::StaticVariable
-					# get class definition
-					class_def = env.get_class(node.class_name)
-					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
-					
-					# look for static variable in whole class hierarchy
-					var = nil
-					current_class_def = class_def
-					
-					while current_class_def && !var
-						# check if variable exists in current class
-						if current_class_def[:static_vars] && current_class_def[:static_vars][node.name]
-							var = current_class_def[:static_vars][node.name]
-							break
-						end
-						
-						# if not, check base class
-						parent_name = current_class_def[:parent]
-						break unless parent_name
-						
-						current_class_def = env.get_class(parent_name)
-					end
-					
+					var = env.get_static_var(node.class_name, node.name)
 					Utils.runtime_error("Nieznana zmienna statyczna '#{node.name}' w klasie #{node.class_name}", node.line) unless var
 					
 					[var[:type], var[:value]]
+
 				elsif node.is_a? AST::StaticVariableDeclaration
 					class_name = node.class_name
 					class_def = env.get_class(class_name)
