@@ -18,7 +18,7 @@ funkcja silnia(n){
   zwroc res
 }
 
-/*
+
 
 funkcja cos(a) {
   a = a * 3.141592 / 180
@@ -54,7 +54,7 @@ funkcja sin(a) {
   zwroc wartosc
 }
 
-*/
+/*
 
 funkcja cos(a){
   a = a % 360
@@ -95,6 +95,8 @@ funkcja sin(a){
   }
   zwroc -9999
 }
+
+*/
 
 funkcja dragon(rozmiar, poziom, d){
   jesli poziom == 0 {
