@@ -21,6 +21,15 @@ module AlexScript
       end
 
       def call_method(obj_type, method_name, receiver, args = [])
+        # special handling for reflection methods that need Environment access
+        if obj_type == :type_class && ['przodkowie', 'potomkowie', 'czy_dziedziczy_po'].include?(method_name)
+          return handle_class_reflection_method(method_name, receiver, args)
+        end
+        
+        if obj_type == :type_instance && ['przodkowie', 'hierarchia', 'czy_dziedziczy_po'].include?(method_name)
+          return handle_instance_reflection_method(method_name, receiver, args)
+        end
+
         if obj_type == :type_class && receiver.is_a?(String)
           begin
             registry = Utils::StdLibRegistry.instance
@@ -240,6 +249,7 @@ module AlexScript
         
         # optimize class definition storage
         optimized_class_def = {
+          name: name,  # store original name for reflection
           parent: class_def[:parent] ? intern_string(class_def[:parent]) : nil,
           is_abstract: class_def[:is_abstract] || false,
           static_vars: {},
@@ -301,6 +311,31 @@ module AlexScript
         nil
       end
 
+      def get_instance_method(class_name, method_name)
+        class_def = get_class(class_name)
+        return nil unless class_def
+        
+        # search in hierarchy for instance methods
+        current_class_def = class_def
+        
+        while current_class_def
+          if current_class_def[:instance_methods]
+            # try both interned and non-interned keys for compatibility
+            method_key = intern_string(method_name)
+            method_descriptor = current_class_def[:instance_methods][method_key] || current_class_def[:instance_methods][method_name]
+            return expand_method_descriptor(method_descriptor) if method_descriptor
+          end
+          
+          parent_name = current_class_def[:parent]
+          break unless parent_name
+          
+          current_class_def = get_class(parent_name)
+        end
+        
+        nil
+      end
+
+      
       def get_static_method(class_name, method_name)
         class_def = get_class(class_name) # don't intern here, get_class handles it
         return nil unless class_def
@@ -375,36 +410,9 @@ module AlexScript
       def get_instance
         current = self
         while current
-          if current.instance_variable_defined?(:@current_instance)
-            instance = current.instance_variable_get(:@current_instance)
-            return instance
-          end
+          return current.instance_variable_get(:@current_instance) if current.instance_variable_defined?(:@current_instance)
           current = current.parent
         end
-        nil
-      end
-
-      def get_instance_method(class_name, method_name)
-        class_def = get_class(class_name)
-        return nil unless class_def
-        
-        # search in hierarchy for instance methods
-        current_class_def = class_def
-        
-        while current_class_def
-          if current_class_def[:instance_methods]
-            # try both interned and non-interned keys for compatibility
-            method_key = intern_string(method_name)
-            method_descriptor = current_class_def[:instance_methods][method_key] || current_class_def[:instance_methods][method_name]
-            return expand_method_descriptor(method_descriptor) if method_descriptor
-          end
-          
-          parent_name = current_class_def[:parent]
-          break unless parent_name
-          
-          current_class_def = get_class(parent_name)
-        end
-        
         nil
       end
 
@@ -510,6 +518,100 @@ module AlexScript
       end
 
       private
+
+      # handle reflection methods that require Environment access
+      def handle_class_reflection_method(method_name, class_def, args)
+        case method_name
+        when 'przodkowie'
+          ancestors = []
+          current_parent = class_def[:parent]
+          while current_parent
+            ancestors << current_parent
+            parent_def = get_class(current_parent)
+            break unless parent_def
+            current_parent = parent_def[:parent]
+          end
+          ancestors
+        when 'potomkowie'
+          # find all classes that inherit from this class
+          descendants = []
+          class_name = class_def[:name]
+          
+          # traverse all classes to find descendants
+          all_classes = collect_all_classes
+          all_classes.each do |name, def_info|
+            if is_descendant_of(name, class_name)
+              descendants << name
+            end
+          end
+          descendants.sort
+        when 'czy_dziedziczy_po'
+          parent_name = args[0]
+          result = is_subclass_of(class_def[:name] || '', parent_name)
+          [:type_bool, result ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+        end
+      end
+
+      def handle_instance_reflection_method(method_name, instance, args)
+        case method_name
+        when 'przodkowie'
+          ancestors = []
+          current_parent = instance[:class_def][:parent]
+          while current_parent
+            ancestors << current_parent
+            parent_def = get_class(current_parent)
+            break unless parent_def
+            current_parent = parent_def[:parent]
+          end
+          ancestors
+        when 'hierarchia'
+          # complete hierarchy including self
+          hierarchy = [instance[:class_name]]
+          current_parent = instance[:class_def][:parent]
+          while current_parent
+            hierarchy << current_parent
+            parent_def = get_class(current_parent)
+            break unless parent_def
+            current_parent = parent_def[:parent]
+          end
+          hierarchy
+        when 'czy_dziedziczy_po'
+          parent_name = args[0]
+          result = is_subclass_of(instance[:class_name], parent_name)
+          [:type_bool, result ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+        end
+      end
+
+      # collect all classes from environment chain
+      def collect_all_classes
+        all_classes = {}
+        current = self
+        while current
+          if current.instance_variable_defined?(:@classes)
+            current_classes = current.instance_variable_get(:@classes)
+            all_classes.merge!(current_classes) if current_classes
+          end
+          current = current.parent
+        end
+        all_classes
+      end
+
+      # check if class_name is a descendant of parent_name
+      def is_descendant_of(class_name, parent_name)
+        return false if class_name == parent_name
+        
+        class_def = get_class(class_name)
+        return false unless class_def
+        
+        current_parent = class_def[:parent]
+        while current_parent
+          return true if current_parent == parent_name
+          parent_def = get_class(current_parent)
+          break unless parent_def
+          current_parent = parent_def[:parent]
+        end
+        false
+      end
 
       # string interning for memory efficiency
       @@string_cache = {}

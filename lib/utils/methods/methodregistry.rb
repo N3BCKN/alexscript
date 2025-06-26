@@ -14,7 +14,9 @@ module AlexScript
             type_string: StringMethods.instance,
             type_int: IntegerMethods.instance,
             type_float: FloatMethods.instance,
-            type_object: ObjectMethods.instance
+            type_object: ObjectMethods.instance,
+            type_class: ClassMethods.instance,
+            type_instance: InstanceMethods.instance
           }.freeze
         end
 
