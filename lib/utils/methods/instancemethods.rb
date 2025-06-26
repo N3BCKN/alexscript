@@ -5,6 +5,7 @@ module AlexScript
     module Methods
       class InstanceMethods < BaseTypeHandler
         def register_methods
+          # basic instance information
           register_method('typ', ->(instance) { 'instancja' })
           
           register_method('klasa', lambda { |instance|
@@ -26,7 +27,7 @@ module AlexScript
             end
             
             # add built-in instance methods
-            methods.concat(['typ', 'klasa', 'czy_instancja', 'metody', 'czy_odpowiada', 'zmienne_instancji'])
+            methods.concat(['typ', 'klasa', 'czy_instancja', 'metody', 'czy_odpowiada', 'zmienne_instancji', 'na_string', 'kopia', 'identyczny', 'debug_info'])
             
             methods.sort.uniq
           })
@@ -53,7 +54,7 @@ module AlexScript
             end
             
             # check built-in methods
-            built_in_methods = ['typ', 'klasa', 'czy_instancja', 'metody', 'czy_odpowiada', 'zmienne_instancji']
+            built_in_methods = ['typ', 'klasa', 'czy_instancja', 'metody', 'czy_odpowiada', 'zmienne_instancji', 'na_string', 'kopia', 'identyczny', 'debug_info']
             responds ||= built_in_methods.include?(method_name)
             
             [:type_bool, responds ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
@@ -79,6 +80,31 @@ module AlexScript
             end
           })
           
+          # object identity and equality
+          register_method('identyczny', lambda { |instance, other|
+            # strict object identity - cannot be overridden
+            identical = instance.equal?(other)
+            [:type_bool, identical ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+          })
+          
+          # object copying
+          register_method('kopia', lambda { |instance|
+            # shallow copy of instance
+            new_instance = {
+              class_name: instance[:class_name],
+              class_def: instance[:class_def],
+              instance_vars: instance[:instance_vars].dup
+            }
+            [:type_instance, new_instance]
+          })
+          
+          # string representation
+          register_method('na_string', lambda { |instance|
+            class_name = instance[:class_name] || 'Object'
+            object_id = instance.object_id.to_s(16)
+            "#<#{class_name}:0x#{object_id}>"
+          })
+          
           # debugging and inspection
           register_method('debug_info', lambda { |instance|
             info = {
@@ -87,11 +113,15 @@ module AlexScript
               'metody_count' => { 
                 type: :type_int, 
                 value: instance[:class_def]&.dig(:instance_methods)&.size || 0 
-              }
+              },
+              'object_id' => { type: :type_string, value: instance.object_id.to_s(16) }
             }
             
             [:type_object, info]
           })
+          
+          # note: advanced methods like przodkowie(), hierarchia() are implemented 
+          # in Environment.call_method due to need for Environment access
         end
       end
     end
