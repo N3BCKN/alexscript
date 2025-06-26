@@ -25,9 +25,24 @@ module AlexScript
           register_method('metody', lambda { |class_def|
             methods = []
             
-            # add instance methods
+            # add instance methods (only public ones)
             if class_def[:instance_methods]
-              methods.concat(class_def[:instance_methods].keys.map(&:to_s))
+              class_def[:instance_methods].each do |key, descriptor|
+                methods << key.to_s unless descriptor[:private]
+              end
+            end
+            
+            methods.sort
+          })
+          
+          register_method('metody_prywatne', lambda { |class_def|
+            methods = []
+            
+            # add private instance methods
+            if class_def[:instance_methods]
+              class_def[:instance_methods].each do |key, descriptor|
+                methods << key.to_s if descriptor[:private]
+              end
             end
             
             methods.sort
@@ -36,13 +51,28 @@ module AlexScript
           register_method('metody_statyczne', lambda { |class_def|
             methods = []
             
-            # add static methods
+            # add static methods (only public ones)
             if class_def[:static_methods]
-              methods.concat(class_def[:static_methods].keys.map(&:to_s))
+              class_def[:static_methods].each do |key, descriptor|
+                methods << key.to_s unless descriptor[:private]
+              end
             end
             
             methods.sort
           })
+          
+          # register_method('metody_statyczne_prywatne', lambda { |class_def|
+          #   methods = []
+            
+          #   # add private static methods
+          #   if class_def[:static_methods]
+          #     class_def[:static_methods].each do |key, descriptor|
+          #       methods << key.to_s if descriptor[:private]
+          #     end
+          #   end
+            
+          #   methods.sort
+          # })
           
           register_method('zmienne_statyczne', lambda { |class_def|
             variables = []
@@ -119,6 +149,9 @@ module AlexScript
             parent_info = class_def[:parent] ? " < #{class_def[:parent]}" : ''
             "#{class_name}#{parent_info}#{abstract_marker}"
           })
+          
+          # note: advanced methods like potomkowie(), przodkowie() are implemented 
+          # in Environment.call_method due to need for Environment access
         end
       end
     end
