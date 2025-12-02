@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Null value (nic) operations', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Basic nil operations' do
     it 'initializes variable as nil' do

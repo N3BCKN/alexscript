@@ -7,11 +7,11 @@ module AlexScript
     class ImportManager
 
       # array of paths to standard libraries with the priority of import 
-      # and no need to specify path, eg: import('mat') => import('lib/std/libs/mat.ldz')
+      # and no need to specify path, eg: import('mat') => import('lib/std/libs/mat.as')
       STANDARD_LIBRARIES = {
-        'mat' => File.expand_path('lib/std/libs/mat.ldz'),
-        'socket' => File.expand_path('lib/std/libs/socket.ldz'),
-        'czas' => File.expand_path('lib/std/libs/czas.ldz')
+        'mat' => File.expand_path('lib/std/libs/mat.as'),
+        'socket' => File.expand_path('lib/std/libs/socket.as'),
+        'czas' => File.expand_path('lib/std/libs/czas.as')
       }
 
       def initialize

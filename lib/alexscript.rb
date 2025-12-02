@@ -48,7 +48,7 @@ module AlexScript
 
     filename = ARGV[0]
 
-    if filename&.end_with?('.ldz')
+    if filename&.end_with?('.as')
       begin
         source_file = File.expand_path(ARGV[0])
         source = File.read(filename)

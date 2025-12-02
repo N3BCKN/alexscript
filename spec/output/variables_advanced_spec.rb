@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Advanced Variable Operations', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Multiple variable declarations' do
     it 'handles multiple declarations in sequence' do

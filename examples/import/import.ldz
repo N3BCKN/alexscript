@@ -1,8 +1,0 @@
-# import('../test.ldz')
-# import('../test.ldz')
-import('importowana.ldz')
-
-pokazl c
-test()
-test1(5)
-test1(999)

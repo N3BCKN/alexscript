@@ -14,7 +14,7 @@ module AlexScript
         @interpreter = Core::Interpreter.new
         @env = Core::Environment.new # new global env
         @current_prompt = MAIN_PROMPT.dup
-        puts "Lodz Programming Language REPL 2024-#{CURRENT_YEAR} version #{VERSION}"
+        puts "AlexScript Programming Language REPL 2024-#{CURRENT_YEAR} version #{VERSION}"
         puts "(wpisz 'wyjscie()' aby zakończyć)"
         puts '-------------------------------------------------------'
         run

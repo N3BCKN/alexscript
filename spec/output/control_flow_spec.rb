@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Control Flow', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'While loop (dopoki)' do
     it 'executes basic while loop correctly' do

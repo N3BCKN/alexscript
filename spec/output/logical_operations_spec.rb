@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Logical Operations', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Comparison operators' do
     it 'correctly compares numbers (==)' do
@@ -84,7 +84,7 @@ RSpec.describe 'Logical Operations', type: :aruba do
 end
 
 RSpec.describe 'Control Flow', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'If statement' do
     it 'executes block when condition is true' do

@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Cli', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Basic type declarations' do
     it 'correctly declares integer variable' do
@@ -114,7 +114,7 @@ RSpec.describe 'Cli', type: :aruba do
 end
 
 RSpec.describe 'Arithmetic Operations', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Integer operations' do
     it 'performs addition correctly' do

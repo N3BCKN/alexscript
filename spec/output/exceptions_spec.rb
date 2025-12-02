@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Exceptions', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Tłumaczenie wyjątków Ruby' do
     it 'tłumaczy błąd dzielenia przez zero' do

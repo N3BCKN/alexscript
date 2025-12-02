@@ -1,4 +1,4 @@
-# lib/std/libs/czas.ldz
+# lib/std/libs/czas.as
 require_ruby("time")
 
 klasa Czas {

@@ -46,7 +46,7 @@
 jesli !nic to pokazl "nic"
 
 
-lodz/
+alexscript/
 ├── lib/
 │   ├── core/              # Główne komponenty interpretera
 │   │   ├── lexer.rb       # Tokenizacja kodu
@@ -88,8 +88,8 @@ lodz/
 │   └── std/
 │
 ├── bin/                 # Skrypty wykonywalne
-│   └── lodz            # Główny skrypt uruchomieniowy
+│   └── alexscript            # Główny skrypt uruchomieniowy
 │
 ├── Gemfile             # Zależności
 ├── README.md
-└── lodz.rb            # Punkt wejścia do interpretera
+└── alexscript.rb            # Punkt wejścia do interpretera

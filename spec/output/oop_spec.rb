@@ -1,7 +1,7 @@
 require 'aruba/rspec'
 
 RSpec.describe 'Object-Oriented Programming', type: :aruba do
-  let(:main_file_path) { File.expand_path('../../lib/lodz.rb', File.dirname(__FILE__)) }
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'Basic class definition' do
     it 'defines an empty class' do
