@@ -1,0 +1,287 @@
+# frozen_string_literal: true
+
+module AlexScript
+  module Utils
+    module Methods
+      class ClassMethods < BaseTypeHandler
+        def initialize
+          super
+        end
+
+        private
+
+        def register_methods
+          # basics
+          register_method('nazwa', lambda { |class_def|
+            class_def[:name] || "UnnamedClass"
+          })
+
+          register_method('typ', lambda { |class_def|
+            "klasa"
+          })
+
+          register_method('rodzic', lambda { |class_def|
+            class_def[:parent] || "nic"
+          })
+
+          register_method('abstrakcyjna', lambda { |class_def|
+            class_def[:is_abstract] ? true : false
+          })
+
+          # in memory ID (ruby based)
+          register_method('id', lambda { |class_def|
+            class_def.object_id
+          })
+
+          # methods requiring env (injected as a first param)
+          register_method('przodkowie', lambda { |env, class_def|
+            ancestors = []
+            current_parent = class_def[:parent]
+            
+            while current_parent
+              ancestors << current_parent
+              parent_def = env.get_class(current_parent)
+              break unless parent_def
+              current_parent = parent_def[:parent]
+            end
+            
+            ancestors
+          })
+
+          register_method('potomkowie', lambda { |env, class_def|
+            class_name = class_def[:name]
+            descendants = []
+            
+            # browse all env classes
+            all_classes = env.get_all_classes || {}
+            all_classes.each do |name, definition|
+              if is_descendant_of?(definition, class_name, env)
+                descendants << name
+              end
+            end
+            
+            descendants.sort
+          })
+
+          register_method('czy_dziedziczy_po', lambda { |env, class_def, parent_name|
+            current_parent = class_def[:parent]
+            
+            while current_parent
+              return true if current_parent == parent_name
+              parent_def = env.get_class(current_parent)
+              break unless parent_def
+              current_parent = parent_def[:parent]
+            end
+            
+            false
+          })
+
+          # instance methods
+          register_method('metody', lambda { |class_def, only_own = false|
+            if only_own
+              get_own_public_methods(class_def)
+            else
+              # all, with inheritance
+              get_all_public_methods(class_def, nil)
+            end
+          })
+
+          register_method('metody_prywatne', lambda { |class_def, only_own = false|
+            if only_own
+              get_own_private_methods(class_def)
+            else
+              get_all_private_methods(class_def, nil)
+            end
+          })
+
+        #   register_method('metody_publiczne', lambda { |class_def, only_own = false|
+        #     # Alias dla metody()
+        #     if only_own
+        #       get_own_public_methods(class_def)
+        #     else
+        #       get_all_public_methods(class_def, nil)
+        #     end
+        #   })
+
+          register_method('metody_statyczne', lambda { |class_def, only_own = false|
+            if only_own
+              get_own_static_methods(class_def, false)
+            else
+              get_all_static_methods(class_def, nil, false)
+            end
+          })
+
+          register_method('metody_statyczne_prywatne', lambda { |class_def, only_own = false|
+            if only_own
+              get_own_static_methods(class_def, true)
+            else
+              get_all_static_methods(class_def, nil, true)
+            end
+          })
+
+          register_method('zmienne_statyczne', lambda { |class_def, only_own = false|
+            if only_own
+              get_own_static_vars(class_def)
+            else
+              get_all_static_vars(class_def, nil)
+            end
+          })
+
+          # existance check
+          register_method('ma_metode', lambda { |class_def, method_name|
+            all_methods = get_all_public_methods(class_def, nil)
+            all_methods.include?(method_name)
+          })
+
+          register_method('ma_metode_statyczna', lambda { |class_def, method_name|
+            all_methods = get_all_static_methods(class_def, nil, false)
+            all_methods.include?(method_name)
+          })
+
+          register_method('ma_zmienna_statyczna', lambda { |class_def, var_name|
+            all_vars = get_all_static_vars(class_def, nil)
+            all_vars.include?(var_name)
+          })
+
+          # detailed method info
+          register_method('info_metody', lambda { |class_def, method_name|
+            method_info = find_method_in_hierarchy(class_def, method_name, nil)
+            
+            if method_info
+              {
+                "nazwa" => method_name,
+                "parametry" => method_info[:declaration].params.length,
+                "prywatna" => method_info[:private] || false,
+                "linia" => method_info[:declaration].line
+              }
+            else
+              {} 
+            end
+          })
+
+          register_method('na_tekst', lambda { |class_def|
+            name = class_def[:name] || "UnnamedClass"
+            if class_def[:is_abstract]
+              "#{name} (abstrakcyjna)" # ???
+            elsif class_def[:parent]
+              "#{name} < #{class_def[:parent]}"
+            else
+              name
+            end
+          })
+        end
+
+        # helper
+        def get_own_public_methods(class_def)
+          return [] unless class_def[:methods]
+          
+          class_def[:methods].select { |name, info|
+            !info[:private]
+          }.keys.sort
+        end
+
+        def get_own_private_methods(class_def)
+          return [] unless class_def[:methods]
+          
+          class_def[:methods].select { |name, info|
+            info[:private]
+          }.keys.sort
+        end
+
+        def get_all_public_methods(class_def, env)
+          methods = get_own_public_methods(class_def)
+          
+          # add methods from superior/upper classes
+          if class_def[:parent] && env
+            parent_def = env.get_class(class_def[:parent])
+            if parent_def
+              methods += get_all_public_methods(parent_def, env)
+            end
+          end
+          
+          methods.uniq.sort
+        end
+
+        def get_all_private_methods(class_def, env)
+          methods = get_own_private_methods(class_def)
+          
+          if class_def[:parent] && env
+            parent_def = env.get_class(class_def[:parent])
+            if parent_def
+              methods += get_all_private_methods(parent_def, env)
+            end
+          end
+          
+          methods.uniq.sort
+        end
+
+        def get_own_static_methods(class_def, private_only)
+          return [] unless class_def[:static_methods]
+          
+          class_def[:static_methods].select { |name, info|
+            private_only ? info[:private] : !info[:private]
+          }.keys.sort
+        end
+
+        def get_all_static_methods(class_def, env, private_only)
+          methods = get_own_static_methods(class_def, private_only)
+          
+          if class_def[:parent] && env
+            parent_def = env.get_class(class_def[:parent])
+            if parent_def
+              methods += get_all_static_methods(parent_def, env, private_only)
+            end
+          end
+          
+          methods.uniq.sort
+        end
+
+        def get_own_static_vars(class_def)
+          return [] unless class_def[:static_vars]
+          class_def[:static_vars].keys.sort
+        end
+
+        def get_all_static_vars(class_def, env)
+          vars = get_own_static_vars(class_def)
+          
+          if class_def[:parent] && env
+            parent_def = env.get_class(class_def[:parent])
+            if parent_def
+              vars += get_all_static_vars(parent_def, env)
+            end
+          end
+          
+          vars.uniq.sort
+        end
+
+        def find_method_in_hierarchy(class_def, method_name, env)
+          # search in current class
+          if class_def[:methods] && class_def[:methods][method_name]
+            return class_def[:methods][method_name]
+          end
+          
+          # search in parrent 
+          if class_def[:parent] && env
+            parent_def = env.get_class(class_def[:parent])
+            return find_method_in_hierarchy(parent_def, method_name, env) if parent_def
+          end
+          
+          nil
+        end
+
+        def is_descendant_of?(class_def, ancestor_name, env)
+          current_parent = class_def[:parent]
+          
+          while current_parent
+            return true if current_parent == ancestor_name
+            parent_def = env.get_class(current_parent)
+            break unless parent_def
+            current_parent = parent_def[:parent]
+          end
+          
+          false
+        end
+      end
+    end
+  end
+end

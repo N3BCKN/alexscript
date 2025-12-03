@@ -1,20 +1,23 @@
 # frozen_string_literal: true
 
+require 'singleton'
+
 module AlexScript
   module Utils
     module Methods
       class MethodRegistry
-        # TODO: at this point many build-in methods are based on Ruby methods
-        # the are memory consuming, with another extra layer, please rewrtie them all from scratch
-        # when proper exeception mechanism will be implemented
+        include Singleton
+        
         def initialize
           @methods = {
-            type_array: ArrayMethods.new,
-            type_string: StringMethods.new,
-            type_int: IntegerMethods.new,
-            type_float: FloatMethods.new,
-            type_object: ObjectMethods.new
-          }
+            type_array: ArrayMethods.instance,
+            type_string: StringMethods.instance,
+            type_int: IntegerMethods.instance,
+            type_float: FloatMethods.instance,
+            type_object: ObjectMethods.instance,
+            type_class: ClassMethods.instance,
+            type_instance: InstanceMethods.instance
+          }.freeze
         end
 
         def get_method(type, method_name)
@@ -25,18 +28,25 @@ module AlexScript
         end
 
         def register_type(type, handler)
-          @methods[type] = handler
+          # This method is no longer needed since we use singletons
+          # but keeping for backward compatibility
+          raise "Cannot register types on singleton MethodRegistry. Use singleton handlers instead."
         end
       end
 
       class BaseTypeHandler
+        include Singleton
+        
         def initialize
           @methods = {}
           register_methods
-
+          
           register_method('metody', lambda { |obj|
             @methods.keys
           })
+          
+          # freeze methods hash to prevent modification
+          @methods.freeze
         end
 
         def get_method(name)

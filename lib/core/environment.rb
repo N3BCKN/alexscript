@@ -3,7 +3,7 @@
 module AlexScript
   module Core
     class Environment
-      attr_reader :variables, :functions, :parent, :classes
+      attr_reader :variables, :functions, :parent, :classes, :built_in_methods
 
       @@call_depth = 0
       @@max_call_depth = 600
@@ -13,7 +13,7 @@ module AlexScript
         @parent = parent
         @functions = {}
         @classes = {}
-        @built_in_methods = Utils::Methods::MethodRegistry.new
+        @built_in_methods = Utils::Methods::MethodRegistry.instance
       end
 
       def get_var(name)
@@ -338,6 +338,10 @@ module AlexScript
         # rescue StandardError => e
         #   Utils.runtime_error("Blad podsczas wykonywania metody #{method_name}: #{e.message}")
         # end
+      end
+
+      def get_all_classes
+        @classes || {}
       end
     end
   end
