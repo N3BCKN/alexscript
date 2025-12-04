@@ -25,7 +25,7 @@ module AlexScript
           })
 
           register_method('abstrakcyjna', lambda { |class_def|
-            class_def[:is_abstract] ? true : false
+            [:type_bool, class_def[:is_abstract] ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           # in memory ID (ruby based)
@@ -34,7 +34,7 @@ module AlexScript
           })
 
           # methods requiring env (injected as a first param)
-          register_method('przodkowie', lambda { |env, class_def|
+          register_method('przodkowie', lambda {  |class_def, env|
             ancestors = []
             current_parent = class_def[:parent]
             
@@ -48,7 +48,7 @@ module AlexScript
             ancestors
           })
 
-          register_method('potomkowie', lambda { |env, class_def|
+          register_method('potomkowie', lambda { |class_def, env|
             class_name = class_def[:name]
             descendants = []
             
@@ -63,26 +63,25 @@ module AlexScript
             descendants.sort
           })
 
-          register_method('czy_dziedziczy_po', lambda { |env, class_def, parent_name|
+          register_method('czy_dziedziczy_po', lambda { |class_def, env, parent_name|
             current_parent = class_def[:parent]
             
             while current_parent
-              return true if current_parent == parent_name
+              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == parent_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
-            
-            false
+
+            [:type_bool, Core::Interpreter::BOOL_FALSE]
           })
 
           # instance methods
-          register_method('metody', lambda { |class_def, only_own = false|
+          register_method('metody', lambda { |class_def, env, only_own = false|
             if only_own
               get_own_public_methods(class_def)
             else
-              # all, with inheritance
-              get_all_public_methods(class_def, nil)
+              get_all_public_methods(class_def, env) 
             end
           })
 
@@ -94,14 +93,14 @@ module AlexScript
             end
           })
 
-        #   register_method('metody_publiczne', lambda { |class_def, only_own = false|
-        #     # Alias dla metody()
-        #     if only_own
-        #       get_own_public_methods(class_def)
-        #     else
-        #       get_all_public_methods(class_def, nil)
-        #     end
-        #   })
+          register_method('metody_publiczne', lambda { |class_def, only_own = false|
+            # Alias dla metody()
+            if only_own
+              get_own_public_methods(class_def)
+            else
+              get_all_public_methods(class_def, nil)
+            end
+          })
 
           register_method('metody_statyczne', lambda { |class_def, only_own = false|
             if only_own
@@ -130,17 +129,17 @@ module AlexScript
           # existance check
           register_method('ma_metode', lambda { |class_def, method_name|
             all_methods = get_all_public_methods(class_def, nil)
-            all_methods.include?(method_name)
+            [:type_bool, all_methods.include?(method_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           register_method('ma_metode_statyczna', lambda { |class_def, method_name|
             all_methods = get_all_static_methods(class_def, nil, false)
-            all_methods.include?(method_name)
+            [:type_bool, all_methods.include?(method_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           register_method('ma_zmienna_statyczna', lambda { |class_def, var_name|
             all_vars = get_all_static_vars(class_def, nil)
-            all_vars.include?(var_name)
+            [:type_bool, all_vars.include?(var_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           # detailed method info

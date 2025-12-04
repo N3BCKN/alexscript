@@ -24,6 +24,7 @@ module AlexScript
 					'no implicit conversion of' => 'brak mozliwosci konwersji',
 					"can't convert" => 'nie mozna przekonwertowac',
 					'unexpected token' => 'nieoczekiwany token',
+					'given' => 'dano',
 					'expected' => 'oczekiwano',
 					'stack level too deep' => 'zbyt glebokie zagniezdzenie stosu',
 					'Undeclared identifier' => 'Niezadeklarowany identyfikator',

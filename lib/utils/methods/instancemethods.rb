@@ -16,7 +16,7 @@ module AlexScript
             "instancja"
           })
 
-          register_method('klasa', lambda { |instance|
+          register_method('nazwa_klasy', lambda { |instance|
             instance[:class_name]
           })
 
@@ -25,7 +25,7 @@ module AlexScript
           })
 
           # if instance of...
-          register_method('czy_instancja', lambda { |env, instance, class_name|
+          register_method('czy_instancja', lambda { |instance, env, class_name|
             current_class = instance[:class_name]
             
             return true if current_class == class_name
@@ -45,7 +45,7 @@ module AlexScript
             false
           })
 
-          register_method('metody', lambda { |env, instance|
+          register_method('metody', lambda { |instance, env|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
             return [] unless class_def
@@ -59,7 +59,7 @@ module AlexScript
           })
 
           # class hierarchy
-          register_method('przodkowie', lambda { |env, instance|
+          register_method('przodkowie', lambda { |instance, env|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
             return [] unless class_def
@@ -77,12 +77,12 @@ module AlexScript
             ancestors
           })
 
-          register_method('hierarchia', lambda { |env, instance|
+          register_method('hierarchia', lambda { |instance, env|
             class_name = instance[:class_name]
             [class_name] + instance_przodkowie(env, instance)
           })
 
-          register_method('czy_dziedziczy_po', lambda { |env, instance, parent_name|
+          register_method('czy_dziedziczy_po', lambda { |instance, env, parent_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
             return false unless class_def
@@ -116,7 +116,7 @@ module AlexScript
           })
 
           # has method?
-          register_method('czy_odpowiada', lambda { |env, instance, method_name|
+          register_method('czy_odpowiada', lambda { |instance, env, method_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
             return false unless class_def
@@ -150,7 +150,7 @@ module AlexScript
           })
 
           # Debug info
-          register_method('debug_info', lambda { |env, instance|
+          register_method('debug_info', lambda { |instance, env|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
             

@@ -1,13 +1,24 @@
-# test.ldz
-klasa Test {
-    funkcja metoda() {
-        zwroc "działa"
-    }
+klasa Zwierze {}
+klasa Pies < Zwierze {
+    funkcja szczekaj() {}
 }
 
-pokazl Test.nazwa()      # "Test"
-pokazl Test.metody()     # ["metoda"]
+# Hierarchia
+pokazl Pies.rodzic()          # "Zwierze"
+pokazl Pies.przodkowie()      # ["Zwierze"]
+pokazl Pies.czy_dziedziczy_po("Zwierze")  # prawda
 
-niech obj = Test.nowy()
-# pokazl obj.klasa()       # "Test"
-pokazl obj.typ()         # "instancja"
+# Metody
+pokazl Pies.metody()          # ["szczekaj"]
+pokazl Pies.ma_metode("szczekaj")  # prawda
+
+
+niech pies = Pies.nowy()
+
+# Typ
+pokazl pies.nazwa_klasy()           # "Pies"
+pokazl pies.czy_instancja("Zwierze")  # prawda
+
+# Metody i zmienne
+pokazl pies.metody()          # wszystkie dostępne metody
+pokazl pies.zmienne_instancji()  # lista zmiennych @

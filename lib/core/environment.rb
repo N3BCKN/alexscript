@@ -319,25 +319,27 @@ module AlexScript
       end
 
       def call_method(obj_type, method_name, receiver, args = [])
-        if obj_type == :type_class && receiver.is_a?(String)
-          # try to call static method from library registry
-          begin
-            registry = Utils::StdLibRegistry.instance
-            return registry.execute_static_method(receiver, method_name, args)
-          rescue StandardError => e
-            # if method doesn't exist in registry, continue with normal handling
-          end
-        end
-
         method = @built_in_methods.get_method(obj_type, method_name)
         Utils.runtime_error("Nieznana metoda #{method_name} dla typu #{obj_type}") unless method
 
-        method.call(receiver, *args)
-        # begin
-        #   method.call(receiver, *args)
-        # rescue StandardError => e
-        #   Utils.runtime_error("Blad podsczas wykonywania metody #{method_name}: #{e.message}")
-        # end
+        if obj_type == :type_class || obj_type == :type_instance
+          # methods requiring env as a second arg
+          methods_needing_env = [
+            'przodkowie', 'czy_dziedziczy_po', 'potomkowie',
+            'metody', 'metody_prywatne', 'metody_publiczne',
+            'metody_statyczne', 'metody_statyczne_prywatne',
+            'zmienne_statyczne', 'info_metody',
+            'czy_instancja', 'hierarchia', 'czy_odpowiada', 'debug_info'
+          ]
+
+          if methods_needing_env.include?(method_name)
+            method.call(receiver, self, *args)
+          else
+            method.call(receiver, *args)
+          end
+        else
+          method.call(receiver, *args)
+        end
       end
 
       def get_all_classes
