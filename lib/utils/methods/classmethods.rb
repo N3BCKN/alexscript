@@ -24,13 +24,13 @@ module AlexScript
             class_def[:parent] || "nic"
           })
 
-          register_method('abstrakcyjna', lambda { |class_def|
+          register_method('czy_abstrakcyjna', lambda { |class_def|
             [:type_bool, class_def[:is_abstract] ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           # in memory ID (ruby based)
           register_method('id', lambda { |class_def|
-            class_def.object_id
+            class_def[:name].hash.abs
           })
 
           # methods requiring env (injected as a first param)
@@ -60,7 +60,7 @@ module AlexScript
               end
             end
             
-            descendants.sort
+            alex_string_array(descendants.sort)
           })
 
           register_method('czy_dziedziczy_po', lambda { |class_def, env, parent_name|
@@ -79,56 +79,56 @@ module AlexScript
           # instance methods
           register_method('metody', lambda { |class_def, env, only_own = false|
             if only_own
-              get_own_public_methods(class_def)
+              alex_string_array(get_own_public_methods(class_def))
             else
-              get_all_public_methods(class_def, env) 
+              alex_string_array(get_all_public_methods(class_def, env))
             end
           })
 
           register_method('metody_prywatne', lambda { |class_def, only_own = false|
             if only_own
-              get_own_private_methods(class_def)
+              alex_string_array(get_own_private_methods(class_def))
             else
-              get_all_private_methods(class_def, nil)
+              alex_string_array(get_all_private_methods(class_def, nil))
             end
           })
 
           register_method('metody_publiczne', lambda { |class_def, only_own = false|
             # Alias dla metody()
             if only_own
-              get_own_public_methods(class_def)
+              alex_string_array(get_own_public_methods(class_def))
             else
-              get_all_public_methods(class_def, nil)
+              alex_string_array(get_all_public_methods(class_def, nil))
             end
           })
 
-          register_method('metody_statyczne', lambda { |class_def, only_own = false|
+          register_method('metody_statyczne', lambda { |class_def, env, only_own = false|
             if only_own
-              get_own_static_methods(class_def, false)
+              alex_string_array(get_own_static_methods(class_def, false))
             else
-              get_all_static_methods(class_def, nil, false)
+              alex_string_array(get_all_static_methods(class_def, env, false))
             end
           })
 
           register_method('metody_statyczne_prywatne', lambda { |class_def, only_own = false|
             if only_own
-              get_own_static_methods(class_def, true)
+              alex_string_array(get_own_static_methods(class_def, true))
             else
-              get_all_static_methods(class_def, nil, true)
+             alex_string_array(get_all_static_methods(class_def, nil, true))
             end
           })
 
-          register_method('zmienne_statyczne', lambda { |class_def, only_own = false|
+          register_method('zmienne_statyczne', lambda { |class_def, env, only_own = false|
             if only_own
-              get_own_static_vars(class_def)
+              alex_string_array(get_own_static_vars(class_def))
             else
-              get_all_static_vars(class_def, nil)
+              alex_string_array(get_all_static_vars(class_def, env))
             end
           })
 
           # existance check
-          register_method('ma_metode', lambda { |class_def, method_name|
-            all_methods = get_all_public_methods(class_def, nil)
+          register_method('ma_metode', lambda { |class_def, env, method_name|
+            all_methods = get_all_public_methods(class_def, env)
             [:type_bool, all_methods.include?(method_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
@@ -147,18 +147,18 @@ module AlexScript
             method_info = find_method_in_hierarchy(class_def, method_name, nil)
             
             if method_info
-              {
+              alex_object({
                 "nazwa" => method_name,
                 "parametry" => method_info[:declaration].params.length,
-                "prywatna" => method_info[:private] || false,
+                "prywatna" => method_info[:private] ? 'prawda' : 'falsz',
                 "linia" => method_info[:declaration].line
-              }
+              })
             else
-              {} 
+              [:type_object, {}]
             end
           })
 
-          register_method('na_tekst', lambda { |class_def|
+          register_method('napis', lambda { |class_def|
             name = class_def[:name] || "UnnamedClass"
             if class_def[:is_abstract]
               "#{name} (abstrakcyjna)" # ???
@@ -174,17 +174,19 @@ module AlexScript
         def get_own_public_methods(class_def)
           return [] unless class_def[:methods]
           
-          class_def[:methods].select { |name, info|
+          ruby_arr = class_def[:methods].select { |name, info|
             !info[:private]
           }.keys.sort
+          ruby_arr
         end
 
         def get_own_private_methods(class_def)
           return [] unless class_def[:methods]
           
-          class_def[:methods].select { |name, info|
+          ruby_arr = class_def[:methods].select { |name, info|
             info[:private]
           }.keys.sort
+          ruby_arr
         end
 
         def get_all_public_methods(class_def, env)
@@ -217,9 +219,11 @@ module AlexScript
         def get_own_static_methods(class_def, private_only)
           return [] unless class_def[:static_methods]
           
-          class_def[:static_methods].select { |name, info|
+          ruby_arr = class_def[:static_methods].select { |name, info|
             private_only ? info[:private] : !info[:private]
           }.keys.sort
+
+          ruby_arr
         end
 
         def get_all_static_methods(class_def, env, private_only)

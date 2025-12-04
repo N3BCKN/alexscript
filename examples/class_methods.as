@@ -3,6 +3,15 @@ klasa Pies < Zwierze {
     funkcja szczekaj() {}
 }
 
+
+
+pokazl Pies.przodkowie()      # ["Zwierze"]
+pokazl Pies.przodkowie().typ()     # klasa
+
+pokazl Pies.info_metody('szczekaj')
+
+pokazl Pies.czy_abstrakcyjna()
+
 # Hierarchia
 pokazl Pies.rodzic()          # "Zwierze"
 pokazl Pies.przodkowie()      # ["Zwierze"]

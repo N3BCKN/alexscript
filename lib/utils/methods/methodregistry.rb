@@ -57,6 +57,26 @@ module AlexScript
           @methods[name]
         end
 
+        def alex_string_array(ruby_array)
+          as_array = ruby_array.map { |str| {type: :type_string, value: str} }
+          [:type_array, as_array]
+        end
+
+        def alex_object(ruby_hash)
+          alex_hash = {}
+          ruby_hash.each do |key, value|
+            value_type = case value
+                        when Integer then :type_int
+                        when String then :type_string
+                        when TrueClass, FalseClass then :type_bool
+                        when NilClass then :type_null
+                        else :type_object
+                        end
+            alex_hash[key] = {type: value_type, value: value}
+          end
+          [:type_object, alex_hash]
+        end
+
         private
 
         def register_method(name, method)

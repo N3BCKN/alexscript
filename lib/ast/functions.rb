@@ -4,7 +4,7 @@ module AlexScript
   module AST
     # "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
     class FuncDclr < Dclr
-      attr_reader :name, :params, :body_statement
+      attr_reader :name, :params, :body_statement, :line
 
       def initialize(name, params, body_statement, line)
         validate_types([name], [String])

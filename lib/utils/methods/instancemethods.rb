@@ -28,21 +28,21 @@ module AlexScript
           register_method('czy_instancja', lambda { |instance, env, class_name|
             current_class = instance[:class_name]
             
-            return true if current_class == class_name
+            return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_class == class_name
             
             # check hierarchy
             class_def = env.get_class(current_class)
-            return false unless class_def
+            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
             
             current_parent = class_def[:parent]
             while current_parent
-              return true if current_parent == class_name
+              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == class_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
             
-            false
+            [:type_bool, Core::Interpreter::BOOL_FALSE]
           })
 
           register_method('metody', lambda { |instance, env|
@@ -55,7 +55,7 @@ module AlexScript
             # add applied instance methods
             builtin_methods = @methods.keys
             
-            (methods + builtin_methods).uniq.sort
+            alex_string_array((methods + builtin_methods).uniq.sort)
           })
 
           # class hierarchy
@@ -74,76 +74,84 @@ module AlexScript
               current_parent = parent_def[:parent]
             end
             
-            ancestors
+            alex_string_array(ancestors)
           })
 
           register_method('hierarchia', lambda { |instance, env|
             class_name = instance[:class_name]
-            [class_name] + instance_przodkowie(env, instance)
+            alex_string_array([class_name] + instance_przodkowie(env, instance))
           })
 
           register_method('czy_dziedziczy_po', lambda { |instance, env, parent_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
-            return false unless class_def
+            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
             
             current_parent = class_def[:parent]
             while current_parent
-              return true if current_parent == parent_name
+              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == parent_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
             
-            false
+            [:type_bool, Core::Interpreter::BOOL_FALSE]
           })
 
           # instance variables
           register_method('zmienne_instancji', lambda { |instance|
             return [] unless instance[:instance_vars]
-            instance[:instance_vars].keys.sort
+            alex_string_array(instance[:instance_vars].keys.sort)
           })
 
           register_method('ma_zmienna_instancji', lambda { |instance, var_name|
-            return false unless instance[:instance_vars]
+            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless instance[:instance_vars]
             instance[:instance_vars].key?(var_name)
+            [:type_bool, instance[:instance_vars].key?(var_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           register_method('wartosc_zmiennej_instancji', lambda { |instance, var_name|
-            return nil unless instance[:instance_vars]
+            return [:type_null, 'nic'] unless instance[:instance_vars]
             value = instance[:instance_vars][var_name]
-            value ? value[1] : nil 
+            value ? value[1] : [:type_null, 'nic'] 
           })
 
           # has method?
           register_method('czy_odpowiada', lambda { |instance, env, method_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
-            return false unless class_def
+            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
             
             all_methods = get_all_instance_methods(class_def, env)
             builtin_methods = @methods.keys
             
-            all_methods.include?(method_name) || builtin_methods.include?(method_name)
+            [:type_bool, (all_methods.include?(method_name) || builtin_methods.include?(method_name)) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
           # copying 
           register_method('kopia', lambda { |instance|
-            # shallow copy, only structure, without deep values
-            {
+          # shallow copy, only structure, without deep values
+            new_vars = {}
+            instance[:instance_vars].each do |key, value|
+              new_vars[key] = value.dup
+            end
+            
+            copied_instance = {
               class_name: instance[:class_name],
-              instance_vars: instance[:instance_vars].dup,
+              instance_vars: new_vars,
               class_def: instance[:class_def]
             }
+            
+            [:type_instance, copied_instance] 
           })
 
           # indentity comparsion
           register_method('identyczny', lambda { |instance, other|
             # is this the same object?(reference equality)
-            instance.object_id == other.object_id
+            [:type_bool, (instance.object_id == other.object_id) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
           })
 
-          register_method('na_tekst', lambda { |instance|
+          register_method('napis', lambda { |instance|
             class_name = instance[:class_name]
             object_id_hex = instance.object_id.to_s(16)
             "#<#{class_name}:0x#{object_id_hex}>"
@@ -157,12 +165,12 @@ module AlexScript
             vars_count = instance[:instance_vars] ? instance[:instance_vars].size : 0
             methods_count = class_def ? get_all_instance_methods(class_def, env).size : 0
             
-            {
+            alex_object({
               "klasa" => class_name,
               "zmienne_count" => vars_count,
               "metody_count" => methods_count,
               "object_id" => instance.object_id.to_s(16)
-            }
+            })
           })
         end
 

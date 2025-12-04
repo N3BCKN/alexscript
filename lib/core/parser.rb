@@ -174,6 +174,7 @@ module AlexScript
 								# check if this is static class method
 								if identifier.lexeme.match?(/^[A-Z]/) && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
 									expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
+                  break
 								else
 									expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
 								end

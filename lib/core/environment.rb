@@ -325,14 +325,16 @@ module AlexScript
         if obj_type == :type_class || obj_type == :type_instance
           # methods requiring env as a second arg
           methods_needing_env = [
-            'przodkowie', 'czy_dziedziczy_po', 'potomkowie',
-            'metody', 'metody_prywatne', 'metody_publiczne',
-            'metody_statyczne', 'metody_statyczne_prywatne',
-            'zmienne_statyczne', 'info_metody',
-            'czy_instancja', 'hierarchia', 'czy_odpowiada', 'debug_info'
+            :przodkowie, :czy_dziedziczy_po, :potomkowie,
+            :metody, :metody_prywatne, :metody_publiczne,
+            :metody_statyczne, :metody_statyczne_prywatne,
+            :zmienne_statyczne,
+            :czy_instancja, :hierarchia, :czy_odpowiada, :debug_info,
+            :ma_metode, :metody_statyczne, :zmienne_statyczne
           ]
 
-          if methods_needing_env.include?(method_name)
+
+          if methods_needing_env.include?(method_name.to_sym)
             method.call(receiver, self, *args)
           else
             method.call(receiver, *args)

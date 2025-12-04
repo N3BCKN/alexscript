@@ -11,8 +11,7 @@ module AlexScript
 
         values.each do |value|
           next if expected_types.any? { |type| value.is_a?(type) }
-
-          # byebug
+          
           expected = expected_types.map(&:name).join(' or ')
           raise TypeError, "Invalid #{param_name}: Expected #{expected}, got #{value.class}"
         end
