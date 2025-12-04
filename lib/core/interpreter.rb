@@ -804,14 +804,13 @@ module AlexScript
 							evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 							
 							# add class name info to definition
-							class_with_name = class_def.dup
-							class_with_name[:name] = class_name
-							
+							class_def[:name] ||= node.class_name
+
 							# add environment access for methods that need it
 							evaluated_args.unshift(env) if [:przodkowie, :czy_dziedziczy_po].include?(node.method_name.to_sym)
-							
+
 							# try to call built-in class method
-							result = env.call_method(:type_class, node.method_name, class_with_name, evaluated_args)
+							result = env.call_method(:type_class, node.method_name, class_def, evaluated_args)
 							
 							# determine result type
 							result_type = case result

@@ -172,7 +172,7 @@ module AlexScript
 								expect(:tok_rparen) # )
 								
 								# check if this is static class method
-								if identifier.lexeme.match?(/^[A-Z]/) && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
+								if identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
 									expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
                   break
 								else

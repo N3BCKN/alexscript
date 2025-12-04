@@ -181,6 +181,12 @@ module AlexScript
         class_def[:static_vars] ||= {}   
         class_def[:static_methods] ||= {}
         @classes[name] = class_def
+        
+        # clear prev cache
+        @classes.each_value do |cd|
+          cd.delete(:_cached_ancestors)
+          cd.delete(:_cached_descendants)
+        end
       end
 
       def get_static_var(class_name, var_name)
