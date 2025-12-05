@@ -34,18 +34,22 @@ module AlexScript
           })
 
           # methods requiring env (injected as a first param)
-          register_method('przodkowie', lambda {  |class_def, env|
-            ancestors = []
-            current_parent = class_def[:parent]
+          register_method('przodkowie', lambda { |class_def, env|
+            # cache results in class definition
+            return class_def[:_cached_ancestors] if class_def[:_cached_ancestors]
             
-            while current_parent
-              ancestors << current_parent
-              parent_def = env.get_class(current_parent)
+            ancestors = []
+            current = class_def[:parent]
+            while current
+              ancestors << current
+              parent_def = env.get_class(current)
               break unless parent_def
-              current_parent = parent_def[:parent]
+              current = parent_def[:parent]
             end
             
-            ancestors
+            result = alex_string_array(ancestors)
+            class_def[:_cached_ancestors] = result  # cache for next call
+            result
           })
 
           register_method('potomkowie', lambda { |class_def, env|

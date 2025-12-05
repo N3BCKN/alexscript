@@ -87,3 +87,6 @@ first fully working version with basic structures:
 
 ### 0.6.14
 * standard libraries (Mat, Czas, Socket)
+
+### 0.6.15
+* add build in class and instance methods
