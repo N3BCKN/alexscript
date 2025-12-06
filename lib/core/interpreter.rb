@@ -225,23 +225,9 @@ module AlexScript
               runtime_error(left_value, right_value, node)
             end
           elsif node.op.token_type == :tok_eq # ==
-            case [left_type, right_type]
-            when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-              [:type_bool, to_bool_value(left_value == right_value)]
-            when %i[type_string type_string]
-              [:type_bool, to_bool_value(left_value == right_value)]
-            else
-              runtime_error(left_value, right_value, node)
-            end
+						[:type_bool, to_bool_value(deep_equal?(left_type, left_value, right_type, right_value))]
           elsif node.op.token_type == :tok_noteq # !=
-            case [left_type, right_type]
-            when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
-              [:type_bool, to_bool_value(left_value != right_value)]
-            when %i[type_string type_string]
-              [:type_bool, to_bool_value(left_value != right_value)]
-            else
-              runtime_error(left_value, right_value, node)
-            end
+						[:type_bool, to_bool_value(!deep_equal?(left_type, left_value, right_type, right_value))]
           end
 
         elsif node.is_a? AST::UnOp
@@ -1732,6 +1718,41 @@ module AlexScript
 
       private
 
+			# Deep comparison of values for == and != operators
+			def deep_equal?(left_type, left_value, right_type, right_value)
+				# Different types are not equal (except numeric types which can be compared)
+				return false if left_type != right_type && 
+								!([left_type, right_type] - [:type_int, :type_float]).empty?
+				
+				case [left_type, right_type]
+				when [:type_array, :type_array]
+					return false if left_value.size != right_value.size
+					
+					left_value.each_with_index do |left_elem, idx|
+					right_elem = right_value[idx]
+					return false unless deep_equal?(left_elem[:type], left_elem[:value], 
+													right_elem[:type], right_elem[:value])
+					end
+					true
+				when [:type_object, :type_object]
+					return false if left_value.keys.sort != right_value.keys.sort
+					
+					left_value.each do |key, left_val|
+					return false unless right_value.key?(key)
+					right_val = right_value[key]
+					return false unless deep_equal?(left_val[:type], left_val[:value],
+													right_val[:type], right_val[:value])
+					end
+					true
+				when [:type_instance, :type_instance]
+					# Instances are equal only if they're the same object (reference equality)
+					left_value.equal?(right_value)
+				else
+					# For primitives (int, float, string, bool, null) use regular comparison
+					left_value == right_value
+				end
+			end
+	  
       def runtime_error(left_value, right_value, node)
         Utils.runtime_error("Niewspierany operator #{node.op.lexeme} pomiedzy #{left_value} a #{right_value}",
                             node.op.line)
