@@ -19,20 +19,20 @@ module AlexScript
           register_method('rozdziel', ->(str, separator = nil) { str.split(separator) })
 
           register_method('liczba', lambda { |str|
-            return [:type_null, 'nic'] unless float?(str)
+            return [:type_null, Utils::NULL_VALUE] unless float?(str)
 
             str.to_f
           })
 
           register_method('indeks', lambda { |str, i|
-            return [:type_null, 'nic'] if str.empty?
+            return [:type_null, Utils::NULL_VALUE] if str.empty?
 
             Utils.runtime_error('Index out of bounds') if i < -str.length || i >= str.length
             str[i]
           })
 
           register_method('zawiera', lambda { |str, element|
-            [:type_bool, str.include?(element) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, str.include?(element) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('wydziel', lambda { |str, start, length|
@@ -40,7 +40,7 @@ module AlexScript
           })
 
           register_method('pusta', lambda { |str|
-            [:type_bool, str.empty? ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, str.empty? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('usun', lambda { |str, chars|

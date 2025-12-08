@@ -4,7 +4,7 @@ require 'set'
 module AlexScript
   module Utils
     class RubyEvaluator
-      # Lista dozwolonych modułów i klas
+      # Lista dozwolonych moduÅ‚Ã³w i klas
       ALLOWED_MODULES = Set.new([
         'Math', 'Array', 'String', 'Hash', 'Numeric', 'Integer', 'Float', 
         'Time', 'Date', 'Set', 'Kernel', 'Range', 'Socket', 'TCPSocket', 
@@ -106,7 +106,7 @@ module AlexScript
             'Hash' => Hash
           }
           if instance_method_classes.key?(module_path) && !ruby_args.empty?
-            # Metoda instancji - wywołaj ją na pierwszym argumencie
+            # Metoda instancji - wywołaj ju na pierwszym argumencie
             instance = ruby_args.shift
             klass = instance_method_classes[module_path]
             
@@ -137,7 +137,7 @@ module AlexScript
             end
           end
         rescue StandardError => e
-          raise "Błąd podczas wywoływania #{module_path}::#{method_name}: #{e.message}"
+          raise "Błąd podczas wywołania #{module_path}::#{method_name}: #{e.message}"
         end
         
         
@@ -164,7 +164,12 @@ module AlexScript
             when :type_string
               arg_value.to_s
             when :type_bool
-              arg_value == 'prawda'
+              # Handle PrimitiveValue for booleans
+              if arg_value.is_a?(Utils::PrimitiveValue)
+                arg_value.truthy?
+              else
+                arg_value == 'prawda'
+              end
             when :type_null
               nil
             when :type_array
@@ -199,9 +204,9 @@ module AlexScript
           when String
             [:type_string, result]
           when TrueClass, FalseClass
-            [:type_bool, result ? 'prawda' : 'falsz']
+            [:type_bool, result ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           when NilClass
-            [:type_null, 'nic']
+            [:type_null, Utils::NULL_VALUE]
           when Symbol  # Dodajemy obsługę symboli
             [:type_string, result.to_s]  # Konwertujemy symbole na stringi
           when Array
@@ -227,7 +232,7 @@ module AlexScript
         end
       end
 
-       # Wywoływanie metody na obiekcie Ruby
+       # Wywołanie metody na obiekcie Ruby
       def self.call_object_method(object_id, method_name, args, file_path)
         # Pobierz obiekt z rejestru
         object = get_object(object_id)
@@ -236,7 +241,7 @@ module AlexScript
           raise "Nieprawidłowy lub nieistniejący obiekt Ruby: #{object_id}"
         end
         
-        # Sprawdź, czy metoda jest dozwolona
+        # SprawdÅº, czy metoda jest dozwolona
         if FORBIDDEN_METHODS.include?(method_name)
           raise "Niedozwolona metoda: #{method_name}"
         end
@@ -252,13 +257,13 @@ module AlexScript
         
 				  # Specjalna obsługa dla operatorów matematycznych
 				if ["+", "-", "*", "/", "**", "%", "&", "|", "^"].include?(method_name)
-					# Dla operatorów matematycznych potrzebujemy rozpakować argument
+					# Dla operatoró∑ matematycznych potrzebujemy rozpakować argument
 					if ruby_args.length == 1 && ruby_args[0].is_a?(Array)
 						ruby_args = ruby_args[0][0]
 					end
 				end
 
-        # Wywołanie metody na obiekcie
+        # wywołanie metody na obiekcie
         begin
           result = object.__send__(method_name, *ruby_args)
           converted_result = convert_result(result)
@@ -266,7 +271,7 @@ module AlexScript
         rescue StandardError => e
 					# arg_info = ruby_args.map { |a| "#{a.class}: #{a.inspect}" }.join(", ")
 					# puts "DEBUG: Błąd przy wywołaniu #{object.class}##{method_name} z argumentami: #{arg_info}" if ENV['DEBUG']
-					raise "Błąd podczas wywoływania #{object.class.name}##{method_name}: #{e.message}"
+					raise "Błąd podczas wywołania #{object.class.name}##{method_name}: #{e.message}"
         end
       end      
 

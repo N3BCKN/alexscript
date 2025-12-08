@@ -25,7 +25,7 @@ module AlexScript
           })
 
           register_method('czy_abstrakcyjna', lambda { |class_def|
-            [:type_bool, class_def[:is_abstract] ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, class_def[:is_abstract] ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           # in memory ID (ruby based)
@@ -71,13 +71,13 @@ module AlexScript
             current_parent = class_def[:parent]
             
             while current_parent
-              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == parent_name
+              return [:type_bool, Utils::BOOL_TRUE] if current_parent == parent_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
 
-            [:type_bool, Core::Interpreter::BOOL_FALSE]
+            [:type_bool, Utils::BOOL_FALSE]
           })
 
           # instance methods
@@ -133,17 +133,17 @@ module AlexScript
           # existance check
           register_method('ma_metode', lambda { |class_def, env, method_name|
             all_methods = get_all_public_methods(class_def, env)
-            [:type_bool, all_methods.include?(method_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, all_methods.include?(method_name) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('ma_metode_statyczna', lambda { |class_def, method_name|
             all_methods = get_all_static_methods(class_def, nil, false)
-            [:type_bool, all_methods.include?(method_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, all_methods.include?(method_name) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('ma_zmienna_statyczna', lambda { |class_def, var_name|
             all_vars = get_all_static_vars(class_def, nil)
-            [:type_bool, all_vars.include?(var_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, all_vars.include?(var_name) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           # detailed method info

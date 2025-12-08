@@ -11,10 +11,10 @@ module AlexScript
           register_method('napis', ->(num) { num.to_s })
           register_method('abs', ->(num) { num.abs })
           register_method('parzysta', lambda { |num|
-            [:type_bool, num.even? ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, num.even? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
           register_method('nieparzysta', lambda { |num|
-            [:type_bool, num.odd? ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, num.odd? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
         end
       end

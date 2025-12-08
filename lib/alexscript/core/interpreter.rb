@@ -3,9 +3,6 @@
 module AlexScript
   module Core
     class Interpreter
-      BOOL_TRUE = 'prawda'
-      BOOL_FALSE = 'falsz'
-
       def initialize
         @import_manager = Utils::ImportManager.new
         @current_file = 'main'
@@ -35,9 +32,11 @@ module AlexScript
         elsif node.is_a? AST::Str
           [:type_string, node.value.to_s]
         elsif node.is_a? AST::Bool
-          [:type_bool, node.value]
+          # Return PrimivieValue instead of string
+          bool_value = node.value == 'prawda' ? Utils::BOOL_TRUE : Utils::BOOL_FALSE
+          [:type_bool, bool_value]
         elsif node.is_a? AST::Null
-          [:type_null, 'nic']
+          [:type_null, Utils::NULL_VALUE]
         elsif node.is_a? AST::Grouping
           interpret!(node.value, env)
         elsif node.is_a? AST::Identifier
@@ -106,7 +105,7 @@ module AlexScript
             when :tok_noteq # !=
               return [:type_bool, to_bool_value(left_type != right_type)]
             else
-              return [:type_null, 'nic'] # all logical operations with null returns null
+              return [:type_null, Utils::NULL_VALUE] # all logical operations with null returns null
             end
           end
 
@@ -255,7 +254,7 @@ module AlexScript
             if operand_type == :type_bool
               [:type_bool, to_bool_value(!from_bool_value(operand_value))]
             elsif operand_type == :type_null
-              [:type_bool, BOOL_TRUE] # !nic returns true
+              [:type_bool, Utils::BOOL_TRUE] # !nic returns true
             else
               runtime_error_unop(operand_value, node)
             end
@@ -267,9 +266,9 @@ module AlexScript
           left_type, left_value = interpret!(node.left, env)
 
           if node.op.token_type == :tok_or
-            return [left_type, left_value] if left_value == BOOL_TRUE
+            return [left_type, left_value] if left_value == Utils::BOOL_TRUE
           elsif node.op.token_type == :tok_and
-            return [left_type, left_value] if left_value == BOOL_FALSE || left_type == :type_null
+            return [left_type, left_value] if left_value == Utils::BOOL_FALSE || left_type == :type_null
           end
 
           return interpret!(node.right, env) unless node.right.is_a?(AST::Assignment)
@@ -315,8 +314,15 @@ module AlexScript
 
         elsif node.is_a? AST::PrintlnStmt
           expression_type, expression_value = interpret!(node.value, env)
-          formatted_value = format_value(expression_type, expression_value) # handle arrays and objects
-          p(formatted_value)
+          formatted_value = format_value(expression_type, expression_value)
+          
+          # For special values (bool, null), use puts to avoid adding quotes
+          # For other types, use p() which preserves string quotes
+          if expression_type == :type_bool || expression_type == :type_null
+            puts formatted_value
+          else
+            p(formatted_value)
+          end
 
         elsif node.is_a? AST::IfStmt
           test_type, test_value = interpret!(node.test, env)
@@ -361,7 +367,7 @@ module AlexScript
             Utils.runtime_error('Test while nie jest wyrazeniem boolowskim') if test_type != :type_bool
 
             # Exit loop if condition is false
-            break unless test_value == BOOL_TRUE
+            break unless test_value == Utils::BOOL_TRUE
 
             # Execute body in the loop's environment
             begin
@@ -397,7 +403,7 @@ module AlexScript
             else
               step_type, step = interpret!(node.step_statement, env)
             end
-            while to_bool_value(index_value < end_value) == BOOL_TRUE
+            while to_bool_value(index_value < end_value) == Utils::BOOL_TRUE
               begin
                 loop_env.set_var(var_name, index_value, :type_int)
                 interpret!(node.body_statement, loop_env)
@@ -413,7 +419,7 @@ module AlexScript
             else
               step_type, step = interpret!(node.step_statement, env)
             end
-            while to_bool_value(index_value > end_value) == BOOL_TRUE
+            while to_bool_value(index_value > end_value) == Utils::BOOL_TRUE
               begin
                 loop_env.set_var(var_name, index_value, :type_int)
                 interpret!(node.body_statement, loop_env)
@@ -579,7 +585,7 @@ module AlexScript
 									Utils::ContextTracker.track_method_call(node.name) do
 										interpret!(func_declr.body_statement, new_func_env)
 									end
-									result = [:type_null, 'nic'] # return 'nic' if function does not return any value
+									result = [:type_null, Utils::NULL_VALUE] # return 'nic' if function does not return any value
 								rescue Utils::ReturnError => e
 									result = e.value
 								end
@@ -683,7 +689,7 @@ module AlexScript
 								Utils::ContextTracker.track_method_call(node.name) do
 									interpret!(func_declr.body_statement, new_func_env)
 								end
-								result = [:type_null, 'nic'] # return 'nic' if function does not return any value
+								result = [:type_null, Utils::NULL_VALUE] # return 'nic' if function does not return any value
 							rescue Utils::ReturnError => e
 								result = e.value
 							end
@@ -850,7 +856,7 @@ module AlexScript
 							
 							if arguments.size < min_args
 								Utils.runtime_error(
-									"Metoda statyczna #{node.method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+									"Metoda statyczna #{node.method_name} oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 									node.line
 								)
 							end
@@ -858,7 +864,7 @@ module AlexScript
 							unless rest_param
 								if arguments.size > max_args
 									Utils.runtime_error(
-										"Metoda statyczna #{node.method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+										"Metoda statyczna #{node.method_name} oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 										node.line
 									)
 								end
@@ -895,7 +901,7 @@ module AlexScript
 								Utils::ContextTracker.track_method_call(node.method_name) do
 									interpret!(method_info[:declaration].body_statement, method_env)
 								end
-								result = [:type_null, 'nic']  # by default return 'nic'
+								result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 							rescue Utils::ReturnError => e
 								result = e.value  # or specific value returned by method
 							end
@@ -914,12 +920,12 @@ module AlexScript
 							
 							result = env.call_method(:type_instance, node.method_name, object_value, evaluated_args)
 							
-							# Sprawdź czy już zwrócone jako tuple
+							# SprawdÅº czy juÅ¼ zwrÃ³cone jako tuple
 							if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
 							return result
 							end
 							
-							# Konwersja Ruby → AlexScript
+							# conver Ruby vals to AlexScript
 							result_type = case result
 										when Integer then :type_int
 										when Float then :type_float
@@ -969,7 +975,7 @@ module AlexScript
 						
 						if arguments.size < min_args
 							Utils.runtime_error(
-								"Metoda #{node.method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+								"Metoda #{node.method_name} oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 								node.line
 							)
 						end
@@ -977,7 +983,7 @@ module AlexScript
 						unless rest_param
 							if arguments.size > max_args
 								Utils.runtime_error(
-									"Metoda #{node.method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+									"Metoda #{node.method_name} oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 									node.line
 								)
 							end
@@ -1015,7 +1021,7 @@ module AlexScript
 							Utils::ContextTracker.track_method_call(node.method_name) do
 								interpret!(method_info[:declaration].body_statement, method_env)
 							end
-							result = [:type_null, 'nic']  # by default return 'nic'
+							result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 						rescue Utils::ReturnError => e
 							result = e.value  # or specific value returned by method
 						end
@@ -1109,7 +1115,7 @@ module AlexScript
               exception_class = @exception_registry[exception_type] || Utils::WyjatekPodstawowy
               raise exception_class.new(exception_message, node.line)
             else
-              Utils.runtime_error("Nieprawidłowy typ dla rzuc: oczekiwano string lub obiekt", node.line)
+              Utils.runtime_error("NieprawidÅ, owy typ dla rzuc: oczekiwano string lub obiekt", node.line)
             end
           end 
         elsif node.is_a? AST::TryCatchStmt
@@ -1167,7 +1173,7 @@ module AlexScript
           
           exception_class.define_singleton_method(:name) { node.name }
           
-          [:type_null, 'nic'] 
+          [:type_null, Utils::NULL_VALUE] 
 				elsif node.is_a? AST::ClassDefinition
 					# new environment for class
 					class_env = env.new_env
@@ -1227,7 +1233,7 @@ module AlexScript
 					# save class definition in environment
 					env.define_class(node.name, class_def)
   
-					[:type_null, 'nic'] 
+					[:type_null, Utils::NULL_VALUE] 
 
 				elsif node.is_a? AST::ClassInstantiation
 					# get class definition
@@ -1266,7 +1272,7 @@ module AlexScript
 						
 						if arguments.size < min_args
 							Utils.runtime_error(
-								"Konstruktor klasy #{node.class_name} oczekiwał minimum #{min_args} argumentów, otrzymał #{arguments.size}",
+								"Konstruktor klasy #{node.class_name} oczekiwała,  minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 								node.line
 							)
 						end
@@ -1274,7 +1280,7 @@ module AlexScript
 						unless rest_param
 							if arguments.size > max_args
 								Utils.runtime_error(
-									"Konstruktor klasy #{node.class_name} oczekiwał maksymalnie #{max_args} argumentów, otrzymał #{arguments.size}",
+									"Konstruktor klasy #{node.class_name} oczekiwała,  maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 									node.line
 								)
 							end
@@ -1321,7 +1327,7 @@ module AlexScript
 					# get instance variable value
 					value = instance[:instance_vars][node.name]
 					if value.nil?
-						[:type_null, 'nic']  # uninitialized instance variable returns 'nic'
+						[:type_null, Utils::NULL_VALUE]  # uninitialized instance variable returns 'nic'
 					else
 						value
 					end				
@@ -1374,7 +1380,7 @@ module AlexScript
 						Utils::ContextTracker.track_method_call(node.method_name) do
 							interpret!(method_def[:declaration].body, method_env)
 						end
-						[:type_null, 'nic']  # default return value
+						[:type_null, Utils::NULL_VALUE]  # default return value
 					rescue Utils::ReturnError => e
 						e.value
 					end
@@ -1436,7 +1442,7 @@ module AlexScript
 					
 					if arguments.size < min_args
 						Utils.runtime_error(
-							"Metoda #{current_method_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+							"Metoda #{current_method_name} oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 							node.line
 						)
 					end
@@ -1444,7 +1450,7 @@ module AlexScript
 					unless rest_param
 						if arguments.size > max_args
 							Utils.runtime_error(
-								"Metoda #{current_method_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+								"Metoda #{current_method_name} oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 								node.line
 							)
 						end
@@ -1483,7 +1489,7 @@ module AlexScript
 						Utils::ContextTracker.track_method_call(current_method_name) do
 							interpret!(method_info[:declaration].body_statement, method_env)
 						end
-						result = [:type_null, 'nic']  # by default return 'nic'
+						result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 					rescue Utils::ReturnError => e
 						result = e.value  # or specific value returned by method
 					end
@@ -1526,7 +1532,7 @@ module AlexScript
 					
 					# check if we're not trying to overwrite existing static variable
 					if class_def[:static_vars][node.name] && node.name.match?(/^[A-Z_]+$/)
-						Utils.runtime_error("Statyczna stała #{class_name}.#{node.name} została już zdefiniowana i nie może być zmieniona", node.line)
+						Utils.runtime_error("Statyczna stała #{class_name}.#{node.name} została, a już zdefiniowana i nie może być zmieniona", node.line)
 					end
 
 					value_type, value_value = interpret!(node.value, env)
@@ -1604,7 +1610,7 @@ module AlexScript
 					
 					if arguments.size < min_args
 						Utils.runtime_error(
-							"Metoda statyczna '#{node.method_name}' oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+							"Metoda statyczna '#{node.method_name}' oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 							node.line
 						)
 					end
@@ -1612,7 +1618,7 @@ module AlexScript
 					unless rest_param
 						if arguments.size > max_args
 							Utils.runtime_error(
-								"Metoda statyczna '#{node.method_name}' oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+								"Metoda statyczna '#{node.method_name}' oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 								node.line
 							)
 						end
@@ -1647,7 +1653,7 @@ module AlexScript
 					# execute static method body
 					begin
 						interpret!(method_info[:declaration].body_statement, method_env)
-						result = [:type_null, 'nic']  # by default return 'nic'
+						result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 					rescue Utils::ReturnError => e
 						result = e.value  # or specific value returned by method
 					end
@@ -1672,7 +1678,7 @@ module AlexScript
 				elsif node.is_a? AST::RequireRubyStmt
 					begin
 						success = Utils::RubyEvaluator.require_library(node.library_name, @current_file)
-						[:type_bool, success ? 'prawda' : 'falsz']
+						[:type_bool, success ? Utils::Utils::BOOL_TRUE : Utils::Utils::BOOL_FALSE]
 					rescue StandardError => e
 						Utils.runtime_error("Błąd podczas importu biblioteki Ruby: #{e.message}", node.line)
 					end
@@ -1772,7 +1778,7 @@ module AlexScript
       def is_truthy?(type, value, line)
         case type
         when :type_bool
-          value == BOOL_TRUE
+          value == Utils::BOOL_TRUE
         when :type_null
           false
         else
@@ -1795,16 +1801,22 @@ module AlexScript
       end
 
       def to_bool_value(ruby_bool)
-        ruby_bool ? BOOL_TRUE : BOOL_FALSE
+        ruby_bool ? Utils::BOOL_TRUE : Utils::BOOL_FALSE
       end
 
-      def from_bool_value(string_bool)
-        string_bool == BOOL_TRUE
+      def from_bool_value(alex_bool)
+        alex_bool == Utils::BOOL_TRUE
       end
 
       # TODO: move it to other file on utils
       def format_value(type, value)
         case type
+        when :type_bool, :type_null
+          # PrimivieValue objects display without quotes
+          value.to_s
+        when :type_string
+          # Strings are displayed with quotes
+          value.to_s
         when :type_array
           format_array_value(value)
         when :type_object

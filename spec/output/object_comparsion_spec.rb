@@ -305,9 +305,9 @@ RSpec.describe 'Object and Array Comparison', type: :aruba do
     it 'detects duplicates in array of objects' do
       code = '
         funkcja ma_duplikaty(arr) {
-          dla niech i = 0; arr.dlg - 1; 1 {
-            dla niech j = i + 1; arr.dlg; 1 {
-              jesli arr[i] == arr[j] {
+          dla niech n = 0; arr.dlg - 1; 1 {
+            dla niech j = n + 1; arr.dlg; 1 {
+              jesli arr[n] == arr[j] {
                 zwroc prawda
               }
             }

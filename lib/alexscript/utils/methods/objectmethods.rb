@@ -13,16 +13,16 @@ module AlexScript
           register_method('na_tablice', ->(obj) { obj.to_a })
 
           register_method('pusty', lambda { |obj|
-            [:type_bool, obj.empty? ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, obj.empty? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('ma_klucz', lambda { |obj, key|
-            [:type_bool, obj.has_key?(key) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, obj.has_key?(key) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
           register_method('ma_wartosc', lambda { |obj, val|
             vals = obj.map { |key, array| array[:value] }
 
-            [:type_bool, vals.include?(val) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, vals.include?(val) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('usun', lambda { |obj, key|

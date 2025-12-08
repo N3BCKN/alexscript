@@ -28,21 +28,21 @@ module AlexScript
           register_method('czy_instancja', lambda { |instance, env, class_name|
             current_class = instance[:class_name]
             
-            return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_class == class_name
+            return [:type_bool, Utils::BOOL_TRUE] if current_class == class_name
             
             # check hierarchy
             class_def = env.get_class(current_class)
-            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
+            return [:type_bool, Utils::BOOL_FALSE] unless class_def
             
             current_parent = class_def[:parent]
             while current_parent
-              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == class_name
+              return [:type_bool, Utils::BOOL_TRUE] if current_parent == class_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
             
-            [:type_bool, Core::Interpreter::BOOL_FALSE]
+            [:type_bool, Utils::BOOL_FALSE]
           })
 
           register_method('metody', lambda { |instance, env|
@@ -85,17 +85,17 @@ module AlexScript
           register_method('czy_dziedziczy_po', lambda { |instance, env, parent_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
-            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
+            return [:type_bool, Utils::BOOL_FALSE] unless class_def
             
             current_parent = class_def[:parent]
             while current_parent
-              return [:type_bool, Core::Interpreter::BOOL_TRUE] if current_parent == parent_name
+              return [:type_bool, Utils::BOOL_TRUE] if current_parent == parent_name
               parent_def = env.get_class(current_parent)
               break unless parent_def
               current_parent = parent_def[:parent]
             end
             
-            [:type_bool, Core::Interpreter::BOOL_FALSE]
+            [:type_bool, Utils::BOOL_FALSE]
           })
 
           # instance variables
@@ -105,27 +105,27 @@ module AlexScript
           })
 
           register_method('ma_zmienna_instancji', lambda { |instance, var_name|
-            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless instance[:instance_vars]
+            return [:type_bool, Utils::BOOL_FALSE] unless instance[:instance_vars]
             instance[:instance_vars].key?(var_name)
-            [:type_bool, instance[:instance_vars].key?(var_name) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, instance[:instance_vars].key?(var_name) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('wartosc_zmiennej_instancji', lambda { |instance, var_name|
-            return [:type_null, 'nic'] unless instance[:instance_vars]
+            return [:type_null, Utils::NULL_VALUE] unless instance[:instance_vars]
             value = instance[:instance_vars][var_name]
-            value ? value[1] : [:type_null, 'nic'] 
+            value ? value[1] : [:type_null, Utils::NULL_VALUE] 
           })
 
           # has method?
           register_method('czy_odpowiada', lambda { |instance, env, method_name|
             class_name = instance[:class_name]
             class_def = env.get_class(class_name)
-            return [:type_bool, Core::Interpreter::BOOL_FALSE] unless class_def
+            return [:type_bool, Utils::BOOL_FALSE] unless class_def
             
             all_methods = get_all_instance_methods(class_def, env)
             builtin_methods = @methods.keys
             
-            [:type_bool, (all_methods.include?(method_name) || builtin_methods.include?(method_name)) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, (all_methods.include?(method_name) || builtin_methods.include?(method_name)) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           # copying 
@@ -148,7 +148,7 @@ module AlexScript
           # indentity comparsion
           register_method('identyczny', lambda { |instance, other|
             # is this the same object?(reference equality)
-            [:type_bool, (instance.object_id == other.object_id) ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, (instance.object_id == other.object_id) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('napis', lambda { |instance|

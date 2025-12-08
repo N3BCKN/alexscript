@@ -13,20 +13,20 @@ module AlexScript
 
           # TODO: its' redundancy, interpreter pack this again in [type, value] format, find a way to get gid of it
           register_method('pierwszy', lambda { |arr|
-            return [:type_null, 'nic'] if arr.empty?
+            return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
             arr.first[:value]
           })
 
           register_method('ostatni', lambda { |arr|
-            return [:type_null, 'nic'] if arr.empty?
+            return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
             arr.last[:value]
           })
 
           register_method('indeks', lambda { |arr, element|
             unpacked = unpacked_arr(arr)
-            unpacked.index(element).nil? ? [:type_null, 'nic'] : unpacked.index(element)
+            unpacked.index(element).nil? ? [:type_null, Utils::NULL_VALUE] : unpacked.index(element)
           })
 
           # on elements
@@ -78,7 +78,7 @@ module AlexScript
           })
 
           register_method('pusta', lambda { |arr|
-            [:type_bool, arr.empty? ? Core::Interpreter::BOOL_TRUE : Core::Interpreter::BOOL_FALSE]
+            [:type_bool, arr.empty? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
           register_method('odwroc', lambda { |arr|
@@ -92,9 +92,9 @@ module AlexScript
           register_method('zawiera', lambda { |arr, element|
             # TODO: export this map to other method
             [:type_bool, if unpacked_arr(arr).include?(element)
-                           Core::Interpreter::BOOL_TRUE
+                           Utils::BOOL_TRUE
                          else
-                           Core::Interpreter::BOOL_FALSE
+                           Utils::BOOL_FALSE
                          end]
           })
 
@@ -118,14 +118,14 @@ module AlexScript
           })
 
           register_method('min', lambda { |arr|
-            return [:type_null, 'nic'] if arr.empty?
+            return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
             validate_numeric_array(arr)
             arr.min_by { |e| e[:value] }[:value]
           })
 
           register_method('max', lambda { |arr|
-            return [:type_null, 'nic'] if arr.empty?
+            return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
             validate_numeric_array(arr)
             arr.max_by { |e| e[:value] }[:value]
