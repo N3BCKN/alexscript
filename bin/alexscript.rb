@@ -2,11 +2,15 @@
 
 require 'colorize'
 require 'slop'
-require 'byebug'
 
-require_relative('alexscript/core/core')
-require_relative('alexscript/ast/ast')
-require_relative('alexscript/utils/utils')
+root_dir = File.expand_path('..', __dir__)
+lib_dir = File.join(root_dir, 'lib')
+$LOAD_PATH.unshift(lib_dir) unless $LOAD_PATH.include?(lib_dir)
+
+
+require_relative '../lib/alexscript/core/core'
+require_relative '../lib/alexscript/ast/ast'
+require_relative '../lib/alexscript/utils/utils'
 
 module AlexScript
   VERSION = '0.6.15'
