@@ -16,7 +16,9 @@ module AlexScript
             type_float: FloatMethods.instance,
             type_object: ObjectMethods.instance,
             type_class: ClassMethods.instance,
-            type_instance: InstanceMethods.instance
+            type_instance: InstanceMethods.instance,
+            type_bool: BoolMethods.instance,
+            type_null: NullMethods.instance  
           }.freeze
         end
 
