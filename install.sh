@@ -1,62 +1,55 @@
-#!/usr/bin/env bash
-# AlexScript Quick Installer
-# Run this from AlexScript root directory
+#!/bin/bash
 
-set -e
+# Get the absolute path to AlexScript directory
+ALEXSCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo  "Installing AlexScript..."
+echo "Installing AlexScript..."
+echo "Installation directory: $ALEXSCRIPT_ROOT"
 
-# Get current directory (should be AlexScript root)
-ALEXSCRIPT_ROOT="$(pwd)"
-
-# Check if we're in the right place
-if [ ! -f "bin/alexscript.rb" ] || [ ! -d "lib" ]; then
-    echo "Error: Please run this script from AlexScript root directory"
-    echo "(The directory that contains bin/ and lib/)"
-    exit 1
-fi
-
-# Installation target
-INSTALL_DIR="/usr/local/bin"
-
-# Check if we need sudo
-if [ ! -w "$INSTALL_DIR" ]; then
-    SUDO="sudo"
-    echo "Requires sudo for installation to $INSTALL_DIR"
-else
-    SUDO=""
-fi
-
-# Create the alexscript executable
-echo "Creating alexscript command..."
-cat > /tmp/alexscript << EOF
+# Create wrapper script that preserves user's working directory
+cat > /tmp/alexscript << 'WRAPPER_EOF'
 #!/usr/bin/env ruby
-# AlexScript Global Command
+
+# KRYTYCZNE: Zapisz katalog użytkownika PRZED jakimikolwiek zmianami
+ENV['ALEXSCRIPT_USER_PWD'] = Dir.pwd
 
 # Path to AlexScript installation
-ALEXSCRIPT_ROOT = "${ALEXSCRIPT_ROOT}"
+ALEXSCRIPT_ROOT = "INSTALL_PATH_PLACEHOLDER"
 
 # Add to load path
-\$LOAD_PATH.unshift("\#{ALEXSCRIPT_ROOT}/lib")
+$LOAD_PATH.unshift(File.join(ALEXSCRIPT_ROOT, "lib"))
 
 # Change to AlexScript directory
 Dir.chdir(ALEXSCRIPT_ROOT)
 
-# Load and run
-load ALEXSCRIPT_ROOT + "/bin/alexscript.rb"
-EOF
+# Load and run (używamy konkatenacji zamiast interpolacji)
+load File.join(ALEXSCRIPT_ROOT, "bin", "alexscript.rb")
+WRAPPER_EOF
 
-# Install
-$SUDO mv /tmp/alexscript "$INSTALL_DIR/alexscript"
-$SUDO chmod +x "$INSTALL_DIR/alexscript"
+# Replace placeholder with actual path (macOS compatible)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s|INSTALL_PATH_PLACEHOLDER|${ALEXSCRIPT_ROOT}|g" /tmp/alexscript
+else
+    sed -i "s|INSTALL_PATH_PLACEHOLDER|${ALEXSCRIPT_ROOT}|g" /tmp/alexscript
+fi
 
-echo "AlexScript installed successfully!"
+# Install to /usr/local/bin
+if [ -w /usr/local/bin ]; then
+    cp /tmp/alexscript /usr/local/bin/alexscript
+    chmod +x /usr/local/bin/alexscript
+    echo "Installed to /usr/local/bin/alexscript"
+else
+    echo "Cannot write to /usr/local/bin (try: sudo ./install.sh)"
+    echo "Alternative: Install to ~/.local/bin (no sudo needed)"
+    exit 1
+fi
+
+rm /tmp/alexscript
+echo "Installation complete!"
 echo ""
-echo "Usage:"
-echo "  alexscript script.as           # Run script"
-echo "  alexscript script.as -t        # With timing"
-echo "  alexscript script.as -f        # Full debug mode"
+echo "Verify installation:"
+echo "  cat /usr/local/bin/alexscript"
 echo ""
-echo "Try: alexscript --help"
-echo ""
-echo "To uninstall: sudo rm /usr/local/bin/alexscript"
+echo "Test:"
+echo "  cd /tmp"
+echo "  alexscript"

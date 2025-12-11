@@ -54,7 +54,7 @@ module AlexScript
         source = File.read(filename)
         puts "File '#{filename}' has been read successfully."
       rescue Errno::ENOENT
-        raise Utils::BładZakresu.new("Plik '#{filename}' nie istnieje")
+        raise Utils::BladZakresu.new("Plik '#{filename}' nie istnieje")
       end
     else
       source = ARGV[0]

@@ -1,16 +1,25 @@
+#!/usr/bin/env ruby
 # frozen_string_literal: true
 
+USER_PWD = ENV['ALEXSCRIPT_USER_PWD'] || Dir.pwd
+
+ALEXSCRIPT_ROOT = File.expand_path('..', __dir__) unless defined?(ALEXSCRIPT_ROOT)
+
+# Add to load path
+$LOAD_PATH.unshift("#{ALEXSCRIPT_ROOT}/lib") unless $LOAD_PATH.include?("#{ALEXSCRIPT_ROOT}/lib")
+
+# Change to AlexScript directory (tylko jeśli nie jesteśmy tam już)
+Dir.chdir(ALEXSCRIPT_ROOT) unless Dir.pwd == ALEXSCRIPT_ROOT
+
+# Load dependencies
 require 'colorize'
 require 'slop'
-
-root_dir = File.expand_path('..', __dir__)
-lib_dir = File.join(root_dir, 'lib')
-$LOAD_PATH.unshift(lib_dir) unless $LOAD_PATH.include?(lib_dir)
-
+require 'byebug' if ENV['DEBUG']
 
 require_relative '../lib/alexscript/core/core'
 require_relative '../lib/alexscript/ast/ast'
 require_relative '../lib/alexscript/utils/utils'
+
 
 module AlexScript
   VERSION = '0.6.15'
@@ -18,12 +27,12 @@ module AlexScript
   def self.start
     begin
       start_execution
-    rescue Utils::WyjatekPodstawowy => e # custom exceptions 
+    rescue Utils::WyjatekPodstawowy => e
       display_error(e)
-    rescue StandardError => e # ruby native exceptions translated
+    rescue StandardError => e
       alex_exception = Utils::ExceptionsTranslator.translate(e)
       display_error(alex_exception)
-    rescue Exception => e # just in case
+    rescue Exception => e
       alex_exception = Utils::ExceptionsTranslator.translate(e, "Krytyczny błąd programu")
       display_error(alex_exception, true)
     end
@@ -31,13 +40,6 @@ module AlexScript
 
   def self.display_error(exception, critical = false)
     puts "🔴 #{exception}".colorize(critical ? :red : :light_red)
-    
-    # Display full depth of stack if its a critical error
-    # if critical # && ENV['ALEX_DEBUG'] ???
-    #   puts "\nStos wywołań:".colorize(:yellow)
-    #   exception.backtrace&.each { |line| puts "  #{line}".colorize(:yellow) }
-    # end
-    
     exit(1)
   end
 
@@ -47,18 +49,17 @@ module AlexScript
       o.bool '-t', '--time', 'measure time of execution'
     end
 
-    # switch to REPL when no arguments
     Utils::Repl.new if ARGV.empty?
 
     filename = ARGV[0]
 
-    if filename&.end_with?('.as')
+    if filename&.end_with?('.as', '.ldz')
       begin
-        source_file = File.expand_path(ARGV[0])
-        source = File.read(filename)
+        source_file = File.expand_path(filename, USER_PWD)
+        source = File.read(source_file)
         puts "File '#{filename}' has been read successfully."
       rescue Errno::ENOENT
-        raise Utils::BładZakresu.new("Plik '#{filename}' nie istnieje")
+        raise Utils::BladZakresu.new("Plik '#{filename}' nie istnieje")
       end
     else
       source = ARGV[0]
