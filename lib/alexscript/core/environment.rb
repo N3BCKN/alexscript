@@ -8,12 +8,17 @@ module AlexScript
       @@call_depth = 0
       @@max_call_depth = 600
 
+      @@built_in_methods = nil
+
       def initialize(parent = nil)
         @variables = {}
         @parent = parent
         @functions = {}
         @classes = {}
-        @built_in_methods = Utils::Methods::MethodRegistry.instance
+      end
+
+      def built_in_methods
+        @@built_in_methods ||= AlexScript::Utils::Methods::MethodRegistry.instance
       end
 
       def get_var(name)
@@ -325,7 +330,7 @@ module AlexScript
       end
 
       def call_method(obj_type, method_name, receiver, args = [])
-        method = @built_in_methods.get_method(obj_type, method_name)
+        method = built_in_methods.get_method(obj_type, method_name)
         Utils.runtime_error("Nieznana metoda #{method_name} dla typu #{obj_type}") unless method
 
         if obj_type == :type_class || obj_type == :type_instance
