@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'weakref'
+
 module AlexScript
   module Core
     class Interpreter
@@ -471,7 +473,7 @@ module AlexScript
           end
         elsif node.is_a? AST::FuncDclr
           # store entire parsed 'body' of the function with its current env
-          env.set_func(node.name, [node, env]) # TODO: improve memory management here
+          env.set_func(node.name, [node, WeakRef.new(env)])# TODO: improve memory management here
 				elsif node.is_a? AST::FuncCall
 					env.increment_call_depth(node.line)
 					begin
@@ -528,7 +530,7 @@ module AlexScript
 								
 								# handle parameters, similar to regular functions
 								func_declr = method_info[:declaration]
-								func_env = method_info[:env]
+								func_env = method_info[:env].__getobj__
 								
 								# rest type parameters
 								rest_param = func_declr.params.find(&:rest?)
@@ -871,7 +873,7 @@ module AlexScript
 							end
 							
 							# create new environment for static method
-							method_env = method_info[:env].new_env
+							method_env = method_info[:env].__getobj__.new_env
 							
 							# assign arguments to parameters
 							rest_idx = params.index(&:rest?)
@@ -882,7 +884,7 @@ module AlexScript
 								if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 									method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 								elsif param.has_default?
-									default_value = interpret!(param.default_value, method_info[:env])
+									default_value = interpret!(param.default_value, method_info[:env].__getobj__)
 									method_env.set_local_var(param.name, default_value[1], default_value[0])
 								else
 									Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -990,7 +992,7 @@ module AlexScript
 						end
 						
 						# create new environment for method
-						method_env = method_info[:env].new_env
+						method_env = method_info[:env].__getobj__.new_env
 						method_env.set_instance(object_value)
 						
 						# assign arguments to parameters
@@ -1002,7 +1004,7 @@ module AlexScript
 							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 								method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 							elsif param.has_default?
-								default_value = interpret!(param.default_value, method_info[:env])
+								default_value = interpret!(param.default_value, method_info[:env].__getobj__)
 								method_env.set_local_var(param.name, default_value[1], default_value[0])
 							else
 								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -1208,7 +1210,7 @@ module AlexScript
 								# static method
 								class_def[:static_methods][stmt.name] = {
 									declaration: stmt,
-									env: class_env,
+									env: WeakRef.new(class_env),
 									private: in_private_section
 								}
 								in_static_section = false  # reset flag
@@ -1216,7 +1218,7 @@ module AlexScript
 								# normal instance method
 								class_def[:methods][stmt.name] = {
 									declaration: stmt,
-									env: class_env,
+									env: WeakRef.new(class_env),
 									private: in_private_section
 								}
 							end
@@ -1457,7 +1459,7 @@ module AlexScript
 					end
 					
 					# create new environment for method
-					method_env = method_info[:env].new_env
+					method_env = method_info[:env].__getobj__.new_env
 					method_env.set_instance(instance)  # use current instance
 					
 					# assign arguments to parameters
@@ -1469,7 +1471,7 @@ module AlexScript
 						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env])
+							default_value = interpret!(param.default_value, method_info[:env].__getobj__)
 							method_env.set_local_var(param.name, default_value[1], default_value[0])
 						else
 							Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -1625,7 +1627,7 @@ module AlexScript
 					end
 					
 					# create new environment for static method
-					method_env = method_info[:env].new_env
+					method_env = method_info[:env].__getobj__.new_env
 					
 					# assign arguments to parameters
 					rest_idx = params.index(&:rest?)
@@ -1636,7 +1638,7 @@ module AlexScript
 						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env])
+							default_value = interpret!(param.default_value, method_info[:env].__getobj__)
 							method_env.set_local_var(param.name, default_value[1], default_value[0])
 						else
 							Utils.runtime_error("Brakujący argument '#{param.name}'", node.line)

@@ -299,7 +299,7 @@ module AlexScript
         func = get_func(name)
         return nil unless func
 
-        [:type_function, { declaration: func[0], env: func[1] }]
+        [:type_function, { declaration: func[0], env: func[1].__getobj__ }]
       end
 
       def set_func(name, value)
