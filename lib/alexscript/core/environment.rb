@@ -22,11 +22,11 @@ module AlexScript
       end
 
       def get_var(name)
+        key = -name  #  intern string
         current = self
         while current
-          value = current.variables[name]
+          value = current.variables[key]
           return value if value
-
           current = current.parent
         end
       end
@@ -235,24 +235,25 @@ module AlexScript
       end
 
       def set_var(name, value, type, is_constant = false)
+        key = -name  #  intern string
         current = self
         while current
-          if current.variables[name]
-            current.variables[name][:value] = value
+          if current.variables[key]
+            current.variables[key][:value] = value
             return value
           end
           current = current.parent
         end
         # if var was not found in parent scopes, create it in current one
-        @variables[name] = { value: value, type: type, constant: is_constant }
+        @variables[key] = { value: value, type: type, constant: is_constant }
       end
 
       def get_func(name)
+        key = -name
         current = self
         while current
-          value = current.functions[name]
+          value = current.functions[key]
           return value if value
-
           current = current.parent
         end
       end
@@ -304,13 +305,14 @@ module AlexScript
 
       def set_func(name, value)
         # value is an 2dms array storing both function declaration and current env where it was declared
-        @functions[name] = value
+        @functions[-name] = value
       end
 
       # return a new environmnet that is a child of the current one
       # this is used for the nested scopes (functions, loop, blocks etc)
       def new_env
-        Environment.new(self)
+          child = Environment.new(self)
+          child # shallow copy 
       end
 
       # merge env for imported files
