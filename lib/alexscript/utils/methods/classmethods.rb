@@ -35,8 +35,6 @@ module AlexScript
 
           # methods requiring env (injected as a first param)
           register_method('przodkowie', lambda { |class_def, env|
-            # cache results in class definition
-            return class_def[:_cached_ancestors] if class_def[:_cached_ancestors]
             
             ancestors = []
             current = class_def[:parent]
@@ -47,9 +45,7 @@ module AlexScript
               current = parent_def[:parent]
             end
             
-            result = alex_string_array(ancestors)
-            class_def[:_cached_ancestors] = result  # cache for next call
-            result
+            alex_string_array(ancestors)
           })
 
           register_method('potomkowie', lambda { |class_def, env|
