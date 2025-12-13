@@ -31,13 +31,13 @@ module AlexScript
 
           # on elements
           register_method('usun', lambda { |arr, index|
-            Utils.runtime_error('Index out of bounds') if index < -arr.length || index >= arr.length
+            Utils.runtime_error('Indeks poza zakresem') if index < -arr.length || index >= arr.length
             arr.delete_at(index)
             arr
           })
 
           register_method('wstaw', lambda { |arr, index, element|
-            Utils.runtime_error('Index out of bounds') if index < -arr.length || index > arr.length
+            Utils.runtime_error('Indeks poza zakresem') if index < -arr.length || index > arr.length
             arr.insert(index, { type: get_element_type(element), value: element })
             arr
           })
@@ -52,7 +52,7 @@ module AlexScript
           })
 
           # register_method('zamien', lambda { |arr, index1, index2|
-          #   Utils.runtime_error('Index out of bounds', nil) if index1 < -arr.length || index2 < -arr.length ||
+          #   Utils.runtime_error('Indeks poza zakresem', nil) if index1 < -arr.length || index2 < -arr.length ||
           #                                                     index1 >= arr.length ||
           #                                                     index2 >= arr.length
           #   arr[index1], arr[index2] = arr[index2], arr[index1]
@@ -100,7 +100,7 @@ module AlexScript
 
           # on ranges
           register_method('wycinek', lambda { |arr, start, koniec|
-            Utils.runtime_error('Index out of bounds') if start < 0 || koniec >= arr.length
+            Utils.runtime_error('Indeks poza zakresem') if start < 0 || koniec >= arr.length
             arr[start..koniec]
           })
 

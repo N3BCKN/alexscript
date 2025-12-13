@@ -27,7 +27,7 @@ module AlexScript
   def self.start
     begin
       start_execution
-    rescue Utils::WyjatekPodstawowy => e
+    rescue Utils::AlexScriptError => e
       display_error(e)
     rescue StandardError => e
       alex_exception = Utils::ExceptionsTranslator.translate(e)
@@ -39,7 +39,7 @@ module AlexScript
   end
 
   def self.display_error(exception, critical = false)
-    puts "🔴 #{exception}".colorize(critical ? :red : :light_red)
+    puts "#{exception}".colorize(critical ? :red : :light_red)
     exit(1)
   end
 

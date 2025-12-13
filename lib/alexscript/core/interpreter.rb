@@ -897,6 +897,7 @@ module AlexScript
 							end
 							
 							# execute static method body
+							Utils::ContextTracker.current_class_name = object_value[:class_name]
 							Utils::CallStackTracker.push(:method,node.method_name,@current_file,node.line) 
 							begin	
 								Utils::ContextTracker.track_method_call(node.method_name) do
@@ -1020,6 +1021,7 @@ module AlexScript
 						end
 						
 						# execute method body
+						Utils::ContextTracker.current_class_name = object_value[:class_name]
 						Utils::CallStackTracker.push(:method,node.method_name,@current_file,node.line)
 						begin
 							Utils::ContextTracker.track_method_call(node.method_name) do
@@ -1234,8 +1236,8 @@ module AlexScript
 						end
 						
 						# execute constructor
-						Utils::ContextTracker.current_class_name = node.class_name 
-						Utils::CallStackTracker.push(:constructor,node.class_name,@current_file,node.line)
+						Utils::ContextTracker.current_class_name = node.class_name
+						Utils::CallStackTracker.push(:constructor, node.class_name, @current_file, node.line)
 						begin
 							Utils::ContextTracker.track_method_call("konstruktor") do
 								interpret!(constructor[:declaration].body_statement, constructor_env)
@@ -1579,7 +1581,8 @@ module AlexScript
 					end
 					
 					# execute static method body
-					Utils::CallStackTracker.push(:static_method, node.method_name, @current_file, node.line)
+					Utils::ContextTracker.current_class_name = node.class_name
+					Utils::CallStackTracker.push(:method, node.method_name, @current_file, node.line)
 					begin
 						interpret!(method_info[:declaration].body_statement, method_env)
 						result = [:type_null, Utils::NULL_VALUE]
@@ -1641,17 +1644,42 @@ module AlexScript
       end
 
       # entry point of interpreter creating brand new global/parent environment
-      def interpret_ast(node, env = nil)
-        begin
-          environment = env || Environment.new
-          interpret!(node, environment)
-        rescue StandardError => e
-          raise e if e.is_a?(Utils::WyjatekPodstawowy)
-          
-          # translate native ruby exception to AS one
-          raise Utils::ExceptionsTranslator.translate(e)
-        end
-      end
+			def interpret_ast(node, env = nil)
+				begin
+					environment = env || Environment.new
+					interpret!(node, environment)
+				rescue Utils::AlexScriptError => e
+					raise e
+				rescue StandardError => e
+					# translate and re-raise
+					alex_error = Utils::ExceptionsTranslator.translate(e)
+					raise alex_error
+				end
+			end
+
+			private
+			# def raise_alexscript_exception_from_error(e, environment)
+			# 	# Get exception class from Environment
+			# 	exception_class_def = environment.get_class(e.alexscript_class_name)
+				
+			# 	unless exception_class_def
+			# 		# Fallback to BladWykonania if class not found
+			# 		exception_class_def = environment.get_class('BladWykonania')
+			# 	end
+				
+			# 	# Create instance manually
+			# 	instance = {
+			# 		class_name: e.alexscript_class_name,
+			# 		instance_vars: {
+			# 			'wiadomosc' => [:type_string, e.message],
+			# 			'linia' => [:type_int, e.line || 0]
+			# 		},
+			# 		class_def: exception_class_def
+			# 	}
+				
+			# 	# Use ExceptionHandler to raise (DODAJ e.line jako 3 argument)
+			# 	raise_exception_from_instance(instance, environment, e.line)
+			# end
     end
   end
 end

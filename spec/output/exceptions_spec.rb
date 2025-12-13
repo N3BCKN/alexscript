@@ -196,7 +196,7 @@ RSpec.describe 'Exceptions', type: :aruba do
               # Linia poniżej spowoduje błąd
               pokazl array[10]'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/w linii 3/)
+      expect(last_command_started).to have_output(/BladZakresu: Indeks poza zakresem/)
     end
 
     it 'tworzy hierarchię wyjątków i łapie odpowiednie typy' do

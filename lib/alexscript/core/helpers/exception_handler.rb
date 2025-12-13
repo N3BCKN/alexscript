@@ -13,42 +13,50 @@ module AlexScript
         # ========================================================================
           
         def handle_throw_statement(node, env)
-          # Case 1: Direct string - rzuc "Błąd"  
-          if node.expression.is_a?(AST::Str)
-            message = node.expression.value
-            raise Utils::WyjatekPodstawowy.new(message, node.line)
+          if node.expression.is_a?(AST::ClassInstantiation)
+            # rzuc BladTypu.nowy("message")
+            handle_exception_instantiation_throw(node.expression, env)
+          elsif node.expression.is_a?(AST::Str)
+            # rzuc "simple string message"
+            # Use BladWykonania as default exception class
+            exception_class_def = env.get_class('BladWykonania')
             
-          # Case 2: NEW - Class instantiation - rzuc BladTypu.nowy("...")
-          elsif node.expression.is_a?(AST::ClassInstantiation)
-            handle_exception_instantiation_throw(node.expression, env, node.line)
+            unless exception_class_def
+              Utils.runtime_error("Nie znaleziono klasy wyjątku BladWykonania", node.line)
+            end
             
-          # Case 3: Expression that evaluates to instance
+            instance = {
+              class_name: 'BladWykonania',
+              instance_vars: {
+                'wiadomosc' => [:type_string, node.expression.value]
+              },
+              class_def: exception_class_def
+            }
+            
+            raise_exception_from_instance(instance, env, node.line)
           else
+            # Evaluate expression and handle
             expr_type, expr_value = interpret!(node.expression, env)
             
-            if expr_type == :type_instance
-              # Check if it's an exception instance
-              if env.is_exception_class?(expr_value[:class_name])
-                raise_exception_from_instance(expr_value, env, node.line)
-              else
-                Utils.runtime_error(
-                  "Nie można rzucić instancją klasy #{expr_value[:class_name]} - nie jest wyjątkiem",
-                  node.line
-                )
+            if expr_type == :type_string
+              # Simple string throw - use BladWykonania
+              exception_class_def = env.get_class('BladWykonania')
+              
+              unless exception_class_def
+                Utils.runtime_error("Nie znaleziono klasy wyjątku BladWykonania", node.line)
               end
-            elsif expr_type == :type_string
-              raise Utils::WyjatekPodstawowy.new(expr_value, node.line)
-            elsif expr_type == :type_object
-              # Old object format fallback
-              exception_type = expr_value['typ']
-              exception_message = expr_value['wiadomosc'] || ""
-              exception_class = @exception_registry[exception_type] || Utils::WyjatekPodstawowy
-              raise exception_class.new(exception_message, node.line)
+              
+              instance = {
+                class_name: 'BladWykonania',
+                instance_vars: {
+                  'wiadomosc' => [:type_string, expr_value]
+                },
+                class_def: exception_class_def
+              }
+              
+              raise_exception_from_instance(instance, env, node.line)
             else
-              Utils.runtime_error(
-                "Nieprawidłowy typ dla rzuc: oczekiwano napis, instancję wyjątku lub obiekt",
-                node.line
-              )
+              Utils.runtime_error("Nieprawidłowy typ dla rzuc: oczekiwano string lub instancję wyjątku", node.line)
             end
           end
         end
@@ -57,22 +65,40 @@ module AlexScript
         # NEW: Handle throwing exception via class instantiation
         # ========================================================================
         
-        def handle_exception_instantiation_throw(instantiation_node, env, throw_line)
-          class_name = instantiation_node.class_name
+        def handle_exception_instantiation_throw(node, env)
+          class_name = node.class_name
           
-          # Verify it's an exception class
-          unless env.is_exception_class?(class_name)
-            Utils.runtime_error(
-              "Klasa #{class_name} nie jest wyjątkiem",
-              throw_line
-            )
+          # Get exception class definition
+          exception_class_def = env.get_class(class_name)
+          
+          unless exception_class_def
+            Utils.runtime_error("Nieznana klasa wyjątku: #{class_name}", node.line)
           end
           
-          # Create the exception instance (reuse existing logic)
-          instance_type, instance = interpret!(instantiation_node, env)
+          # Check if it's an exception class
+          unless env.is_exception_class?(class_name)
+            Utils.runtime_error("Klasa #{class_name} nie jest wyjątkiem", node.line)
+          end
           
-          # Now raise it as Ruby exception
-          raise_exception_from_instance(instance, env, throw_line)
+          # Evaluate constructor arguments
+          message = if node.arguments.empty?
+                      "Exception"
+                    else
+                      arg_type, arg_value = interpret!(node.arguments[0], env)
+                      arg_value.to_s
+                    end
+          
+          # Create exception instance
+          instance = {
+            class_name: class_name,
+            instance_vars: {
+              'wiadomosc' => [:type_string, message]
+            },
+            class_def: exception_class_def
+          }
+          
+          # Raise with line number
+          raise_exception_from_instance(instance, env, node.line)  # <-- DODAJ node.line
         end
         
         # ========================================================================
@@ -81,30 +107,31 @@ module AlexScript
         
         def raise_exception_from_instance(instance, env, line)
           class_name = instance[:class_name]
-          class_def = env.get_class(class_name)
+          message = instance[:instance_vars]['wiadomosc']&.last || "Unknown error"
           
-          # Get message from @wiadomosc instance variable
-          message_var = instance[:instance_vars]['wiadomosc']
-          message = message_var ? message_var[1] : "Błąd"
+          # Create a Ruby exception to raise
+          # We use a generic wrapper instead of specific exception classes
+          ruby_exception = RuntimeError.new(message)
           
-          # Determine which Ruby exception class to use
-          ruby_class_name = env.determine_ruby_exception_class(class_name, class_def)
+          # Attach metadata for stack trace
+          ruby_exception.instance_variable_set(:@alexscript_class_name, class_name)
+          ruby_exception.instance_variable_set(:@alexscript_instance, instance)
+          ruby_exception.instance_variable_set(:@call_stack, Utils::CallStackTracker.current_stack)
           
-          # Get the actual Ruby class
-          ruby_exception_class = Object.const_get("AlexScript::#{ruby_class_name}")
+          # Define accessor methods
+          ruby_exception.define_singleton_method(:alexscript_class_name) do
+            @alexscript_class_name
+          end
           
-          # Create and raise the exception with metadata
-          exception = ruby_exception_class.new(message, line)
+          ruby_exception.define_singleton_method(:alexscript_instance) do
+            @alexscript_instance
+          end
           
-          # attach as class info for catch blocks
-          exception.instance_variable_set(:@alexscript_class_name, class_name)
-          exception.instance_variable_set(:@alexscript_instance, instance)
-
-					# attach stack trace
-					stack = Utils::CallStackTracker.current_stack
-          exception.instance_variable_set(:@call_stack, stack)
+          ruby_exception.define_singleton_method(:call_stack) do
+            @call_stack
+          end
           
-          raise exception
+          raise ruby_exception
         end
         
         # ========================================================================

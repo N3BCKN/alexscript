@@ -27,7 +27,7 @@ module AlexScript
           register_method('indeks', lambda { |str, i|
             return [:type_null, Utils::NULL_VALUE] if str.empty?
 
-            Utils.runtime_error('Index out of bounds') if i < -str.length || i >= str.length
+            Utils.runtime_error('Indeks poza zakresem') if i < -str.length || i >= str.length
             str[i]
           })
 

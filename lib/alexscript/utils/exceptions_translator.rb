@@ -15,7 +15,7 @@ module AlexScript
 					Exception => 'WyjatekPodstawowy'
 				}.freeze
   
-        ERROR_MESSAGES = {
+				ERROR_MESSAGES = {
 					'Division by zero' => 'Dzielenie przez zero',
 					'Error executing method' => 'blad podczas wykonywania metody',
 					'undefined method' => 'niezdefiniowana metoda',
@@ -27,47 +27,51 @@ module AlexScript
 					'given' => 'dano',
 					'expected' => 'oczekiwano',
 					'stack level too deep' => 'zbyt glebokie zagniezdzenie stosu',
+					'Index out of bounds' => 'Indeks poza zakresem',
 					'Undeclared identifier' => 'Niezadeklarowany identyfikator',
 					'Variable must be declared' => 'Zmienna musi zostać zadeklarowana',
 					'Uninitialized identifier' => 'Niezainicjalizowany identyfikator',
 					'Condition must be boolean or null' => 'Warunek musi byc typu boolean lub null',
 					'Array index must be an integer' => 'Indeks tablicy musi byc liczbą całkowitą',
-					'Index out of bounds' => 'Indeks poza zakresem',
 					'Object key must be a string' => 'Klucz obiektu musi byc ciagiem znakow',
 					'Undefined key' => 'Niezdefiniowany klucz',
 					'Cannot call method on undefined object' => 'Nie można wywolac metody na niezdefiniowanym obiekcie',
 					'Maximum recursion depth' => 'Maksymalna głębokosc rekurencji',
 					'stack is too deep' => 'zbyt glebokie zagniezdzenie stosu',
 					'exceeded' => 'przekroczono'
-        }.freeze
+				}.freeze
   
 				def self.translate(exception, additional_message = nil)
-					if exception.is_a?(Exception)
-						original_message = exception.message
-						translated_message = translate_message(original_message)
-						exception_type = find_exception_type(exception)
-					else
-						# direct message
-						translated_message = translate_message(exception.to_s)
-						exception_type = 'WyjatekPodstawowy'
+					if exception.is_a?(AlexScriptError)
+						# Already an AlexScript error, just pass through
+						return exception
 					end
 					
+					original_message = exception.message
+					translated_message = translate_message(original_message)
+					exception_type = find_exception_type(exception)
+					
 					translated_message += " (#{additional_message})" if additional_message
-				
+					
 					line = Utils::ContextTracker.current_line
 					file = Utils::ContextTracker.current_file
 					
-					# create and return new AS exception
-					exception_class = Object.const_get("AlexScript::Utils::#{exception_type}")
-					exception_class.new(translated_message, line, file)
+					# Return AS instead of creating Ruby exception instance
+					AlexScriptError.new(exception_type, translated_message, line)
 				end
   
-	      def self.find_exception_type(excp)
-          EXCEPTIONS_MAP.each do |ruby_type, alex_type|
-            return alex_type if excp.is_a?(ruby_type)
-          end
-          'WyjatekPodstawowy' # Default
-        end
+				def self.find_exception_type(excp)
+					case excp
+					when NoMethodError then 'BladMetody'
+					when NameError then 'BladNazwy'
+					when TypeError then 'BladTypu'
+					when ArgumentError then 'BladArgumentu'
+					when ZeroDivisionError then 'BladDzieleniaPrzezZero'
+					when SyntaxError then 'BladSkladni'
+					when StandardError then 'BladWykonania'
+					else 'WyjatekPodstawowy'
+					end
+				end
   
 				def self.translate_message(message)
 					return nil unless message.is_a?(String)
