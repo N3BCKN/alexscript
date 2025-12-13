@@ -5,8 +5,7 @@ require 'weakref'
 module AlexScript
   module Core
     class Interpreter
-			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper,
-			Helpers::ExceptionHandler
+			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper, Helpers::ExceptionHandler
 
       def initialize
         @import_manager = Utils::ImportManager.new
@@ -577,6 +576,7 @@ module AlexScript
 								end
 								
 								# execute method body
+								Utils::CallStackTracker.push(:function, node.name, @current_file, node.line) # for exception handler
 								begin
 									Utils::ContextTracker.track_method_call(node.name) do
 										interpret!(func_declr.body_statement, new_func_env)
@@ -584,6 +584,8 @@ module AlexScript
 									result = [:type_null, Utils::NULL_VALUE] # return 'nic' if function does not return any value
 								rescue Utils::ReturnError => e
 									result = e.value
+								ensure
+    							Utils::CallStackTracker.pop
 								end
 							end
 						end
@@ -681,6 +683,7 @@ module AlexScript
 							end
 					
 							# interpret function declaration body
+							Utils::CallStackTracker.push(:function, node.name, @current_file, node.line) # for exception handler
 							begin
 								Utils::ContextTracker.track_method_call(node.name) do
 									interpret!(func_declr.body_statement, new_func_env)
@@ -688,9 +691,10 @@ module AlexScript
 								result = [:type_null, Utils::NULL_VALUE] # return 'nic' if function does not return any value
 							rescue Utils::ReturnError => e
 								result = e.value
+							ensure
+    						Utils::CallStackTracker.pop
 							end
 						end
-						
 						result
 					ensure
 						env.decrement_call_depth
@@ -777,7 +781,7 @@ module AlexScript
           env.set_var(node.array.name, object_var[:value], object_var[:type]) if node.array.is_a?(AST::Identifier)
 
           [value_type, value]
-		elsif node.is_a? AST::MethodCall
+				elsif node.is_a? AST::MethodCall
 					# interpret object
 					object_type, object_value = interpret!(node.object, env)
 				
@@ -893,6 +897,7 @@ module AlexScript
 							end
 							
 							# execute static method body
+							Utils::CallStackTracker.push(:method,node.method_name,@current_file,node.line) 
 							begin	
 								Utils::ContextTracker.track_method_call(node.method_name) do
 									interpret!(method_info[:declaration].body_statement, method_env)
@@ -900,6 +905,8 @@ module AlexScript
 								result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 							rescue Utils::ReturnError => e
 								result = e.value  # or specific value returned by method
+							ensure
+    						Utils::CallStackTracker.pop
 							end
 							
 							return result
@@ -1013,6 +1020,7 @@ module AlexScript
 						end
 						
 						# execute method body
+						Utils::CallStackTracker.push(:method,node.method_name,@current_file,node.line)
 						begin
 							Utils::ContextTracker.track_method_call(node.method_name) do
 								interpret!(method_info[:declaration].body_statement, method_env)
@@ -1020,6 +1028,8 @@ module AlexScript
 							result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
 						rescue Utils::ReturnError => e
 							result = e.value  # or specific value returned by method
+						ensure
+							Utils::CallStackTracker.pop
 						end
 						
 						result
@@ -1224,12 +1234,16 @@ module AlexScript
 						end
 						
 						# execute constructor
+						Utils::ContextTracker.current_class_name = node.class_name 
+						Utils::CallStackTracker.push(:constructor,node.class_name,@current_file,node.line)
 						begin
 							Utils::ContextTracker.track_method_call("konstruktor") do
 								interpret!(constructor[:declaration].body_statement, constructor_env)
 							end
 						rescue Utils::ReturnError
 							# ignore return value from constructor
+						ensure
+  						Utils::CallStackTracker.pop
 						end
 					end
 					
@@ -1565,11 +1579,14 @@ module AlexScript
 					end
 					
 					# execute static method body
+					Utils::CallStackTracker.push(:static_method, node.method_name, @current_file, node.line)
 					begin
 						interpret!(method_info[:declaration].body_statement, method_env)
-						result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
+						result = [:type_null, Utils::NULL_VALUE]
 					rescue Utils::ReturnError => e
-						result = e.value  # or specific value returned by method
+						result = e.value
+					ensure
+						Utils::CallStackTracker.pop 
 					end
 					
 					result

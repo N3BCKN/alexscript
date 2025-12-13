@@ -96,9 +96,13 @@ module AlexScript
           # Create and raise the exception with metadata
           exception = ruby_exception_class.new(message, line)
           
-          # Attach AlexScript class info for catch blocks
+          # attach as class info for catch blocks
           exception.instance_variable_set(:@alexscript_class_name, class_name)
           exception.instance_variable_set(:@alexscript_instance, instance)
+
+					# attach stack trace
+					stack = Utils::CallStackTracker.current_stack
+          exception.instance_variable_set(:@call_stack, stack)
           
           raise exception
         end
@@ -207,6 +211,21 @@ module AlexScript
             obj['instancja'] = {
               type: :type_instance,
               value: instance
+            }
+          end
+
+					if exception.instance_variable_defined?(:@call_stack)
+            stack = exception.instance_variable_get(:@call_stack)
+            formatted_stack = Utils::CallStackTracker.format_stack(stack)
+            
+            # Convert to AlexScript array of strings
+            stack_array = formatted_stack.map do |frame_str|
+              { type: :type_string, value: frame_str }
+            end
+            
+            obj['stos'] = {
+              type: :type_array,
+              value: stack_array
             }
           end
           

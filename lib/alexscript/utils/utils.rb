@@ -8,4 +8,5 @@ require_relative './exceptions_translator'
 require_relative './ruby_evaluator'
 require_relative './methods/methods'
 require_relative './exception_class_factory'
+require_relative './call_stack_tracker'
 
