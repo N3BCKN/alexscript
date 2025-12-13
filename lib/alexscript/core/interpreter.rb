@@ -5,6 +5,8 @@ require 'weakref'
 module AlexScript
   module Core
     class Interpreter
+			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper
+
       def initialize
         @import_manager = Utils::ImportManager.new
         @current_file = 'main'
@@ -922,7 +924,7 @@ module AlexScript
 							
 							result = env.call_method(:type_instance, node.method_name, object_value, evaluated_args)
 							
-							# SprawdÅº czy juÅ¼ zwrÃ³cone jako tuple
+							# Sprawdz czy juz zwrocone jako tuple
 							if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
 							return result
 							end
@@ -1117,7 +1119,7 @@ module AlexScript
               exception_class = @exception_registry[exception_type] || Utils::WyjatekPodstawowy
               raise exception_class.new(exception_message, node.line)
             else
-              Utils.runtime_error("NieprawidÅ, owy typ dla rzuc: oczekiwano string lub obiekt", node.line)
+              Utils.runtime_error("Nieprawidlowy typ dla rzuc: oczekiwano string lub obiekt", node.line)
             end
           end 
         elsif node.is_a? AST::TryCatchStmt
@@ -1725,69 +1727,6 @@ module AlexScript
       end
 
       private
-
-			# Deep comparison of values for == and != operators
-			def deep_equal?(left_type, left_value, right_type, right_value)
-				# Different types are not equal (except numeric types which can be compared)
-				return false if left_type != right_type && 
-								!([left_type, right_type] - [:type_int, :type_float]).empty?
-				
-				case [left_type, right_type]
-				when [:type_array, :type_array]
-					return false if left_value.size != right_value.size
-					
-					left_value.each_with_index do |left_elem, idx|
-					right_elem = right_value[idx]
-					return false unless deep_equal?(left_elem[:type], left_elem[:value], 
-													right_elem[:type], right_elem[:value])
-					end
-					true
-				when [:type_object, :type_object]
-					return false if left_value.keys.sort != right_value.keys.sort
-					
-					left_value.each do |key, left_val|
-					return false unless right_value.key?(key)
-					right_val = right_value[key]
-					return false unless deep_equal?(left_val[:type], left_val[:value],
-													right_val[:type], right_val[:value])
-					end
-					true
-				when [:type_instance, :type_instance]
-					# Instances are equal only if they're the same object (reference equality)
-					left_value.equal?(right_value)
-				else
-					# For primitives (int, float, string, bool, null) use regular comparison
-					left_value == right_value
-				end
-			end
-	  
-      def runtime_error(left_value, right_value, node)
-        Utils.runtime_error("Niewspierany operator #{node.op.lexeme} pomiedzy #{left_value} a #{right_value}",
-                            node.op.line)
-      end
-
-      def runtime_error_unop(value, node)
-        Utils.runtime_error("Niewspierany operator #{node.op.lexeme} z #{value}", node.op.line)
-      end
-
-      def validate_function_value(val)
-        return false unless val && val[:type] == :type_function
-        return false unless val[:value] && val[:value][:declaration] && val[:value][:env]
-
-        true
-      end
-
-      def is_truthy?(type, value, line)
-        case type
-        when :type_bool
-          value == Utils::BOOL_TRUE
-        when :type_null
-          false
-        else
-          Utils.runtime_error('Warunek musi byc boolem lub "nic"', line)
-        end
-      end
-
       def get_access_path(node, env)
         if node.is_a?(AST::Identifier)
           node.name
@@ -1800,66 +1739,6 @@ module AlexScript
           key_type, key_value = interpret!(node.index, env)
           "#{base}[#{key_value}]"
         end
-      end
-
-      def to_bool_value(ruby_bool)
-        ruby_bool ? Utils::BOOL_TRUE : Utils::BOOL_FALSE
-      end
-
-      def from_bool_value(alex_bool)
-        alex_bool == Utils::BOOL_TRUE
-      end
-
-      # TODO: move it to other file on utils
-      def format_value(type, value)
-        case type
-        when :type_bool, :type_null
-          # PrimivieValue objects display without quotes
-          value.to_s
-        when :type_string
-          # Strings are displayed with quotes
-          value.to_s
-        when :type_array
-          format_array_value(value)
-        when :type_object
-          format_object_value(value)
-        else
-          value
-        end
-      end
-
-      def format_array_value(value)
-        if value.is_a?(Array)
-          value.map do |elem|
-            if elem.is_a?(Hash)
-              if elem[:type] == :type_array
-                format_array_value(elem[:value])
-              elsif elem[:type] == :type_object
-                format_object_value(elem[:value])
-              else
-                elem[:value]
-              end
-            else
-              elem
-            end
-          end
-        else
-          value
-        end
-      end
-
-      def format_object_value(object)
-        pairs = object.map do |key, value|
-          formatted_value = if value.is_a?(Hash)
-                              [value[:type], value[:value]]
-                            else
-                              [:type_string, value]
-                            end
-
-          formatted = format_value(formatted_value[0], formatted_value[1])
-          "#{key}: #{formatted}"
-        end
-        "{#{pairs.join(', ')}}"
       end
     end
   end

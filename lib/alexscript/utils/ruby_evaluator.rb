@@ -4,7 +4,7 @@ require 'set'
 module AlexScript
   module Utils
     class RubyEvaluator
-      # Lista dozwolonych moduÅ‚Ã³w i klas
+      # Lista dozwolonych modulow i klas
       ALLOWED_MODULES = Set.new([
         'Math', 'Array', 'String', 'Hash', 'Numeric', 'Integer', 'Float', 
         'Time', 'Date', 'Set', 'Kernel', 'Range', 'Socket', 'TCPSocket', 
@@ -241,7 +241,7 @@ module AlexScript
           raise "Nieprawidłowy lub nieistniejący obiekt Ruby: #{object_id}"
         end
         
-        # SprawdÅº, czy metoda jest dozwolona
+        # Sprawdz, czy metoda jest dozwolona
         if FORBIDDEN_METHODS.include?(method_name)
           raise "Niedozwolona metoda: #{method_name}"
         end
