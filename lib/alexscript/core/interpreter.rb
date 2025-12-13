@@ -5,7 +5,8 @@ require 'weakref'
 module AlexScript
   module Core
     class Interpreter
-			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper
+			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper,
+			Helpers::ExceptionHandler
 
       def initialize
         @import_manager = Utils::ImportManager.new
@@ -1093,77 +1094,9 @@ module AlexScript
             Utils.runtime_error("Blad importu: #{e.message}")
           end
         elsif node.is_a? AST::ThrowStmt
-          if node.exception_type
-            # Format obiektu z typem i wiadomością
-            message_type, message_value = interpret!(node.expression, env)
-            
-            # check if object is registered
-            exception_class = @exception_registry[node.exception_type]
-            if exception_class.nil?
-              Utils.runtime_error("Nieznany typ wyjątku: #{node.exception_type}", node.line)
-            end
-            
-            # throw respective exception
-            raise exception_class.new(message_value, node.line)
-          else
-            expr_type, expr_value = interpret!(node.expression, env)
-            
-            if expr_type == :type_string
-              # throw base exc 
-              raise Utils::WyjatekPodstawowy.new(expr_value, node.line)
-            elsif expr_type == :type_object
-              # handle case when user passed object directly (not through {} syntax)
-              exception_type = expr_value['typ']
-              exception_message = expr_value['wiadomosc'] || ""
-              
-              exception_class = @exception_registry[exception_type] || Utils::WyjatekPodstawowy
-              raise exception_class.new(exception_message, node.line)
-            else
-              Utils.runtime_error("Nieprawidlowy typ dla rzuc: oczekiwano string lub obiekt", node.line)
-            end
-          end 
+					handle_throw_statement(node, env)
         elsif node.is_a? AST::TryCatchStmt
-          try_env = env.new_env
-          
-          begin
-            interpret!(node.try_block, try_env)
-          rescue StandardError => e
-            # check if there is a matching catch block
-            caught = false
-            
-            node.catch_blocks.each do |catch_block|
-              # catch_block is AST::CatchBlock instance, so we use its properties
-              if catch_block.exception_type
-                # check exception type if specified
-                type_name = catch_block.exception_type.name
-                exception_class = @exception_registry[type_name]
-                
-                # if exception type doesn't match, move to next catch block
-                next unless exception_class && e.is_a?(exception_class)
-              end
-              
-              catch_env = env.new_env
-              
-              # create new 'e' object inside exception block context
-              exception_obj = {}
-              exception_obj['wiadomosc'] = {type: :type_string, value: e.message}
-              exception_obj['typ'] = {type: :type_string, value: e.class.name.split('::').last}
-              exception_obj['linia'] = {type: :type_int, value: (e.respond_to?(:line) ? e.line : nil)}
-
-              catch_env.set_local_var(catch_block.exception_var, exception_obj, :type_object)
-              
-              # execute catch block
-              interpret!(catch_block.body, catch_env)
-              caught = true
-              break
-            end
-            
-            # if no catch handled the exception, throw it further
-            raise e unless caught
-          ensure
-            # execute finally block if exists
-            interpret!(node.finally_block, env.new_env) if node.finally_block
-          end
+					handle_try_catch_statement(node, env)
         elsif node.is_a? AST::ExceptionDeclaration
           parent_name = node.parent || 'WyjatekPodstawowy'
           parent_class = @exception_registry[parent_name]
@@ -1723,21 +1656,6 @@ module AlexScript
           
           # translate native ruby exception to AS one
           raise Utils::ExceptionsTranslator.translate(e)
-        end
-      end
-
-      private
-      def get_access_path(node, env)
-        if node.is_a?(AST::Identifier)
-          node.name
-        elsif node.is_a?(AST::ObjectOrArrayAccess)
-          base = get_access_path(node.array, env)
-          key_type, key_value = interpret!(node.index, env)
-          "#{base}[#{key_value}]"
-        elsif node.is_a?(AST::ObjectOrArrayAssignment)
-          base = get_access_path(node.array, env)
-          key_type, key_value = interpret!(node.index, env)
-          "#{base}[#{key_value}]"
         end
       end
     end

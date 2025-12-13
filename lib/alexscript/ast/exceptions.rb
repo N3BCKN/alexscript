@@ -87,7 +87,7 @@ module AlexScript
       attr_reader :expression, :exception_type, :line
     
       def initialize(expression, exception_type = nil, line)
-        validate_types([expression], Str)
+        validate_types([expression], Expr)
         validate_types([exception_type], String) if exception_type
 
         @expression = expression      # Wyrażenie (wiadomość) lub nil

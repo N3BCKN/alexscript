@@ -23,6 +23,20 @@ module AlexScript
         def runtime_error_unop(value, node)
           Utils.runtime_error("Niewspierany operator #{node.op.lexeme} z #{value}", node.op.line)
         end
+
+        def get_access_path(node, env)
+					if node.is_a?(AST::Identifier)
+						node.name
+					elsif node.is_a?(AST::ObjectOrArrayAccess)
+						base = get_access_path(node.array, env)
+						key_type, key_value = interpret!(node.index, env)
+						"#{base}[#{key_value}]"
+					elsif node.is_a?(AST::ObjectOrArrayAssignment)
+						base = get_access_path(node.array, env)
+						key_type, key_value = interpret!(node.index, env)
+						"#{base}[#{key_value}]"
+					end
+        end
       end
     end
   end 
