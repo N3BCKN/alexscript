@@ -3,6 +3,8 @@
 module AlexScript
   module Core
     class Environment
+      include ExceptionSupport
+
       attr_reader :variables, :functions, :parent, :classes, :built_in_methods
 
       @@call_depth = 0
@@ -15,6 +17,7 @@ module AlexScript
         @parent = parent
         @functions = {}
         @classes = {}
+        bootstrap_exception_classes if parent.nil? 
       end
 
       def built_in_methods
@@ -183,8 +186,23 @@ module AlexScript
 
       def define_class(name, class_def)
         @classes ||= {}
-        class_def[:static_vars] ||= {}   
+        
+        class_def[:static_vars] ||= {}
         class_def[:static_methods] ||= {}
+        
+        # detect if it's a exception class
+        if should_be_exception_class?(name, class_def)
+          class_def[:is_exception] = true
+          class_def[:is_builtin] = false
+          class_def[:exception_metadata] = {
+            ruby_class: determine_ruby_exception_class(name, class_def),
+            created_at: Time.now.to_i
+          }
+          ensure_exception_has_constructor(class_def)
+        else
+          class_def[:is_exception] = false
+        end
+        
         @classes[name] = class_def
       end
 

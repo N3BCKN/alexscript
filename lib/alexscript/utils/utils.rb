@@ -1,10 +1,11 @@
-require_relative('./token')
-require_relative('./primitive_value')
-require_relative('./repl')
-require_relative('./errors')
-require_relative('./import_manager')
-require_relative('./context_tracker')
-require_relative('./exceptions_translator')
-require_relative('./ruby_evaluator')
-require_relative('./methods/methods')
+require_relative './token'
+require_relative './primitive_value'
+require_relative './repl'
+require_relative './errors'
+require_relative './import_manager'
+require_relative './context_tracker'
+require_relative './exceptions_translator'
+require_relative './ruby_evaluator'
+require_relative './methods/methods'
+require_relative './exception_class_factory'
 
