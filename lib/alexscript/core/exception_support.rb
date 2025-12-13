@@ -52,10 +52,8 @@ module AlexScript
         class_def[:is_exception] == true
       end
       
-      # check if defined class should be an exception, based on name, parent or metadata flag
-      def should_be_exception_class?(name, class_def)
-        return true if name =~ /(Blad|Błąd|Wyjatek|Wyjątek)$/i
-        
+      # check if defined class should be an exception, based on parent or metadata flag
+      def should_be_exception_class?(name, class_def)      
         if class_def[:parent]
           parent_class = get_class(class_def[:parent])
           return true if parent_class && parent_class[:is_exception]

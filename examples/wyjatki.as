@@ -31,7 +31,7 @@ proba {
 
 
 # Definiowanie wyjątku dziedziczącego po innym
-wyjatek BladMatematyczny : BladWykonania
+klasa BladMatematyczny < BladWykonania {}
 
 # Rzucanie zdefiniowanego wyjątku
 funkcja podziel(a, b) {

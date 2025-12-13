@@ -44,20 +44,18 @@ RSpec.describe 'Exceptions', type: :aruba do
 
   describe 'Definiowanie własnych wyjątków' do
     it 'definiuje własny wyjątek' do
-      code = 'wyjatek MojWyjatek
-              rzuc { typ: "MojWyjatek", wiadomosc: "Test własnego wyjątku" }
+      code = 'klasa MojWyjatek < WyjatekPodstawowy {}
+              rzuc MojWyjatek.nowy("Test własnego wyjątku")
               pokazl "To nie powinno się wykonać"'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/MojWyjatek/)
       expect(last_command_started).to have_output(/Test własnego wyjątku/)
     end
 
     it 'definiuje wyjątek dziedziczący po innym' do
-      code = 'wyjatek BladPodstawowy
-              wyjatek MojWyjatek : BladPodstawowy
-              rzuc { typ: "MojWyjatek", wiadomosc: "Test dziedziczenia wyjątków" }'
+      code = 'klasa MojWyjatek < WyjatekPodstawowy {}
+              klasa MojWyjatek1 < MojWyjatek {}
+              rzuc MojWyjatek1.nowy("Test dziedziczenia wyjątków")'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/MojWyjatek/)
       expect(last_command_started).to have_output(/Test dziedziczenia wyjątków/)
     end
   end
@@ -71,10 +69,9 @@ RSpec.describe 'Exceptions', type: :aruba do
     end
 
     it 'rzuca wyjątek określonego typu' do
-      code = 'wyjatek BladAplikacji
-              rzuc { typ: "BladAplikacji", wiadomosc: "Błąd aplikacji" }'
+      code = 'klasa BladAplikacji < WyjatekPodstawowy {}
+              rzuc BladAplikacji.nowy("Błąd aplikacji")'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/BladAplikacji/)
       expect(last_command_started).to have_output(/Błąd aplikacji/)
     end
 
@@ -100,10 +97,10 @@ RSpec.describe 'Exceptions', type: :aruba do
     end
 
     it 'łapie wyjątek określonego typu' do
-      code = 'wyjatek BladA
-              wyjatek BladB
+      code = 'klasa BladA < WyjatekPodstawowy {}
+              klasa BladB < WyjatekPodstawowy {}
               proba {
-                rzuc { typ: "BladB", wiadomosc: "Wyjątek typu B" }
+                rzuc BladB.nowy("Wyjątek typu B")
               } zlap (e : BladA) {
                 pokazl "Złapano A: " + e["wiadomosc"]
               } zlap (e : BladB) {
@@ -203,13 +200,12 @@ RSpec.describe 'Exceptions', type: :aruba do
     end
 
     it 'tworzy hierarchię wyjątków i łapie odpowiednie typy' do
-      code = 'wyjatek BladPodstawowy
-              wyjatek BladAplikacji : BladPodstawowy
-              wyjatek BladDanych : BladAplikacji
-              wyjatek BladBazyDanych : BladDanych
+      code = 'klasa BladAplikacji < WyjatekPodstawowy {}
+              klasa BladDanych < BladAplikacji {}
+              klasa BladBazyDanych < BladDanych {}
               
               funkcja operacja_na_bazie() {
-                rzuc { typ: "BladBazyDanych", wiadomosc: "Błąd łączenia z bazą" }
+                rzuc BladBazyDanych.nowy("Błąd łączenia z bazą")
               }
               
               proba {
@@ -226,14 +222,14 @@ RSpec.describe 'Exceptions', type: :aruba do
     end
 
     it 'obsługuje wiele powiązanych bloków catch' do
-      code = 'wyjatek BladA
-              wyjatek BladB
-              wyjatek BladC
+      code = 'klasa BladA < WyjatekPodstawowy {}
+              klasa BladB < WyjatekPodstawowy {}
+              klasa BladC < WyjatekPodstawowy {}
               
               funkcja test_wyjatku(typ) {
-                jesli typ == "A" { rzuc { typ: "BladA", wiadomosc: "Wyjątek A" } }
-                jesli typ == "B" { rzuc { typ: "BladB", wiadomosc: "Wyjątek B" } }
-                jesli typ == "C" { rzuc { typ: "BladC", wiadomosc: "Wyjątek C" } }
+                jesli typ == "A" { rzuc BladA.nowy("Wyjątek A") }
+                jesli typ == "B" { rzuc BladB.nowy("Wyjątek B") }
+                jesli typ == "C" { rzuc BladC.nowy("Wyjątek C") }
                 zwroc "OK"
               }
               

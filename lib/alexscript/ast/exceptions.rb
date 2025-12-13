@@ -64,24 +64,6 @@ module AlexScript
       end
     end
 
-    # wyjatek BladMatematyczny : BladWykonania -> define custom exception
-    class ExceptionDeclaration < Stmt
-      attr_reader :name, :parent, :line
-      
-      def initialize(name, parent, line)
-        validate_types([name], String)
-        validate_types([parent], String) if parent
-
-        @name = name
-        @parent = parent || 'WyjatekPodstawowy' 
-        @line = line
-      end
-      
-      def pretty_print(level = 0)
-        "#{indent(level)}ExceptionDeclaration(#{@name} extends #{@parent})"
-      end
-    end
-
 		# rzuc "{" <body_stmts> "}"
     class ThrowStmt < Stmt
       attr_reader :expression, :exception_type, :line

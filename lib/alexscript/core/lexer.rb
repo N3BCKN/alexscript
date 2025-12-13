@@ -49,7 +49,6 @@ module AlexScript
           'zlap' => :tok_catch,
           'wkoncu' => :tok_finally,
           'rzuc' => :tok_throw,
-          'wyjatek' => :tok_exception,
           'klasa' => :tok_class,
           'super' => :tok_super,
           'statyczny' => :tok_static,

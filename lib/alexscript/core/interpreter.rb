@@ -11,15 +11,6 @@ module AlexScript
       def initialize
         @import_manager = Utils::ImportManager.new
         @current_file = 'main'
-        @exception_registry = {}
-
-        @exception_registry['WyjatekPodstawowy'] = Utils::WyjatekPodstawowy
-        @exception_registry['BladWykonania'] = Utils::BladWykonania
-        @exception_registry['BladSkladni'] = Utils::BladSkladni
-        @exception_registry['BladTypu'] = Utils::BladTypu
-        @exception_registry['BladZakresu'] = Utils::BladZakresu
-        @exception_registry['BladArgumentu'] = Utils::BladArgumentu
-        @exception_registry['BladNazwy'] = Utils::BladNazwy
       end
 
       def set_current_file(file)
@@ -1097,20 +1088,6 @@ module AlexScript
 					handle_throw_statement(node, env)
         elsif node.is_a? AST::TryCatchStmt
 					handle_try_catch_statement(node, env)
-        elsif node.is_a? AST::ExceptionDeclaration
-          parent_name = node.parent || 'WyjatekPodstawowy'
-          parent_class = @exception_registry[parent_name]
-          
-          if parent_class.nil?
-            Utils.runtime_error("Nieznany typ wyjątku bazowego: #{parent_name}", node.line)
-          end
-          
-          exception_class = Class.new(parent_class)
-          @exception_registry[node.name] = exception_class
-          
-          exception_class.define_singleton_method(:name) { node.name }
-          
-          [:type_null, Utils::NULL_VALUE] 
 				elsif node.is_a? AST::ClassDefinition
 					# new environment for class
 					class_env = env.new_env

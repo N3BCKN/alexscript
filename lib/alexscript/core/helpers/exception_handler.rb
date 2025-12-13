@@ -13,27 +13,16 @@ module AlexScript
         # ========================================================================
           
         def handle_throw_statement(node, env)
-          # Case 1: Old object syntax - rzuc { typ: "BladTypu", wiadomosc: "..." }
-          if node.exception_type
-            message_type, message_value = interpret!(node.expression, env)
-            exception_class = @exception_registry[node.exception_type]
-            
-            if exception_class.nil?
-              Utils.runtime_error("Nieznany typ wyjątku: #{node.exception_type}", node.line)
-            end
-            
-            raise exception_class.new(message_value, node.line)
-            
-          # Case 2: Direct string - rzuc "Błąd"  
-          elsif node.expression.is_a?(AST::Str)
+          # Case 1: Direct string - rzuc "Błąd"  
+          if node.expression.is_a?(AST::Str)
             message = node.expression.value
             raise Utils::WyjatekPodstawowy.new(message, node.line)
             
-          # Case 3: NEW - Class instantiation - rzuc BladTypu.nowy("...")
+          # Case 2: NEW - Class instantiation - rzuc BladTypu.nowy("...")
           elsif node.expression.is_a?(AST::ClassInstantiation)
             handle_exception_instantiation_throw(node.expression, env, node.line)
             
-          # Case 4: Expression that evaluates to instance
+          # Case 3: Expression that evaluates to instance
           else
             expr_type, expr_value = interpret!(node.expression, env)
             
@@ -139,15 +128,6 @@ module AlexScript
                   # Check if caught exception matches or inherits from catch type
                   if alexscript_class == type_name || 
                     env.is_subclass_of(alexscript_class, type_name)
-                    caught = true
-                    execute_catch_block(catch_block, e, env)
-                    break
-                  end
-                  
-                # OLD: Fallback to Ruby class matching (for old-style exceptions)
-                else
-                  exception_class = @exception_registry[type_name]
-                  if exception_class && e.is_a?(exception_class)
                     caught = true
                     execute_catch_block(catch_block, e, env)
                     break

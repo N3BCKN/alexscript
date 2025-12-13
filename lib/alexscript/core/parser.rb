@@ -810,63 +810,8 @@ module AlexScript
       # <throw_statement> ::= "rzuc" <expression>
       def throw_statement
         expect(:tok_throw)
-        
-        # check if next token is left curly brace (start of object)
-        if next?(:tok_lcurly)
-          # handle object format: rzuc { typ: "ExceptionType", wiadomosc: "message" }
-          expect(:tok_lcurly)
-          
-          # parse exception object fields
-          exception_type = nil
-          exception_message = nil
-          
-          # parse object fields
-          while !next?(:tok_rcurly)
-            # fetch name and type of the expression and assign it to the proper field
-            field_name = expect(:tok_identifier).lexeme
-            expect(:tok_colon)
-            
-            field_value = expression()
-            case field_name
-            when "typ"
-              if field_value.is_a?(AST::Str)
-                exception_type = field_value.value
-              else
-                Utils.parse_error("Oczekiwano stringa jako typu wyjątku", previous_token.line)
-              end
-            when "wiadomosc"
-              exception_message = field_value
-            else
-              Utils.parse_error("Nieznane pole w obiekcie wyjątku: #{field_name}", previous_token.line)
-            end
-            
-            # next field if exists
-            break unless match(:tok_comma)
-          end
-          
-          expect(:tok_rcurly)
-          Utils.parse_error("Brak pola 'typ' w obiekcie wyjątku", previous_token.line) unless exception_type
-          
-          exception_message ||= AST::Str.new("", previous_token.line)
-          
-          AST::ThrowStmt.new(exception_message, exception_type, previous_token.line)
-        else
-          expression = expression()
-          AST::ThrowStmt.new(expression, nil, previous_token.line)
-        end
-      end
-
-      # <exception_declaration> ::= "wyjatek" <identifier> (":" <identifier>)?
-      def exception_declaration
-        expect(:tok_exception)
-        name = expect(:tok_identifier).lexeme
-        
-        parent = nil
-        if match(:tok_colon)
-          parent = expect(:tok_identifier).lexeme
-        end
-        
-        AST::ExceptionDeclaration.new(name, parent, previous_token.line)
+        expr = expression()
+        AST::ThrowStmt.new(expr, nil, previous_token.line)
       end
 
       def private_section
@@ -920,8 +865,6 @@ module AlexScript
           try_statement
         elsif token == :tok_throw
           throw_statement
-        elsif token == :tok_exception
-          exception_declaration
         elsif token == :tok_class
             class_definition
         elsif token == :tok_private
