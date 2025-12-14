@@ -48,6 +48,10 @@ module AlexScript
         end
 
         def format_object_value(object)
+          if is_exception_object?(object) 
+              return format_exception_object(object) # TODO: this might help to format any huge dump env in the future
+          end
+
           pairs = object.map do |key, value|
             formatted_value = if value.is_a?(Hash)
                                 [value[:type], value[:value]]
@@ -59,6 +63,33 @@ module AlexScript
             "#{key}: #{formatted}"
           end
           "{#{pairs.join(', ')}}"
+        end
+
+        def format_exception_object(exception_obj)
+          parts = []
+          
+          parts << "typ: #{exception_obj['typ'][:value]}" if exception_obj['typ']
+          parts << "wiadomosc: #{exception_obj['wiadomosc'][:value]}" if exception_obj['wiadomosc']
+          parts << "linia: #{exception_obj['linia'][:value]}" if exception_obj['linia']
+          parts << "klasa: #{exception_obj['klasa'][:value]}" if exception_obj['klasa']
+          
+          if exception_obj['stos'] && exception_obj['stos'][:value].is_a?(Array)
+            stack_lines = exception_obj['stos'][:value].map { |frame| frame[:value] }
+            parts << "stos:\n" + stack_lines.join("\n")
+          end
+          
+          "{#{parts.join(', ')}}"
+        end
+
+        def is_exception_object?(object)
+          return false unless object.is_a?(Hash)
+          
+          # Exception objects have these specific fields
+          object.key?('wiadomosc') && 
+            object.key?('typ') && 
+            object.key?('klasa') && 
+            object.key?('instancja') &&
+            object.key?('stos')
         end
       end
     end
