@@ -17,6 +17,7 @@ module AlexScript
         @parent = parent
         @functions = {}
         @classes = {}
+        @modules = {}
         bootstrap_exception_classes if parent.nil? 
       end
 
@@ -56,29 +57,39 @@ module AlexScript
       end
 
       def find_method_in_hierarchy(instance, method_name)
+        return nil unless instance[:class_def]
+        
+        current_class_def = instance[:class_def]
         class_name = instance[:class_name]
-        return nil unless class_name
         
-        current_class_name = class_name
-        
-        while current_class_name
-          class_def = get_class(current_class_name)
-          break unless class_def
-          
-          # check if method exists in this class
-          if class_def[:methods].key?(method_name)
+        while current_class_def
+          # check if method exists in current class
+          if current_class_def[:methods] && current_class_def[:methods].key?(method_name)
             return {
-              class_name: current_class_name,
-              class_def: class_def,
-              method_info: class_def[:methods][method_name]
+              class_name: class_name,
+              class_def: current_class_def,
+              method_info: current_class_def[:methods][method_name]
             }
           end
           
           # move to parent class
-          current_class_name = class_def[:parent]
+          parent_name = current_class_def[:parent]
+          break unless parent_name
+          
+          # find parent class definition
+          # first try module path if instance has one
+          if instance[:module_path]
+            parent_class_def = get_module_class(instance[:module_path], parent_name)
+            current_class_def = parent_class_def
+          else
+            # fallback to global classes
+            current_class_def = get_class(parent_name)
+          end
+          
+          class_name = parent_name
         end
         
-        nil  # method not found 
+        nil
       end
 
       # finds method in parent class
@@ -371,6 +382,60 @@ module AlexScript
 
       def get_all_classes
         @classes || {}
+      end
+
+      def define_module(name, module_def)
+        @modules ||= {}
+        @modules[name] = module_def
+      end
+
+      def get_module(name)
+        current = self
+        while current
+          if current.instance_variable_defined?(:@modules) && 
+            current.instance_variable_get(:@modules)&.key?(name)
+            return current.instance_variable_get(:@modules)[name]
+          end
+          current = current.parent
+        end
+        nil
+      end
+
+      # resolve path like ["Modul1", "Modul2"] to module_def
+      def resolve_module_path(path)
+        return nil if path.empty?
+        
+        current_module = get_module(path[0])
+        return nil unless current_module
+        
+        path[1..-1].each do |module_name|
+          return nil unless current_module[:nested_modules]
+          current_module = current_module[:nested_modules][module_name]
+          return nil unless current_module
+        end
+        
+        current_module
+      end
+
+      # get class from module
+      def get_module_class(module_path, class_name)
+        module_def = resolve_module_path(module_path)
+        return nil unless module_def
+        module_def[:classes]&.[](class_name)
+      end
+
+      # get function from module
+      def get_module_function(module_path, function_name)
+        module_def = resolve_module_path(module_path)
+        return nil unless module_def
+        module_def[:functions]&.[](function_name)
+      end
+
+      # get constant from module
+      def get_module_constant(module_path, constant_name)
+        module_def = resolve_module_path(module_path)
+        return nil unless module_def
+        module_def[:constants]&.[](constant_name)
       end
     end
   end

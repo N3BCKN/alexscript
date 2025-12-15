@@ -12,6 +12,7 @@ module AlexScript
     end
 
     def self.runtime_error(message, line = nil)
+      p line
       exception_class_name = determine_exception_class(message)
       raise_alexscript_exception(exception_class_name, message, line)
     end
@@ -73,7 +74,7 @@ module AlexScript
     class AlexScriptError < StandardError
       attr_reader :alexscript_class_name, :message, :line
       
-      def initialize(class_name, message, line = nil)  # <-- line = nil
+      def initialize(class_name, message, line = nil)
         @alexscript_class_name = class_name
         @message = message
         @line = line

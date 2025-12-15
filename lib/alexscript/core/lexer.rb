@@ -57,6 +57,7 @@ module AlexScript
           'ruby' => :tok_ruby,
           'ruby_obj' => :tok_ruby_obj,
           'require_ruby' => :tok_require_ruby,
+          'modul' => :tok_module
         }.freeze
         
         # initialize ASCII character type lookup tables for fast character classification
@@ -325,7 +326,11 @@ module AlexScript
       end
       
       def handle_colon(char)
-        add_token(:tok_colon)
+        if next_match(':')
+          add_token(:tok_double_colon)  # ::
+        else
+          add_token(:tok_colon)  # :
+        end
       end
       
       # operator handlers

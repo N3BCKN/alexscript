@@ -9,6 +9,7 @@ module AlexScript
         @tokens = tokens
         @current = 0
 				@inside_class_body = false
+        @current_module_path = nil
       end
 
       # advances the parser position and returns current token
@@ -64,132 +65,181 @@ module AlexScript
       # <primary> ::= <integer> | <float> | '(' <expr> ')' | <bool> | <string> | <identifier>
       # mandles basic expressions and parenthesized expressions
       def primary
-				return AST::Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
-				return AST::Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
-				return AST::Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
-				return AST::Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
-				return AST::Null.new(previous_token.line) if match(:tok_null)
-				return array_statement if match(:tok_lsquare) # [ -> start array parsing
-				return input_statement if match(:tok_input)
-			
-				# @instance_variables
-				if match(:tok_instance_var)
-					return AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
-				end
-			
-				if match(:tok_lparen) # (
-					expr = expression
-					Utils.parse_error("Oczekiwano ')' po wyrazeniu", previous_token.line) unless match(:tok_rparen) # )
-					return AST::Grouping.new(expr, previous_token.line)
-				end
+        return AST::Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
+        return AST::Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
+        return AST::Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
+        return AST::Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
+        return AST::Null.new(previous_token.line) if match(:tok_null)
+        return array_statement if match(:tok_lsquare)
+        return input_statement if match(:tok_input)
+
+        if match(:tok_instance_var)
+          return AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
+        end
+
+        if match(:tok_lparen)
+          expr = expression
+          Utils.parse_error("Oczekiwano ')' po wyrazeniu", previous_token.line) unless match(:tok_rparen)
+          return AST::Grouping.new(expr, previous_token.line)
+        end
 
         if match(:tok_ruby)
           return ruby_call
         elsif match(:tok_ruby_obj)
           return ruby_obj_call
         end
-			
-				if match(:tok_super)
-					return super_expression
-				end
-			
-				if match(:tok_lcurly) # {
-					pairs = {}
-			
-					unless next?(:tok_rcurly)
-						loop do
-							# key is a string
-							key = expect(:tok_string)
-							expect(:tok_colon) # :
-							value = expression
-							pairs[key.lexeme] = value
-			
-							break unless match(:tok_comma)
-						end
-					end
-			
-					expect(:tok_rcurly) # }
-					return AST::ObjectLiteral.new(pairs, previous_token.line)
-				end
-			
-				# handle function calls | array access | method calls
-				identifier = expect(:tok_identifier)
-			
-				# check if this is potentially a static variable reference
-				# keep original logic, just add static variable recognition pattern
-				if next?(:tok_dot) && peek_next && peek_next.token_type == :tok_identifier && 
-					 peek_next.lexeme.match?(/^[A-Z_]+$/) && identifier.lexeme.match?(/^[A-Z]/)
-					# potential static variable: ClassName.CONSTANT_VARIABLE
-					advance  # get dot token
-					static_var_name = expect(:tok_identifier).lexeme
-					return AST::StaticVariable.new(identifier.lexeme, static_var_name, identifier.line)
-				end
-			
-				# normal path for identifiers
-				expr = AST::Identifier.new(identifier.lexeme, identifier.line)
-			
-				loop do
-					if match(:tok_lparen) # (
-						f_args = arguments
-						expect(:tok_rparen) # )
-						expr = AST::FuncCall.new(identifier.lexeme, f_args, previous_token.line)
-						break
-					elsif match(:tok_lsquare) # [ -> to access array/object element
-						key = expression
-						expect(:tok_rsquare) # ]  # important: make sure ] token is consumed
-			
-						if match(:tok_assign) # =
-							value = expression
-							expr = AST::ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
-							break
-						else
-							expr = AST::ObjectOrArrayAccess.new(expr, key, identifier.line)
-						end
-					elsif match(:tok_dot) # . -> methods or class instance calls
-						method_name = expect(:tok_identifier).lexeme
-						arguments = []
-						
-						# check if this is constructor call
-						if method_name == "nowy" && match(:tok_lparen) # nowy(
-							# handle constructor arguments
-							unless next?(:tok_rparen)
-								loop do
-									arguments << expression
-									break unless match(:tok_comma)
-								end
-							end
-							expect(:tok_rparen) # )
-							expr = AST::ClassInstantiation.new(identifier.lexeme, arguments, previous_token.line)
-						else 
-							# check if this is method call (with parentheses)
-							if match(:tok_lparen) # (
-								unless next?(:tok_rparen)
-									loop do
-										arguments << expression
-										break unless match(:tok_comma)
-									end
-								end
-								expect(:tok_rparen) # )
-								
-								# check if this is static class method
-								if identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
-									expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
+
+        if match(:tok_super)
+          return super_expression
+        end
+
+        if match(:tok_lcurly)
+          pairs = {}
+
+          unless next?(:tok_rcurly)
+            loop do
+              key = expect(:tok_string)
+              expect(:tok_colon)
+              value = expression
+              pairs[key.lexeme] = value
+
+              break unless match(:tok_comma)
+            end
+          end
+
+          expect(:tok_rcurly)
+          return AST::ObjectLiteral.new(pairs, previous_token.line)
+        end
+
+        identifier = expect(:tok_identifier)
+
+        # check for module path TYLKO jeśli następny token to ::
+        # (nie w kontekście wywołania funkcji/metody)
+        if next?(:tok_double_colon)
+          module_path = [identifier.lexeme]
+
+          while match(:tok_double_colon)
+              next_id = expect(:tok_identifier)
+              module_path << next_id.lexeme
+            end
+            
+            member_name = module_path.pop
+            
+            if module_path.empty?
+              Utils.parse_error("Nieprawidłowa składnia modułu", identifier.line)
+            end
+            
+            # Modul::Klasa.nowy()
+            if match(:tok_dot)
+              method = expect(:tok_identifier).lexeme
+              if method == "nowy" && match(:tok_lparen)
+                arguments = []
+                unless next?(:tok_rparen)
+                  loop do
+                    arguments << expression
+                    break unless match(:tok_comma)
+                  end
+                end
+                expect(:tok_rparen)
+                return AST::ModuleClassInstantiation.new(module_path, member_name, arguments, identifier.line)
+              else
+                Utils.parse_error("Nieoczekiwana metoda #{method} po dostępie do modułu", identifier.line)
+              end
+            end
+            
+            # NOWE: Modul::funkcja(args) - wywołanie funkcji modułowej
+            if match(:tok_lparen)
+              arguments = []
+              unless next?(:tok_rparen)
+                loop do
+                  arguments << expression
+                  break unless match(:tok_comma)
+                end
+              end
+              expect(:tok_rparen)
+              
+              # zwróć ModuleFunctionCall zamiast ModuleAccess
+              return AST::ModuleFunctionCall.new(module_path, member_name, arguments, identifier.line)
+            end
+            
+            # Modul::STALA (bez wywołania)
+            return AST::ModuleAccess.new(module_path, member_name, identifier.line)
+          end
+
+        # check static variable: ClassName.CONSTANT_VARIABLE
+        if next?(:tok_dot) && peek_next && peek_next.token_type == :tok_identifier && 
+          peek_next.lexeme.match?(/^[A-Z_]+$/) && identifier.lexeme.match?(/^[A-Z]/)
+          advance
+          static_var_name = expect(:tok_identifier).lexeme
+          return AST::StaticVariable.new(identifier.lexeme, static_var_name, identifier.line)
+        end
+
+        # normal identifier processing
+        expr = AST::Identifier.new(identifier.lexeme, identifier.line)
+
+        loop do
+          if match(:tok_lparen)
+            f_args = []
+            unless next?(:tok_rparen)  # <-- parsuj argumenty TUTAJ bezpośrednio
+              loop do
+                f_args << expression
+                break unless match(:tok_comma)
+              end
+            end
+            expect(:tok_rparen)
+            expr = AST::FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+            break
+          elsif match(:tok_lsquare)
+            key = expression
+            expect(:tok_rsquare)
+
+            if match(:tok_assign)
+              value = expression
+              expr = AST::ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
+              break
+            else
+              expr = AST::ObjectOrArrayAccess.new(expr, key, identifier.line)
+            end
+          elsif match(:tok_dot)
+            method_name = expect(:tok_identifier).lexeme
+            arguments = []
+            
+            if method_name == "nowy" && match(:tok_lparen)
+              unless next?(:tok_rparen)
+                loop do
+                  arguments << expression
+                  break unless match(:tok_comma)
+                end
+              end
+              expect(:tok_rparen)
+              expr = AST::ClassInstantiation.new(identifier.lexeme, arguments, previous_token.line)
+            else 
+              if match(:tok_lparen)
+                unless next?(:tok_rparen)
+                  loop do
+                    arguments << expression
+                    break unless match(:tok_comma)
+                  end
+                end
+                expect(:tok_rparen)
+                
+                if identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
+                  expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
                   break
-								else
-									expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
-								end
-							else
-								# method without arguments or property
-								expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
-							end
-						end 
-					else
-						break
-					end
-				end
-			
-				expr
-			end
+                else
+                  expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
+                end
+              else
+                expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
+              end
+            end 
+          else
+            break
+          end
+        end
+
+        expr
+      end
 
       def super_expression
 				token_line = previous_token.line
@@ -828,6 +878,33 @@ module AlexScript
         AST::RequireRubyStmt.new(library_name, previous_token.line)
       end
 
+      def module_definition
+        expect(:tok_module)
+        module_name = expect(:tok_identifier).lexeme
+        
+        # check for nested module context
+        parent_module = @current_module_path ? @current_module_path.join("::") : nil
+        
+        expect(:tok_lcurly)
+        
+        # track we're inside module
+        old_module_path = @current_module_path
+        @current_module_path ||= []
+        @current_module_path << module_name
+        
+        module_body = if next?(:tok_rcurly)
+                        AST::Stmts.new([], previous_token.line)
+                      else
+                        statements
+                      end
+        
+        @current_module_path = old_module_path
+        
+        expect(:tok_rcurly)
+        
+        AST::ModuleDefinition.new(module_name, module_body, previous_token.line, parent_module)
+      end
+
       def statement
         # predict next token
         token = peek.token_type
@@ -867,6 +944,8 @@ module AlexScript
           throw_statement
         elsif token == :tok_class
             class_definition
+        elsif token == :tok_module
+            module_definition
         elsif token == :tok_private
             private_section
         elsif token == :tok_require_ruby
@@ -914,7 +993,7 @@ module AlexScript
       def statements
         stmts = []
         stmts << statement while @current < @tokens.size && !next?(:tok_rcurly)
-        AST::Stmts.new(stmts, previous_token.line) unless stmts.empty?
+        AST::Stmts.new(stmts, previous_token ? previous_token.line : 0)
       end
 
       # <program> ::= <statements>*

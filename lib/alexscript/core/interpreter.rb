@@ -1250,6 +1250,296 @@ module AlexScript
 					end
 					
 					[:type_instance, instance]
+				elsif node.is_a? AST::ModuleDefinition
+					# determine parent module path
+					parent_path = node.parent_module ? node.parent_module.split("::") : []
+					
+					module_def = {
+						name: node.name,
+						classes: {},
+						functions: {},
+						constants: {},
+						nested_modules: {},
+						parent_module: node.parent_module,
+						body: node.body
+					}
+					
+					# create env for module contents
+					module_env = env.new_env
+					
+					# process module body
+					node.body.stmts.each do |stmt|
+						if stmt.is_a?(AST::ClassDefinition)
+							# class inside module
+							class_def = {
+								parent: stmt.parent_class,
+								body: stmt.body,
+								methods: {},
+								static_methods: {},
+								static_vars: {},
+								is_abstract: stmt.is_abstract
+							}
+							
+							# process class body like normal
+							stmt.body.stmts.each do |class_stmt|
+								in_private = false
+								in_static = false
+								
+								if class_stmt.is_a?(AST::PrivateSection)
+									in_private = true
+								elsif class_stmt.is_a?(AST::StaticKeyword)
+									in_static = true
+								elsif class_stmt.is_a?(AST::FuncDclr)
+									if in_static
+										class_def[:static_methods][class_stmt.name] = {
+											declaration: class_stmt,
+											env: WeakRef.new(module_env),
+											private: in_private
+										}
+									else
+										class_def[:methods][class_stmt.name] = {
+											declaration: class_stmt,
+											env: WeakRef.new(module_env),
+											private: in_private
+										}
+									end
+								elsif class_stmt.is_a?(AST::VariableDeclaration) && in_static
+									value_type, value_value = interpret!(class_stmt.right, module_env)
+									class_def[:static_vars][class_stmt.left.name] = { type: value_type, value: value_value }
+								end
+							end
+							
+							module_def[:classes][stmt.name] = class_def
+							
+						elsif stmt.is_a?(AST::FuncDclr)
+							# function in module (acts like static)
+							module_def[:functions][stmt.name] = [stmt, WeakRef.new(module_env)]
+							
+						elsif stmt.is_a?(AST::VariableDeclaration)
+							# constant in module
+							var_name = stmt.left.name
+							if var_name.match?(/^[A-Z_]+$/)
+								value_type, value_value = interpret!(stmt.right, module_env)
+								module_def[:constants][var_name] = { type: value_type, value: value_value }
+							else
+								Utils.runtime_error("Tylko stałe (WIELKIE_LITERY) mogą być definiowane w module", stmt.line)
+							end
+							
+						elsif stmt.is_a?(AST::ModuleDefinition)
+							# nested module - recurse
+							nested_result = interpret!(stmt, module_env)
+							module_def[:nested_modules][stmt.name] = nested_result
+						end
+					end
+					
+					# register in environment
+					if parent_path.empty?
+						env.define_module(node.name, module_def)
+					else
+						# nested module - add to parent
+						parent_module = env.resolve_module_path(parent_path)
+						if parent_module
+							parent_module[:nested_modules] ||= {}
+							parent_module[:nested_modules][node.name] = module_def
+						else
+							Utils.runtime_error("Nie znaleziono modułu nadrzędnego #{node.parent_module}", node.line)
+						end
+					end
+					
+					module_def  # return for nested modules
+
+				elsif node.is_a? AST::ModuleAccess
+					# Modul::funkcja() or Modul::STALA
+					module_path = node.module_path
+					member_name = node.member_name
+					
+					# try function first
+					func = env.get_module_function(module_path, member_name)
+					if func
+						return [:type_function, { declaration: func[0], env: func[1] }]
+					end
+					
+					# try constant
+					constant = env.get_module_constant(module_path, member_name)
+					if constant
+						return [constant[:type], constant[:value]]
+					end
+					
+					# try class (for static access)
+					class_def = env.get_module_class(module_path, member_name)
+					if class_def
+						return [:type_class, class_def]
+					end
+					
+					path_str = module_path.join("::")
+					Utils.runtime_error("Nie znaleziono '#{member_name}' w module #{path_str}", node.line)
+
+				elsif node.is_a? AST::ModuleClassInstantiation
+					# Modul::Klasa.nowy(args)
+					module_path = node.module_path
+					class_name = node.class_name
+					
+					class_def = env.get_module_class(module_path, class_name)
+					
+					unless class_def
+						path_str = module_path.join("::")
+						Utils.runtime_error("Nie znaleziono klasy #{class_name} w module #{path_str}", node.line)
+					end
+					
+					if class_def[:is_abstract]
+						Utils.runtime_error("Nie można utworzyć instancji klasy abstrakcyjnej #{class_name}", node.line)
+					end
+					
+					# create instance like normal
+					instance = {
+						class_name: class_name,
+						module_path: module_path,  # track module origin
+						instance_vars: {},
+						class_def: class_def
+					}
+					
+					# call constructor
+					constructor = class_def[:methods]["konstruktor"]
+					if constructor
+						arguments = node.arguments.map { |arg| interpret!(arg, env) }
+						
+						constructor_env = constructor[:env].new_env
+						constructor_env.set_instance(instance)
+						
+						params = constructor[:declaration].params
+						rest_param = params.find(&:rest?)
+						min_args = params.count { |p| !p.has_default? && !p.rest? }
+						max_args = rest_param ? Float::INFINITY : params.size
+						
+						if arguments.size < min_args
+							Utils.runtime_error("Konstruktor oczekiwał minimum #{min_args} argumentów, otrzymał #{arguments.size}", node.line)
+						end
+						
+						unless rest_param
+							if arguments.size > max_args
+								Utils.runtime_error("Konstruktor oczekiwał maksymalnie #{max_args} argumentów, otrzymał #{arguments.size}", node.line)
+							end
+						end
+						
+						# assign params
+						rest_idx = params.index(&:rest?)
+						rest_position = rest_idx || params.size
+						normal_params = params.reject(&:rest?)
+						
+						normal_params.each_with_index do |param, idx|
+							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+								constructor_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+							elsif param.has_default?
+								default_value = interpret!(param.default_value, constructor[:env])
+								constructor_env.set_local_var(param.name, default_value[1], default_value[0])
+							else
+								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+							end
+						end
+						
+						if rest_param
+							rest_args = arguments[rest_position..-1] || []
+							rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+							constructor_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+						end
+						
+						# execute constructor
+						Utils::ContextTracker.current_class_name = class_name
+						Utils::CallStackTracker.push(:constructor, class_name, @current_file, node.line)
+						begin
+							Utils::ContextTracker.track_method_call("konstruktor") do
+								interpret!(constructor[:declaration].body_statement, constructor_env)
+							end
+						rescue Utils::ReturnError
+							# ignore
+						ensure
+							Utils::CallStackTracker.pop
+						end
+					end
+					
+					[:type_instance, instance]
+				elsif node.is_a? AST::ModuleFunctionCall
+					# Modul::funkcja(args)
+					module_path = node.module_path
+					function_name = node.function_name
+					
+					func = env.get_module_function(module_path, function_name)
+					
+					unless func
+						path_str = module_path.join("::")
+						Utils.runtime_error("Nie znaleziono funkcji '#{function_name}' w module #{path_str}", node.line)
+					end
+					
+					# func to [declaration, env]
+					func_declr = func[0]
+					func_env = func[1]
+					
+					# evaluate arguments
+					arguments = node.arguments.map { |arg| interpret!(arg, env) }
+					
+					# validate argument count
+					params = func_declr.params
+					rest_param = params.find(&:rest?)
+					min_args = params.count { |p| !p.has_default? && !p.rest? }
+					max_args = rest_param ? Float::INFINITY : params.size
+					
+					if arguments.size < min_args
+						Utils.runtime_error(
+							"Funkcja #{function_name} oczekiwała minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+							node.line
+						)
+					end
+					
+					unless rest_param
+						if arguments.size > max_args
+							Utils.runtime_error(
+								"Funkcja #{function_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+								node.line
+							)
+						end
+					end
+					
+					# create new env for function
+					new_func_env = func_env.new_env
+					
+					# assign parameters
+					rest_idx = params.index(&:rest?)
+					rest_position = rest_idx || params.size
+					normal_params = params.reject(&:rest?)
+					
+					normal_params.each_with_index do |param, idx|
+						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+							new_func_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+						elsif param.has_default?
+							default_value = interpret!(param.default_value, func_env)
+							new_func_env.set_local_var(param.name, default_value[1], default_value[0])
+						else
+							Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+						end
+					end
+					
+					if rest_param
+						rest_args = arguments[rest_position..-1] || []
+						rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+						new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+					end
+					
+					# execute function
+					env.increment_call_depth(node.line)
+					Utils::CallStackTracker.push(:function, function_name, @current_file, node.line)
+					begin
+						Utils::ContextTracker.track_method_call(function_name) do
+							interpret!(func_declr.body_statement, new_func_env)
+						end
+						result = [:type_null, Utils::NULL_VALUE]
+					rescue Utils::ReturnError => e
+						result = e.value
+					ensure
+						Utils::CallStackTracker.pop
+						env.decrement_call_depth
+					end
+					
+					result
 				elsif node.is_a? AST::InstanceVariable
 					instance = env.get_instance
 					Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", node.line) unless instance
@@ -1656,30 +1946,6 @@ module AlexScript
 					raise alex_error
 				end
 			end
-
-			private
-			# def raise_alexscript_exception_from_error(e, environment)
-			# 	# Get exception class from Environment
-			# 	exception_class_def = environment.get_class(e.alexscript_class_name)
-				
-			# 	unless exception_class_def
-			# 		# Fallback to BladWykonania if class not found
-			# 		exception_class_def = environment.get_class('BladWykonania')
-			# 	end
-				
-			# 	# Create instance manually
-			# 	instance = {
-			# 		class_name: e.alexscript_class_name,
-			# 		instance_vars: {
-			# 			'wiadomosc' => [:type_string, e.message],
-			# 			'linia' => [:type_int, e.line || 0]
-			# 		},
-			# 		class_def: exception_class_def
-			# 	}
-				
-			# 	# Use ExceptionHandler to raise (DODAJ e.line jako 3 argument)
-			# 	raise_exception_from_instance(instance, environment, e.line)
-			# end
     end
   end
 end
