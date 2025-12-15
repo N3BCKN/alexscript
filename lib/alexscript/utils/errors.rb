@@ -12,7 +12,6 @@ module AlexScript
     end
 
     def self.runtime_error(message, line = nil)
-      p line
       exception_class_name = determine_exception_class(message)
       raise_alexscript_exception(exception_class_name, message, line)
     end

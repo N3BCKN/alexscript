@@ -523,7 +523,7 @@ module AlexScript
 								
 								# handle parameters, similar to regular functions
 								func_declr = method_info[:declaration]
-								func_env = method_info[:env].__getobj__
+								func_env = method_info[:env]
 								
 								# rest type parameters
 								rest_param = func_declr.params.find(&:rest?)
@@ -871,7 +871,7 @@ module AlexScript
 							end
 							
 							# create new environment for static method
-							method_env = method_info[:env].__getobj__.new_env
+							method_env = method_info[:env].new_env
 							
 							# assign arguments to parameters
 							rest_idx = params.index(&:rest?)
@@ -882,7 +882,7 @@ module AlexScript
 								if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 									method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 								elsif param.has_default?
-									default_value = interpret!(param.default_value, method_info[:env].__getobj__)
+									default_value = interpret!(param.default_value, method_info[:env])
 									method_env.set_local_var(param.name, default_value[1], default_value[0])
 								else
 									Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -994,7 +994,7 @@ module AlexScript
 						end
 						
 						# create new environment for method
-						method_env = method_info[:env].__getobj__.new_env
+						method_env = method_info[:env].new_env
 						method_env.set_instance(object_value)
 						
 						# assign arguments to parameters
@@ -1006,7 +1006,7 @@ module AlexScript
 							if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 								method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 							elsif param.has_default?
-								default_value = interpret!(param.default_value, method_info[:env].__getobj__)
+								default_value = interpret!(param.default_value, method_info[:env])
 								method_env.set_local_var(param.name, default_value[1], default_value[0])
 							else
 								Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -1251,9 +1251,6 @@ module AlexScript
 					
 					[:type_instance, instance]
 				elsif node.is_a? AST::ModuleDefinition
-					# determine parent module path
-					parent_path = node.parent_module ? node.parent_module.split("::") : []
-					
 					module_def = {
 						name: node.name,
 						classes: {},
@@ -1266,6 +1263,7 @@ module AlexScript
 					
 					# create env for module contents
 					module_env = env.new_env
+					module_def[:module_env] = module_env
 					
 					# process module body
 					node.body.stmts.each do |stmt|
@@ -1281,10 +1279,10 @@ module AlexScript
 							}
 							
 							# process class body like normal
+							in_private = false
+							in_static = false
+							
 							stmt.body.stmts.each do |class_stmt|
-								in_private = false
-								in_static = false
-								
 								if class_stmt.is_a?(AST::PrivateSection)
 									in_private = true
 								elsif class_stmt.is_a?(AST::StaticKeyword)
@@ -1293,19 +1291,21 @@ module AlexScript
 									if in_static
 										class_def[:static_methods][class_stmt.name] = {
 											declaration: class_stmt,
-											env: WeakRef.new(module_env),
+											env: module_env,
 											private: in_private
 										}
+										in_static = false
 									else
 										class_def[:methods][class_stmt.name] = {
 											declaration: class_stmt,
-											env: WeakRef.new(module_env),
+											env: module_env,
 											private: in_private
 										}
 									end
 								elsif class_stmt.is_a?(AST::VariableDeclaration) && in_static
 									value_type, value_value = interpret!(class_stmt.right, module_env)
 									class_def[:static_vars][class_stmt.left.name] = { type: value_type, value: value_value }
+									in_static = false
 								end
 							end
 							
@@ -1313,7 +1313,7 @@ module AlexScript
 							
 						elsif stmt.is_a?(AST::FuncDclr)
 							# function in module (acts like static)
-							module_def[:functions][stmt.name] = [stmt, WeakRef.new(module_env)]
+							module_def[:functions][stmt.name] = [stmt, module_env]
 							
 						elsif stmt.is_a?(AST::VariableDeclaration)
 							# constant in module
@@ -1327,27 +1327,18 @@ module AlexScript
 							
 						elsif stmt.is_a?(AST::ModuleDefinition)
 							# nested module - recurse
-							nested_result = interpret!(stmt, module_env)
-							module_def[:nested_modules][stmt.name] = nested_result
+							nested_module_def = interpret!(stmt, module_env)
+							module_def[:nested_modules][stmt.name] = nested_module_def
 						end
 					end
 					
-					# register in environment
-					if parent_path.empty?
+					# register ONLY top-level modules
+					if node.parent_module.nil?
 						env.define_module(node.name, module_def)
-					else
-						# nested module - add to parent
-						parent_module = env.resolve_module_path(parent_path)
-						if parent_module
-							parent_module[:nested_modules] ||= {}
-							parent_module[:nested_modules][node.name] = module_def
-						else
-							Utils.runtime_error("Nie znaleziono modułu nadrzędnego #{node.parent_module}", node.line)
-						end
 					end
 					
-					module_def  # return for nested modules
-
+					# return module_def (for nested modules to be added to parent)
+					module_def
 				elsif node.is_a? AST::ModuleAccess
 					# Modul::funkcja() or Modul::STALA
 					module_path = node.module_path
@@ -1677,7 +1668,7 @@ module AlexScript
 					end
 					
 					# create new environment for method
-					method_env = method_info[:env].__getobj__.new_env
+					method_env = method_info[:env].new_env
 					method_env.set_instance(instance)  # use current instance
 					
 					# assign arguments to parameters
@@ -1689,7 +1680,7 @@ module AlexScript
 						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env].__getobj__)
+							default_value = interpret!(param.default_value, method_info[:env])
 							method_env.set_local_var(param.name, default_value[1], default_value[0])
 						else
 							Utils.runtime_error("Brakujący argument #{param.name}", node.line)
@@ -1856,7 +1847,7 @@ module AlexScript
 						if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
 							method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
 						elsif param.has_default?
-							default_value = interpret!(param.default_value, method_info[:env].__getobj__)
+							default_value = interpret!(param.default_value, method_info[:env])
 							method_env.set_local_var(param.name, default_value[1], default_value[0])
 						else
 							Utils.runtime_error("Brakujący argument '#{param.name}'", node.line)

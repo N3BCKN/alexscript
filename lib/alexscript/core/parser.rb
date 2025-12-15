@@ -9,7 +9,7 @@ module AlexScript
         @tokens = tokens
         @current = 0
 				@inside_class_body = false
-        @current_module_path = nil
+        @current_module_path = []
       end
 
       # advances the parser position and returns current token
@@ -882,15 +882,13 @@ module AlexScript
         expect(:tok_module)
         module_name = expect(:tok_identifier).lexeme
         
-        # check for nested module context
-        parent_module = @current_module_path ? @current_module_path.join("::") : nil
+        # parent_module to pełna ścieżka do tego modułu
+        parent_module = @current_module_path.empty? ? nil : @current_module_path.join("::")
         
         expect(:tok_lcurly)
         
-        # track we're inside module
-        old_module_path = @current_module_path
-        @current_module_path ||= []
-        @current_module_path << module_name
+        # push current module to path
+        @current_module_path.push(module_name)
         
         module_body = if next?(:tok_rcurly)
                         AST::Stmts.new([], previous_token.line)
@@ -898,7 +896,8 @@ module AlexScript
                         statements
                       end
         
-        @current_module_path = old_module_path
+        # pop after parsing body
+        @current_module_path.pop
         
         expect(:tok_rcurly)
         
