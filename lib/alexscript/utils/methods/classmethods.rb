@@ -158,6 +158,16 @@ module AlexScript
             end
           })
 
+          register_method('moduly', lambda { |class_def|
+            return alex_string_array([]) unless class_def[:included_modules]
+            alex_string_array(class_def[:included_modules])
+          })
+
+          register_method('ma_modul', lambda { |class_def, module_name|
+            return [:type_bool, Utils::BOOL_FALSE] unless class_def[:included_modules]
+            [:type_bool, class_def[:included_modules].include?(module_name) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          })
+
           register_method('napis', lambda { |class_def|
             name = class_def[:name] || "UnnamedClass"
             if class_def[:is_abstract]

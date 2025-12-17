@@ -29,7 +29,9 @@ module AlexScript
         'expected' => 'oczekiwano',
         'stack level too deep' => 'zbyt glebokie zagniezdzenie stosu',
         'index out of bounds' => 'indeks poza zakresem',
-        'out of bounds' => 'poza zakresem'
+        'out of bounds' => 'poza zakresem',
+        'for an instance of' => 'dla instancji',
+        'for' => 'dla'
       }.freeze
 
       def self.translate(exception, additional_message = nil)

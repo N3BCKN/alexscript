@@ -270,7 +270,6 @@ module AlexScript
           { type: converted_result[0], value: converted_result[1] }
         rescue StandardError => e
 					# arg_info = ruby_args.map { |a| "#{a.class}: #{a.inspect}" }.join(", ")
-					# puts "DEBUG: Błąd przy wywołaniu #{object.class}##{method_name} z argumentami: #{arg_info}" if ENV['DEBUG']
 					raise "Błąd podczas wywołania #{object.class.name}##{method_name}: #{e.message}"
         end
       end      

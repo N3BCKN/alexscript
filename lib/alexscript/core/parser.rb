@@ -878,31 +878,37 @@ module AlexScript
         AST::RequireRubyStmt.new(library_name, previous_token.line)
       end
 
-      def module_definition
-        expect(:tok_module)
-        module_name = expect(:tok_identifier).lexeme
-        
-        # parent_module to pełna ścieżka do tego modułu
-        parent_module = @current_module_path.empty? ? nil : @current_module_path.join("::")
-        
-        expect(:tok_lcurly)
-        
-        # push current module to path
-        @current_module_path.push(module_name)
-        
-        module_body = if next?(:tok_rcurly)
-                        AST::Stmts.new([], previous_token.line)
-                      else
-                        statements
-                      end
-        
-        # pop after parsing body
-        @current_module_path.pop
-        
-        expect(:tok_rcurly)
-        
-        AST::ModuleDefinition.new(module_name, module_body, previous_token.line, parent_module)
-      end
+    def module_definition
+      expect(:tok_module)
+      module_name = expect(:tok_identifier).lexeme
+      
+      # parent_module to pełna ścieżka do tego modułu
+      parent_module = @current_module_path.empty? ? nil : @current_module_path.join("::")
+      
+      expect(:tok_lcurly)
+      
+      # push current module to path
+      @current_module_path.push(module_name)
+      
+      module_body = if next?(:tok_rcurly)
+                      AST::Stmts.new([], previous_token.line)
+                    else
+                      statements
+                    end
+      
+      # pop after parsing body
+      @current_module_path.pop
+      
+      expect(:tok_rcurly)
+      
+      AST::ModuleDefinition.new(module_name, module_body, previous_token.line, parent_module)
+    end
+
+    def include_module_statement
+    expect(:tok_include)
+    module_name = expect(:tok_identifier).lexeme
+    AST::IncludeModule.new(module_name, previous_token.line)
+  end
 
       def statement
         # predict next token
@@ -959,6 +965,8 @@ module AlexScript
           ruby_call_statement
         elsif token == :tok_ruby_obj
           ruby_obj_call_statement
+        elsif token == :tok_include
+          include_module_statement
         else
           left = expression
           if match(:tok_assign)

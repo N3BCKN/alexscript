@@ -1,41 +1,24 @@
-modul Matematyka {
-    niech PI = 3.14159
-    
-    funkcja dodaj(a, b) {
-        zwroc a + b
+modul Porownywalne {
+    funkcja rowne(inne) {
+        zwroc @wartosc == inne
     }
     
-    klasa Kalkulator {
-        funkcja konstruktor() {
-            niech @wynik = 0
-        }
-        
-        funkcja oblicz(x, y) {
-            zwroc x + y
-        }
+    funkcja wieksze(inne) {
+        zwroc @wartosc > inne
     }
 }
 
-pokazl Matematyka::PI
-pokazl Matematyka::dodaj(10, 20)
-
-niech kalk = Matematyka::Kalkulator.nowy()
-pokazl kalk.oblicz(5, 3)
-
-modul A {
-    niech X = 1
+klasa Liczba {
+    dolacz Porownywalne
     
-    modul B {
-        niech Y = 2
-        
-        klasa Test {
-            funkcja konstruktor() {
-                pokazl "Test z A::B"
-            }
-        }
+    funkcja konstruktor(wartosc) {
+        niech @wartosc = wartosc
     }
 }
 
-pokazl A::X
-pokazl A::B::Y
-niech t = A::B::Test.nowy()
+niech x = Liczba.nowy(5)
+pokazl x.rowne(5)
+pokazl x.wieksze(3)
+pokazl x.wieksze(10)
+
+

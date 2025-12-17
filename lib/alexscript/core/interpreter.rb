@@ -1111,7 +1111,8 @@ module AlexScript
 						methods: {},
 						static_methods: {},
 						static_vars: {},
-						is_abstract: node.is_abstract  # add abstractness flag
+						is_abstract: node.is_abstract,
+						included_modules: []
 					}
 					
 					# iterate through statements in class body
@@ -1126,6 +1127,35 @@ module AlexScript
 						
 						if stmt.is_a?(AST::StaticKeyword)
 							in_static_section = true
+							next
+						end
+
+						# handle include module (dolacz)
+						if stmt.is_a?(AST::IncludeModule)
+							module_def = env.get_module(stmt.module_name)
+							
+							unless module_def
+								Utils.runtime_error("Nie znaleziono modułu #{stmt.module_name}", stmt.line)
+							end
+
+							# add module functions as a class methods 
+							if module_def[:functions]
+								module_def[:functions].each do |func_name, func_data|
+									func_declr, func_env = func_data
+									
+									# skip if method already exists (class methods have priority)
+									next if class_def[:methods].key?(func_name)
+									
+									class_def[:methods][func_name] = {
+										declaration: func_declr,
+										env: func_env,
+										private: false,
+										from_module: stmt.module_name  # track source
+									}
+								end
+							end
+							
+							class_def[:included_modules] << stmt.module_name
 							next
 						end
 						

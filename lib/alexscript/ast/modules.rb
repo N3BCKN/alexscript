@@ -95,5 +95,20 @@ module AlexScript
         ].join("\n")
       end
     end
+
+    # dolacz ModuleName
+    class IncludeModule < Stmt
+      attr_reader :module_name, :line
+
+      def initialize(module_name, line)
+        validate_types([module_name], String)
+        @module_name = module_name
+        @line = line
+      end
+
+      def pretty_print(level = 0)
+        "#{indent(level)}IncludeModule(#{@module_name})"
+      end
+    end
   end
 end
