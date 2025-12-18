@@ -487,7 +487,12 @@ module AlexScript
 							
 							# go through class hierarchy searching for method
 							while current_class_name && !method_info
-								current_class_def = env.get_class(current_class_name)
+								if current_instance[:module_path] && !current_instance[:module_path].empty?
+									current_class_def = env.get_module_class(current_instance[:module_path], current_class_name)
+								else
+									current_class_def = env.get_class(current_class_name)
+								end
+								
 								break unless current_class_def
 								
 								# check if method exists in this class
@@ -1138,19 +1143,26 @@ module AlexScript
 								Utils.runtime_error("Nie znaleziono modułu #{stmt.module_name}", stmt.line)
 							end
 
+							# fetch constants from module
+							if module_def[:constants]
+								module_def[:constants].each do |const_name, const_data|
+									class_env.set_local_var(const_name, const_data[:value], const_data[:type], true)
+								end
+							end
+
 							# add module functions as a class methods 
 							if module_def[:functions]
 								module_def[:functions].each do |func_name, func_data|
-									func_declr, func_env = func_data
+									func_declr, _module_env = func_data
 									
-									# skip if method already exists (class methods have priority)
+									# skip if method already exist
 									next if class_def[:methods].key?(func_name)
 									
 									class_def[:methods][func_name] = {
 										declaration: func_declr,
-										env: func_env,
+										env: class_env,  # ZMIANA: class_env zamiast module_env
 										private: false,
-										from_module: stmt.module_name  # track source
+										from_module: stmt.module_name
 									}
 								end
 							end
@@ -1295,7 +1307,27 @@ module AlexScript
 					module_env = env.new_env
 					module_def[:module_env] = module_env
 					
-					# process module body
+					# NOWE: Najpierw przetwórz stałe i funkcje
+					node.body.stmts.each do |stmt|
+						if stmt.is_a?(AST::VariableDeclaration)
+							var_name = stmt.left.name
+							if var_name.match?(/^[A-Z_]+$/)
+								value_type, value_value = interpret!(stmt.right, module_env)
+								module_def[:constants][var_name] = { type: value_type, value: value_value }
+								# DODAJ: zapisz stałe w module_env żeby były dostępne dla klas
+								module_env.set_local_var(var_name, value_value, value_type, true)
+							else
+								Utils.runtime_error("Tylko stałe (WIELKIE_LITERY) mogą być definiowane w module", stmt.line)
+							end
+						elsif stmt.is_a?(AST::FuncDclr)
+							# function in module
+							module_def[:functions][stmt.name] = [stmt, module_env]
+							# DODAJ: zapisz funkcję w module_env
+							module_env.set_func(stmt.name, [stmt, WeakRef.new(module_env)])
+						end
+					end
+					
+					# POTEM przetwórz klasy (które już mają dostęp do stałych/funkcji)
 					node.body.stmts.each do |stmt|
 						if stmt.is_a?(AST::ClassDefinition)
 							# class inside module
@@ -1308,7 +1340,7 @@ module AlexScript
 								is_abstract: stmt.is_abstract
 							}
 							
-							# process class body like normal
+							# process class body
 							in_private = false
 							in_static = false
 							
@@ -1317,6 +1349,47 @@ module AlexScript
 									in_private = true
 								elsif class_stmt.is_a?(AST::StaticKeyword)
 									in_static = true
+								elsif class_stmt.is_a?(AST::IncludeModule)		
+									included_module_name = class_stmt.module_name
+									included_module_def = nil
+									
+									# First, search in nested_modules of the same parent module (sibling)
+									if module_def[:nested_modules] && module_def[:nested_modules][included_module_name]
+										included_module_def = module_def[:nested_modules][included_module_name]
+									else
+										# If not found locally, search globally
+										included_module_def = env.get_module(included_module_name)
+									end
+									
+									unless included_module_def
+										Utils.runtime_error("Nie znaleziono modułu #{included_module_name}", class_stmt.line)
+									end
+									
+								
+									# Copy functions from module as instance methods
+									if included_module_def[:functions]
+										included_module_def[:functions].each do |func_name, func_data|
+											# Don't overwrite if class already has this method
+											if class_def[:methods].key?(func_name)
+												next
+											end
+											
+											class_def[:methods][func_name] = {
+												declaration: func_data[0],
+												env: func_data[1],  # use env from module
+												private: in_private,
+												from_module: included_module_name
+											}
+										end
+									end
+									
+									# Copy constants from module to module_env
+									if included_module_def[:constants]
+										included_module_def[:constants].each do |const_name, const_data|
+											module_env.set_local_var(const_name, const_data[:value], const_data[:type], true)
+										end
+									end
+																		
 								elsif class_stmt.is_a?(AST::FuncDclr)
 									if in_static
 										class_def[:static_methods][class_stmt.name] = {
@@ -1341,20 +1414,6 @@ module AlexScript
 							
 							module_def[:classes][stmt.name] = class_def
 							
-						elsif stmt.is_a?(AST::FuncDclr)
-							# function in module (acts like static)
-							module_def[:functions][stmt.name] = [stmt, module_env]
-							
-						elsif stmt.is_a?(AST::VariableDeclaration)
-							# constant in module
-							var_name = stmt.left.name
-							if var_name.match?(/^[A-Z_]+$/)
-								value_type, value_value = interpret!(stmt.right, module_env)
-								module_def[:constants][var_name] = { type: value_type, value: value_value }
-							else
-								Utils.runtime_error("Tylko stałe (WIELKIE_LITERY) mogą być definiowane w module", stmt.line)
-							end
-							
 						elsif stmt.is_a?(AST::ModuleDefinition)
 							# nested module - recurse
 							nested_module_def = interpret!(stmt, module_env)
@@ -1367,7 +1426,6 @@ module AlexScript
 						env.define_module(node.name, module_def)
 					end
 					
-					# return module_def (for nested modules to be added to parent)
 					module_def
 				elsif node.is_a? AST::ModuleAccess
 					# Modul::funkcja() or Modul::STALA

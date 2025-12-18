@@ -905,10 +905,10 @@ module AlexScript
     end
 
     def include_module_statement
-    expect(:tok_include)
-    module_name = expect(:tok_identifier).lexeme
-    AST::IncludeModule.new(module_name, previous_token.line)
-  end
+      expect(:tok_include)
+      module_name = expect(:tok_identifier).lexeme
+      AST::IncludeModule.new(module_name, previous_token.line)
+    end
 
       def statement
         # predict next token

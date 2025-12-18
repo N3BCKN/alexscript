@@ -420,8 +420,18 @@ module AlexScript
       # get class from module
       def get_module_class(module_path, class_name)
         module_def = resolve_module_path(module_path)
+        puts "DEBUG get_module_class: resolve_module_path(#{module_path.inspect}) zwrócił: #{module_def ? 'ZNALEZIONO' : 'NIL'}"
         return nil unless module_def
-        module_def[:classes]&.[](class_name)
+        
+        class_def = module_def[:classes]&.[](class_name)
+        puts "DEBUG get_module_class: module_def[:classes] = #{module_def[:classes] ? module_def[:classes].keys.inspect : 'NIL'}"
+        puts "DEBUG get_module_class: class_def dla '#{class_name}' = #{class_def ? 'ZNALEZIONO' : 'NIL'}"
+        
+        if class_def && class_def[:methods]
+          puts "DEBUG get_module_class: class_def[:methods].keys = #{class_def[:methods].keys.inspect}"
+        end
+        
+        class_def
       end
 
       # get function from module
