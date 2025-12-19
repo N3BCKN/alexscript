@@ -116,11 +116,11 @@ module AlexScript
         # check for module path TYLKO jeśli następny token to ::
         # (nie w kontekście wywołania funkcji/metody)
         if next?(:tok_double_colon)
-          module_path = [identifier.lexeme]
+          module_path = [-identifier.lexeme]
 
           while match(:tok_double_colon)
               next_id = expect(:tok_identifier)
-              module_path << next_id.lexeme
+              module_path << -next_id.lexeme
             end
             
             member_name = module_path.pop

@@ -403,35 +403,35 @@ module AlexScript
 
       # resolve path like ["Modul1", "Modul2"] to module_def
       def resolve_module_path(path)
-        return nil if path.empty?
+        return nil if path.nil? || path.empty?
         
-        current_module = get_module(path[0])
-        return nil unless current_module
+        # Initialize cache if not present
+        @module_path_cache ||= {}
         
-        path[1..-1].each do |module_name|
-          return nil unless current_module[:nested_modules]
-          current_module = current_module[:nested_modules][module_name]
-          return nil unless current_module
+        # Check cache first (O(1))
+        cache_key = -path.join("::")  # Also uses optimization #7
+        return @module_path_cache[cache_key] if @module_path_cache.key?(cache_key)
+        
+        # cache miss - perform O(d) resolution
+        module_def = get_module(path[0])
+        return nil unless module_def
+        
+        path[1..-1].each do |name|
+          return nil unless module_def[:nested_modules]
+          module_def = module_def[:nested_modules][name]
+          return nil unless module_def
         end
         
-        current_module
+        # store result for future access
+        @module_path_cache[cache_key] = module_def
+        module_def
       end
 
       # get class from module
       def get_module_class(module_path, class_name)
         module_def = resolve_module_path(module_path)
-        puts "DEBUG get_module_class: resolve_module_path(#{module_path.inspect}) zwrócił: #{module_def ? 'ZNALEZIONO' : 'NIL'}"
         return nil unless module_def
-        
-        class_def = module_def[:classes]&.[](class_name)
-        puts "DEBUG get_module_class: module_def[:classes] = #{module_def[:classes] ? module_def[:classes].keys.inspect : 'NIL'}"
-        puts "DEBUG get_module_class: class_def dla '#{class_name}' = #{class_def ? 'ZNALEZIONO' : 'NIL'}"
-        
-        if class_def && class_def[:methods]
-          puts "DEBUG get_module_class: class_def[:methods].keys = #{class_def[:methods].keys.inspect}"
-        end
-        
-        class_def
+        module_def[:classes]&.[](class_name)
       end
 
       # get function from module

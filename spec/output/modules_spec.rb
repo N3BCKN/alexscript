@@ -568,4 +568,143 @@ RSpec.describe 'Modules', type: :aruba do
       expect(last_command_started).to have_output(/Nie znaleziono modułu/)
     end
   end
+
+  describe 'Module edge cases and advanced features' do
+    it 'handles module constants in nested function calls' do
+      code = <<~CODE
+        modul Math {
+          niech PI = 3.14159
+          
+          funkcja circle_area(r) {
+            zwroc PI * r * r
+          }
+          
+          funkcja cylinder_volume(r, h) {
+            zwroc circle_area(r) * h
+          }
+        }
+        
+        pokazl Math::cylinder_volume(2, 5)
+      CODE
+
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to be_successfully_executed
+      expect(last_command_started).to have_output(/62.8318/)
+    end
+
+    it 'supports class inheritance with included modules' do
+      code = <<~CODE
+        modul Identifiable {
+          funkcja get_id() {
+            zwroc @id
+          }
+        }
+        
+        klasa Base {
+          dolacz Identifiable
+          
+          funkcja konstruktor(id) {
+            niech @id = id
+          }
+        }
+        
+        klasa Extended < Base {
+          funkcja konstruktor(id, name) {
+            super(id)
+            niech @name = name
+          }
+          
+          funkcja get_name() {
+            zwroc @name
+          }
+        }
+        
+        niech obj = Extended.nowy(42, "Test")
+        pokazl obj.get_id()
+        pokazl obj.get_name()
+      CODE
+
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to be_successfully_executed
+      expect(last_command_started).to have_output(/42/)
+      expect(last_command_started).to have_output(/"Test"/)
+    end
+
+    it 'allows modules to include other modules indirectly via classes' do
+      code = <<~CODE
+        modul A {
+          funkcja method_a() {
+            zwroc "A"
+          }
+        }
+        
+        modul B {
+          funkcja method_b() {
+            zwroc "B"
+          }
+        }
+        
+        klasa Mixed {
+          dolacz A
+          dolacz B
+          
+          funkcja konstruktor() {}
+          
+          funkcja combined() {
+            zwroc method_a() + method_b()
+          }
+        }
+        
+        niech m = Mixed.nowy()
+        pokazl m.combined()
+      CODE
+
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to be_successfully_executed
+      expect(last_command_started).to have_output(/"AB"/)
+    end
+
+    # it 'handles deeply nested module structures with classes' do
+    #   code = <<~CODE
+    #     modul Level1 {
+    #       niech CONST1 = 1
+          
+    #       modul Level2 {
+    #         niech CONST2 = 2
+            
+    #         modul Level3 {
+    #           niech CONST3 = 3
+              
+    #           funkcja sum_constants() {
+    #             zwroc CONST3
+    #           }
+              
+    #           klasa Deep {
+    #             funkcja konstruktor() {
+    #               niech @value = CONST3
+    #             }
+                
+    #             funkcja get_value() {
+    #               zwroc @value
+    #             }
+                
+    #             funkcja use_module_function() {
+    #               zwroc sum_constants()
+    #             }
+    #           }
+    #         }
+    #       }
+    #     }
+        
+    #     niech d = Level1::Level2::Level3::Deep.nowy()
+    #     pokazl d.get_value()
+    #     pokazl d.use_module_function()
+    #     pokazl Level1::Level2::Level3::CONST3
+    #   CODE
+
+    #   run_command_and_stop "ruby #{main_file_path} '#{code}'"
+    #   expect(last_command_started).to be_successfully_executed
+    #   expect(last_command_started).to have_output(/3/)
+    # end
+  end
 end

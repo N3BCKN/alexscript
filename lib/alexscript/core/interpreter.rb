@@ -1307,14 +1307,14 @@ module AlexScript
 					module_env = env.new_env
 					module_def[:module_env] = module_env
 					
-					# NOWE: Najpierw przetwórz stałe i funkcje
+					# process constants and functions
 					node.body.stmts.each do |stmt|
 						if stmt.is_a?(AST::VariableDeclaration)
 							var_name = stmt.left.name
 							if var_name.match?(/^[A-Z_]+$/)
 								value_type, value_value = interpret!(stmt.right, module_env)
 								module_def[:constants][var_name] = { type: value_type, value: value_value }
-								# DODAJ: zapisz stałe w module_env żeby były dostępne dla klas
+								# save constants in module_env for classes 
 								module_env.set_local_var(var_name, value_value, value_type, true)
 							else
 								Utils.runtime_error("Tylko stałe (WIELKIE_LITERY) mogą być definiowane w module", stmt.line)
@@ -1322,12 +1322,12 @@ module AlexScript
 						elsif stmt.is_a?(AST::FuncDclr)
 							# function in module
 							module_def[:functions][stmt.name] = [stmt, module_env]
-							# DODAJ: zapisz funkcję w module_env
+							# save function in module_env
 							module_env.set_func(stmt.name, [stmt, WeakRef.new(module_env)])
 						end
 					end
 					
-					# POTEM przetwórz klasy (które już mają dostęp do stałych/funkcji)
+					# process classes that already have access to constants and/or functions
 					node.body.stmts.each do |stmt|
 						if stmt.is_a?(AST::ClassDefinition)
 							# class inside module
@@ -1353,11 +1353,11 @@ module AlexScript
 									included_module_name = class_stmt.module_name
 									included_module_def = nil
 									
-									# First, search in nested_modules of the same parent module (sibling)
+									# first, search in nested_modules of the same parent module (sibling)
 									if module_def[:nested_modules] && module_def[:nested_modules][included_module_name]
 										included_module_def = module_def[:nested_modules][included_module_name]
 									else
-										# If not found locally, search globally
+										# if not found locally, search globally
 										included_module_def = env.get_module(included_module_name)
 									end
 									
@@ -1366,10 +1366,10 @@ module AlexScript
 									end
 									
 								
-									# Copy functions from module as instance methods
+									# copy functions from module as instance methods
 									if included_module_def[:functions]
 										included_module_def[:functions].each do |func_name, func_data|
-											# Don't overwrite if class already has this method
+											# don't overwrite if class already has this method
 											if class_def[:methods].key?(func_name)
 												next
 											end
@@ -1383,7 +1383,7 @@ module AlexScript
 										end
 									end
 									
-									# Copy constants from module to module_env
+									# copy constants from module to module_env
 									if included_module_def[:constants]
 										included_module_def[:constants].each do |const_name, const_data|
 											module_env.set_local_var(const_name, const_data[:value], const_data[:type], true)
@@ -1420,6 +1420,8 @@ module AlexScript
 							module_def[:nested_modules][stmt.name] = nested_module_def
 						end
 					end
+
+					module_def.delete(:body) # delete AST body after processiong
 					
 					# register ONLY top-level modules
 					if node.parent_module.nil?
@@ -1973,7 +1975,6 @@ module AlexScript
 					end
 					
 					# execute safe ruby call
-					# p "module: #{module_path}, method_name: #{method_name}, args: #{args}, file: #{@current_file}"
 					result = Utils::RubyEvaluator.safe_call(module_path, method_name, args, @current_file)
 					[result[:type], result[:value]]
 				elsif node.is_a? AST::RubyCallStmt
