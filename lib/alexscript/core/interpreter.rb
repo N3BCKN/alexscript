@@ -1160,9 +1160,8 @@ module AlexScript
 									
 									class_def[:methods][func_name] = {
 										declaration: func_declr,
-										env: class_env,  # ZMIANA: class_env zamiast module_env
-										private: false,
-										from_module: stmt.module_name
+										env: class_env, 
+										private: false
 									}
 								end
 							end
@@ -1377,8 +1376,7 @@ module AlexScript
 											class_def[:methods][func_name] = {
 												declaration: func_data[0],
 												env: func_data[1],  # use env from module
-												private: in_private,
-												from_module: included_module_name
+												private: in_private
 											}
 										end
 									end

@@ -77,7 +77,14 @@ module AlexScript
         @alexscript_class_name = class_name
         @message = message
         @line = line
-        super(message)
+        
+        # Build full message with line number
+        full_message = if line
+                        "#{message} w linii #{line}"
+                      else
+                        message
+                      end
+        super(full_message)
       end
     end
   end

@@ -438,7 +438,9 @@ module AlexScript
       def get_module_function(module_path, function_name)
         module_def = resolve_module_path(module_path)
         return nil unless module_def
-        module_def[:functions]&.[](function_name)
+        
+        # Pobierz z module_env zamiast z [:functions]
+        module_def[:module_env].get_func(function_name)
       end
 
       # get constant from module

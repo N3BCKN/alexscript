@@ -27,17 +27,12 @@ module AlexScript
 
   def self.display_error(exception, critical = false)
     error_message = if exception.is_a?(Utils::AlexScriptError)
-                      # Format AlexScriptError
-                      location = ""
-                      location += "w linii #{exception.line}" if exception.line
-                      "#{exception.alexscript_class_name}: #{exception.message} #{location}"
+                      "#{exception.alexscript_class_name}: #{exception.to_s}"
                     else
-                      # Fallback for other exceptions
                       exception.to_s
                     end
     
     puts "#{error_message}".colorize(critical ? :red : :light_red)
-    
     exit(1)
   end
 

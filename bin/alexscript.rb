@@ -39,7 +39,13 @@ module AlexScript
   end
 
   def self.display_error(exception, critical = false)
-    puts "#{exception}".colorize(critical ? :red : :light_red)
+    error_message = if exception.is_a?(Utils::AlexScriptError)
+                      "#{exception.alexscript_class_name}: #{exception.to_s}"
+                    else
+                      exception.to_s
+                    end
+    
+    puts "#{error_message}".colorize(critical ? :red : :light_red)
     exit(1)
   end
 
