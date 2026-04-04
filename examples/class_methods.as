@@ -25,7 +25,7 @@ pokazl Pies.ma_metode("szczekaj")  # prawda
 niech pies = Pies.nowy()
 
 # Typ
-pokazl pies.nazwa_klasy()           # "Pies"
+pokazl pies.klasa()           # "Pies"
 pokazl pies.czy_instancja("Zwierze")  # prawda
 
 # Metody i zmienne

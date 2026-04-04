@@ -1,6 +1,6 @@
 module AlexScript
   module AST
-    # klasa <nazwa_klasy> < <klasa_bazowa> { ... }
+    # klasa <klasa> < <klasa_bazowa> { ... }
     class ClassDefinition < Dclr
       attr_reader :name, :parent_class, :body, :line, :is_abstract
 

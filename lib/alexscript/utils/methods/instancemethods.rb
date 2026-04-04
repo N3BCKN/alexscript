@@ -16,7 +16,7 @@ module AlexScript
             "instancja"
           })
 
-          register_method('nazwa_klasy', lambda { |instance|
+          register_method('klasa', lambda { |instance|
             instance[:class_name]
           })
 

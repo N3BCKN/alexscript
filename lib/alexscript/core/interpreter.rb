@@ -118,9 +118,13 @@ module AlexScript
               [:type_string, left_value + format_object_value(right_value).to_s]
             when %i[type_object type_string]
               [:type_string, format_object_value(left_value).to_s + right_value]
-            when %i[type_string type_string], %i[type_string type_int], %i[type_string type_float],
-                %i[type_int type_string], %i[type_float type_string]
-              [:type_string, left_value.to_s + right_value.to_s]
+						when %i[type_string type_string], %i[type_string type_int], %i[type_string type_float],
+                %i[type_int type_string], %i[type_float type_string],
+                %i[type_string type_bool], %i[type_bool type_string]
+              # conversion of bool to string
+              left_str = left_type == :type_bool ? (from_bool_value(left_value) ? "prawda" : "falsz") : left_value.to_s
+              right_str = right_type == :type_bool ? (from_bool_value(right_value) ? "prawda" : "falsz") : right_value.to_s
+              [:type_string, left_str + right_str]
             else
               runtime_error(left_value, right_value, node)
             end

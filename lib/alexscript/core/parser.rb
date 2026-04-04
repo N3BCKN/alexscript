@@ -78,7 +78,38 @@ module AlexScript
         end
 
         if match(:tok_self)
-          return AST::SelfReference.new(previous_token.line)
+          expr = AST::SelfReference.new(previous_token.line)
+          
+          # obsługa method calls i array access na 'sam'
+          loop do
+            if match(:tok_dot)
+              method_name = parse_method_name
+              arguments = []
+              
+              if match(:tok_lparen)
+                unless next?(:tok_rparen)
+                  loop do
+                    arguments << expression
+                    break unless match(:tok_comma)
+                  end
+                end
+                expect(:tok_rparen)
+                expr = AST::MethodCall.new(expr, method_name, arguments, previous_token.line)
+              else
+                # wywołanie metody bez nawiasów (np. sam.klasa)
+                expr = AST::MethodCall.new(expr, method_name, [], previous_token.line)
+              end
+            elsif match(:tok_lsquare)
+              # obsługa sam[key] jeśli kiedyś będzie potrzebne
+              key = expression
+              expect(:tok_rsquare)
+              expr = AST::ObjectOrArrayAccess.new(expr, key, previous_token.line)
+            else
+              break
+            end
+          end
+          
+          return expr
         end
 
         if match(:tok_lparen)
@@ -205,7 +236,7 @@ module AlexScript
               expr = AST::ObjectOrArrayAccess.new(expr, key, identifier.line)
             end
           elsif match(:tok_dot)
-            method_name = expect(:tok_identifier).lexeme
+            method_name = parse_method_name
             arguments = []
             
             if method_name == "nowy" && match(:tok_lparen)
@@ -227,7 +258,9 @@ module AlexScript
                 end
                 expect(:tok_rparen)
                 
-                if identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
+                if expr.is_a?(AST::Identifier) && 
+                   identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && 
+                   !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
                   expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
                   break
                 else
@@ -255,7 +288,7 @@ module AlexScript
 					# nil in method_name place means current method should be used
 					return AST::SuperMethodCall.new(nil, args, token_line)
 				elsif match(:tok_dot)  # super.metoda()
-					method_name = expect(:tok_identifier).lexeme
+					method_name = parse_method_name
 					expect(:tok_lparen)
 					args = arguments
 					expect(:tok_rparen)
@@ -468,7 +501,7 @@ module AlexScript
         loop do
           break unless match(:tok_dot)
 
-          method_name = expect(:tok_identifier).lexeme
+          method_name = parse_method_name
           arguments = []
           if match(:tok_lparen)
             unless next?(:tok_rparen)
@@ -912,6 +945,20 @@ module AlexScript
       
       AST::ModuleDefinition.new(module_name, module_body, previous_token.line, parent_module)
     end
+
+      # metoda pomocnicza do parsowania nazw metod - pozwala na niektóre keywords
+      def parse_method_name
+        # lista keywords które mogą być nazwami metod
+        allowed_method_keywords = [:tok_class, :tok_null, :tok_true, :tok_false, :tok_for, :tok_in]
+        
+        if allowed_method_keywords.include?(peek.token_type)
+          token = advance
+          return token.lexeme
+        else
+          return expect(:tok_identifier).lexeme
+        end
+      end
+    
 
     def include_module_statement
       expect(:tok_include)

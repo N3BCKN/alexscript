@@ -415,11 +415,11 @@ RSpec.describe 'Reflection Methods', type: :aruba do
         expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('instancja')
       end
 
-      it 'returns class name with nazwa_klasy()' do
+      it 'returns class name with klasa()' do
         code = '
           klasa MojaKlasa {}
           niech obj = MojaKlasa.nowy()
-          pokazl obj.nazwa_klasy()
+          pokazl obj.klasa()
         '
         run_command_and_stop "ruby #{main_file_path} '#{code}'"
         expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('MojaKlasa')
@@ -887,7 +887,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
         
         niech auto = Samochod.nowy("Civic", "Honda")
         
-        pokazl auto.nazwa_klasy()
+        pokazl auto.klasa()
         pokazl auto.czy_instancja("Pojazd")
         pokazl auto.zmienne_instancji().dlg
         pokazl auto.metody().zawiera("jedz")
