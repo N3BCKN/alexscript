@@ -83,6 +83,19 @@ module AlexScript
       end
     end
 
+    # Odwołanie do samej instancji: sam
+    class SelfReference < Expr
+      attr_reader :line
+
+      def initialize(line)
+        @line = line
+      end
+
+      def pretty_print(level = 0)
+        "#{indent(level)}SelfReference(sam)"
+      end
+    end
+
     # Przypisanie do zmiennej instancji: @nazwa = wartość
     class InstanceVariableAssignment < Stmt
       attr_reader :name, :value, :line

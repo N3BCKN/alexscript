@@ -51,6 +51,7 @@ module AlexScript
           'rzuc' => :tok_throw,
           'klasa' => :tok_class,
           'super' => :tok_super,
+          'sam' => :tok_self,
           'statyczny' => :tok_static,
           'prywatne' => :tok_private,
           'abstrakcyjna' => :tok_abstract,

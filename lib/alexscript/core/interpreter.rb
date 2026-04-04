@@ -1620,16 +1620,28 @@ module AlexScript
 					
 					result
 				elsif node.is_a? AST::InstanceVariable
-					instance = env.get_instance
-					Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", node.line) unless instance
-					
-					# get instance variable value
-					value = instance[:instance_vars][node.name]
-					if value.nil?
-						[:type_null, Utils::NULL_VALUE]  # uninitialized instance variable returns 'nic'
-					else
-						value
-					end				
+						instance = env.get_instance
+						Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", node.line) unless instance
+						
+						# get instance variable value
+						value = instance[:instance_vars][node.name]
+						if value.nil?
+							[:type_null, Utils::NULL_VALUE]  # uninitialized instance variable returns 'nic'
+						else
+							value
+						end
+					elsif node.is_a? AST::SelfReference
+						instance = env.get_instance
+						
+						unless instance
+							Utils.runtime_error(
+								"Nie można użyć 'sam' poza kontekstem instancji klasy. 'sam' może być użyte tylko w metodach instancji i konstruktorze.",
+								node.line
+							)
+						end
+						
+						[:type_instance, instance]
+				elsif node.is_a? AST::InstanceVariableAssignment		
 				elsif node.is_a? AST::InstanceVariableAssignment
 					instance = env.get_instance
 					Utils.runtime_error("Nie można przypisać zmiennej instancji poza kontekstem instancji", node.line) unless instance

@@ -77,6 +77,10 @@ module AlexScript
           return AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
         end
 
+        if match(:tok_self)
+          return AST::SelfReference.new(previous_token.line)
+        end
+
         if match(:tok_lparen)
           expr = expression
           Utils.parse_error("Oczekiwano ')' po wyrazeniu", previous_token.line) unless match(:tok_rparen)
@@ -777,6 +781,11 @@ module AlexScript
 				end
 				
         left = expression
+
+        # check if not trying to assing to 'sam' (self)
+        if left.is_a?(AST::SelfReference)
+          Utils.parse_error("Nie można przypisać wartości do słowa kluczowego 'sam'", left.line)
+        end
         
         # check if it's an instance variable (@)
         if left.is_a?(AST::InstanceVariable)
@@ -970,6 +979,11 @@ module AlexScript
         else
           left = expression
           if match(:tok_assign)
+            # check if not trying to assing to 'sam' (self)
+            if left.is_a?(AST::SelfReference)
+              Utils.parse_error("Nie można przypisać wartości do słowa kluczowego 'sam'", left.line)
+            end
+
             right = expression
             AST::Assignment.new(left, right, previous_token.line)
           elsif match(:tok_pluseq) || match(:tok_minuseq) ||
