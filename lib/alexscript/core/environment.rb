@@ -269,6 +269,7 @@ module AlexScript
         while current
           if current.variables[key]
             current.variables[key][:value] = value
+            current.variables[key][:type] = type 
             return value
           end
           current = current.parent

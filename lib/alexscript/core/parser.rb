@@ -74,7 +74,42 @@ module AlexScript
         return input_statement if match(:tok_input)
 
         if match(:tok_instance_var)
-          return AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
+          expr = AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
+
+          # Postfix: .method() i [key] na zmiennych instancji — analogicznie do 'sam'
+          loop do
+            if match(:tok_dot)
+              method_name = parse_method_name
+              arguments = []
+
+              if match(:tok_lparen)
+                unless next?(:tok_rparen)
+                  loop do
+                    arguments << expression
+                    break unless match(:tok_comma)
+                  end
+                end
+                expect(:tok_rparen)
+                expr = AST::MethodCall.new(expr, method_name, arguments, previous_token.line)
+              else
+                expr = AST::MethodCall.new(expr, method_name, [], previous_token.line)
+              end
+            elsif match(:tok_lsquare)
+              key = expression
+              expect(:tok_rsquare)
+
+              if match(:tok_assign)
+                value = expression
+                return AST::ObjectOrArrayAssignment.new(expr, key, value, previous_token.line)
+              else
+                expr = AST::ObjectOrArrayAccess.new(expr, key, previous_token.line)
+              end
+            else
+              break
+            end
+          end
+
+          return expr
         end
 
         if match(:tok_self)

@@ -13,15 +13,17 @@ module AlexScript
 
           # TODO: its' redundancy, interpreter pack this again in [type, value] format, find a way to get gid of it
           register_method('pierwszy', lambda { |arr|
-            return [:type_null, Utils::NULL_VALUE] if arr.empty?
+              return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
-            arr.first[:value]
+              element = arr.first
+              [element[:type], element[:value]]
           })
 
           register_method('ostatni', lambda { |arr|
-            return [:type_null, Utils::NULL_VALUE] if arr.empty?
+              return [:type_null, Utils::NULL_VALUE] if arr.empty?
 
-            arr.last[:value]
+              element = arr.last
+              [element[:type], element[:value]]
           })
 
           register_method('indeks', lambda { |arr, element|

@@ -753,10 +753,13 @@ module AlexScript
             element = object_var[:value][key_value]
             [element[:type], element[:value]]
           when :type_object
-            Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow') unless key_type == :type_string
-            value = object_var[:value][key_value]
-            Utils.runtime_error("Niezdefiniowany klucz #{key_value}") unless value
-            [value[:type], value[:value]]
+						Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow') unless key_type == :type_string
+						value = object_var[:value][key_value]
+						if value
+							[value[:type], value[:value]]
+						else
+							[:type_null, Utils::NULL_VALUE]
+						end
           else
             Utils.runtime_error("Wyrazenie #{get_access_path(node, env)} nie jest ani tablica ani obiektem", node.line)
           end
@@ -1071,7 +1074,7 @@ module AlexScript
 								[result_type, result]
 							end
 						rescue StandardError => e
-							Utils.runtime_error("Blad podczas wykonywania metody #{node.method_name}: #{e.message}")
+							Utils.runtime_error("Blad podczas wykonywania metody #{node.method_name}: #{e.message}", node.line)
 						end
 					end
         elsif node.is_a? AST::MethodCallStmt
@@ -1200,6 +1203,8 @@ module AlexScript
 							in_static_section = false  # reset flag
 						end
 					end
+
+					class_def[:class_env] = class_env
 					
 					# save class definition in environment
 					env.define_class(node.name, class_def)

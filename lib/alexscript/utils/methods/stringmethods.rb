@@ -43,6 +43,11 @@ module AlexScript
             [:type_bool, str.empty? ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
 
+          register_method('wycinek', lambda { |str, start, koniec|
+              Utils.runtime_error('Indeks poza zakresem') if start < 0 || koniec >= str.length
+              str[start..koniec]
+          })
+
           register_method('usun', lambda { |str, chars|
             str.delete!(chars)
           })

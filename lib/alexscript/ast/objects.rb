@@ -91,7 +91,7 @@ module AlexScript
         # unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
         #   raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
         # end
-        validate_types([array], [Identifier, ObjectOrArrayAccess], 'index')
+        validate_types([array], [Identifier, ObjectOrArrayAccess, InstanceVariable], 'index')
         validate_types([index], [Expr], 'index')
         @array = array
         @index = index
@@ -114,7 +114,7 @@ module AlexScript
 
       def initialize(array, index, value, line)
         # can be identifier or other ObjectOrArrayAssignment
-        validate_types([array], [Identifier, ObjectOrArrayAccess], 'index')
+        validate_types([array], [Identifier, ObjectOrArrayAccess, InstanceVariable], 'index')
         validate_types([index], [Expr], 'index')
         validate_types([value], [Expr], 'value')
         @array = array

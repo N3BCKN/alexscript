@@ -93,7 +93,12 @@ module AlexScript
           when TrueClass, FalseClass then :type_bool
           when NilClass then :type_null
           when Array then :type_array
-          when Hash then :type_object
+          when Hash
+            if value.key?(:class_name) && value.key?(:instance_vars)
+              :type_instance
+            else
+              :type_object
+            end
           else raise "Unknown type for value: #{value}"
           end
         end
