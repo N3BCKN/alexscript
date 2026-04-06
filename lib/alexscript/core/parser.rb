@@ -755,6 +755,14 @@ module AlexScript
         AST::ExitStmt.new(message, previous_token.line)
       end
 
+      # <debug_statement> ::= "debug" "()"
+      def debug_statement
+        advance              # consume 'debug' keyword
+        expect(:tok_lparen)  # (
+        expect(:tok_rparen)  # )
+        AST::DebugBreak.new(previous_token.line)
+      end
+
       # <exit_statement> ::= "wczytaj"  "(" <expression>? ")"
       def input_statement
         prompt = nil
@@ -1056,6 +1064,8 @@ module AlexScript
           ruby_call_statement
         elsif token == :tok_ruby_obj
           ruby_obj_call_statement
+        elsif token == :tok_debug
+          debug_statement
         elsif token == :tok_include
           include_module_statement
         else

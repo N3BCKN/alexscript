@@ -52,5 +52,18 @@ module AlexScript
         ].join("\n")
       end
     end
+
+    # debug()
+    class DebugBreak < Stmt
+      attr_reader :line
+
+      def initialize(line)
+        @line = line
+      end
+
+      def pretty_print(level = 0)
+        "#{indent(level)}DebugBreak(line: #{@line})"
+      end
+    end
   end
 end

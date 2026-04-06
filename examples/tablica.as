@@ -41,6 +41,8 @@ pokazl arr.indeks(1234)
 
 pokazl arr.odwroc()
 
+debug()
+
 arr << '1'
 
 pokazl arr.suma()

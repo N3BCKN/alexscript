@@ -20,6 +20,9 @@ module AlexScript
       def interpret!(node, env)
         Utils::ContextTracker.current_line = node.line if node.respond_to?(:line) # always set line first
 
+				# Debugger stepping hook
+    		Utils::Debugger.check(node, env, self) if Utils::Debugger.stepping?
+
         if node.is_a? AST::Int
           [:type_int, node.value.to_i]
         elsif node.is_a? AST::Flt
@@ -1083,6 +1086,8 @@ module AlexScript
           interpret!(node.expression, env)
         elsif node.is_a? AST::ReturnStatement
           raise Utils::ReturnError.new(interpret!(node.value, env))
+				elsif node.is_a? AST::DebugBreak
+    			Utils::Debugger.activate!(node, env, self)
         elsif node.is_a? AST::ExitStmt
           if node.code
             exit(node.code.value)

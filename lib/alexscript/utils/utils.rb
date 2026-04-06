@@ -9,4 +9,7 @@ require_relative './ruby_evaluator'
 require_relative './methods/methods'
 require_relative './exception_class_factory'
 require_relative './call_stack_tracker'
+require_relative './source_cache'
+require_relative './debugger'
+
 

@@ -59,7 +59,8 @@ module AlexScript
           'ruby_obj' => :tok_ruby_obj,
           'require_ruby' => :tok_require_ruby,
           'modul' => :tok_module,
-          'dolacz' => :tok_include
+          'dolacz' => :tok_include,
+          'debug' => :tok_debug
         }.freeze
         
         # initialize ASCII character type lookup tables for fast character classification
