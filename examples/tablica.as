@@ -19,6 +19,8 @@ pokazl arr.odwroc()
 pokazl arr.zawiera(1)
 pokazl arr.zawiera(-350000)
 
+debug()
+
 
 arr.usun(0)
 pokazl arr
@@ -40,8 +42,6 @@ pokazl arr.indeks(23121.11)
 pokazl arr.indeks(1234)
 
 pokazl arr.odwroc()
-
-debug()
 
 arr << '1'
 

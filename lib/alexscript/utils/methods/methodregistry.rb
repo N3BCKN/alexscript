@@ -47,7 +47,7 @@ module AlexScript
           # register this method only when object doesn't have it already
           unless @methods.key?('metody')
             register_method('metody', lambda { |obj|
-              @methods.keys
+              alex_string_array(@methods.keys.sort)
             })
           end
           

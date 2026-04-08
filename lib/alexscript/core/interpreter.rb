@@ -208,14 +208,17 @@ module AlexScript
             else
               runtime_error(left_value, right_value, node)
             end
-          elsif node.op.token_type == :tok_append # <<
-            if left_type == :type_array
-              left_value << { type: right_type, value: right_value }
-              env.set_var(node.left.name, left_value, left_type)
-              [:type_array, left_value]
-            else
-              Utils.runtime_error('Operator << moze byc uzyty tylko z tablicami')
-            end
+					elsif node.op.token_type == :tok_append # <<
+						if left_type == :type_array
+							left_value << { type: right_type, value: right_value }
+							# Only update variable in env if left side is an identifier (a variable)
+							if node.left.is_a?(AST::Identifier)
+								env.set_var(node.left.name, left_value, left_type)
+							end
+							[:type_array, left_value]
+						else
+							Utils.runtime_error('Operator << moze byc uzyty tylko z tablicami')
+						end
           elsif node.op.token_type == :tok_smalleroreq # <=
             case [left_type, right_type]
             when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
