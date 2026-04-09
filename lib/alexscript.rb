@@ -7,9 +7,13 @@ require 'byebug'
 require_relative('alexscript/core/core')
 require_relative('alexscript/ast/ast')
 require_relative('alexscript/utils/utils')
+require_relative('alexscript/native/native')
 
 module AlexScript
-  VERSION = '0.6.15'
+  VERSION = '0.7.15'
+
+  #load standard libraries
+  Native.setup!
 
   def self.start
     begin

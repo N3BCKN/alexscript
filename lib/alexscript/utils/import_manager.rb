@@ -6,14 +6,6 @@ module AlexScript
   module Utils
     class ImportManager
 
-      # array of paths to standard libraries with the priority of import 
-      # and no need to specify path, eg: import('mat') => import('lib/std/libs/mat.as')
-      STANDARD_LIBRARIES = {
-        'mat' => File.expand_path('lib/std/libs/mat.as'),
-        'socket' => File.expand_path('lib/std/libs/socket.as'),
-        'czas' => File.expand_path('lib/std/libs/czas.as')
-      }
-
       def initialize
         @imported_files = Set.new
         @current_import_stack = []
@@ -21,12 +13,24 @@ module AlexScript
       end
 
       def import_file(file_path, current_file = nil, parent_env = nil)
-        if STANDARD_LIBRARIES.key?(file_path)
-          file_path = STANDARD_LIBRARIES[file_path]
+        # ── Native library fast path ──
+        # Check if this is a registered native library (e.g. "czas", "mat")
+        # before attempting to parse any .as files.
+
+        if NativeClassRegistry.native_library?(file_path)
+          # Use the raw name as cache key for native libs
+          return @environments[file_path] if @imported_files.include?(file_path)
+
+          env = Core::Environment.new(parent_env)
+          NativeClassRegistry.load_library(file_path, env)
+
+          @environments[file_path] = env
+          @imported_files.add(file_path)
+          return env
         end
 
         absolute_path = resolve_path(file_path, current_file)
-        Utils::ContextTracker.current_file = absolute_path
+        ContextTracker.current_file = absolute_path
         check_circular_import(absolute_path)
         return @environments[absolute_path] if @imported_files.include?(absolute_path)
 
@@ -38,7 +42,7 @@ module AlexScript
           parser = Core::Parser.new(lexer.tokenize!)
           interpreter = Core::Interpreter.new
 
-          env = Core::Environment.new(parent_env) # new env with parrent
+          env = Core::Environment.new(parent_env)
       
           interpreter.set_current_file(absolute_path)
           interpreter.interpret_ast(parser.parse!, env)

@@ -610,7 +610,7 @@ module AlexScript
 						unless class_method_called
 							var = env.get_var(node.name)
 					
-							Utils.runtime_error("Niepoprawna wartosc funkcji dla #{node.name}") if var && !validate_function_value(var)
+							Utils.runtime_error("Niepoprawna wartosc funkcji dla #{node.name}", node.line) if var && !validate_function_value(var)
 					
 							if var && var[:type] == :type_function
 								# if it's a variable containing function
@@ -619,7 +619,7 @@ module AlexScript
 							else
 								# if not, just check for a regular function
 								func = env.get_func(node.name)
-								Utils.runtime_error("Funkcja #{node.name} nie zostala zadeklarowana w obecnym zakresie") unless func
+								Utils.runtime_error("Funkcja #{node.name} nie zostala zadeklarowana w obecnym zakresie", node.line) unless func
 								# fetch function declaration
 								func_declr = func[0] # entire func declaration
 								func_env   = func[1] # function env
@@ -840,6 +840,33 @@ module AlexScript
 							# if no built-in method, continue with normal static methods
 						end
 						
+						# Native static method dispatch
+            if class_def[:native]
+              native_static = class_def[:native_static_methods]
+              if native_static && native_static.key?(node.method_name)
+                arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+                begin
+                  result = Utils::NativeClassRegistry.dispatch_static_method(
+                    class_name, node.method_name, arguments
+                  )
+                rescue => e
+                  Utils.runtime_error(
+                    "Błąd metody statycznej #{node.method_name} klasy #{class_name}: #{e.message}",
+                    node.line
+                  )
+                end
+
+                return result
+              end
+
+              # If not found as native static, fall through to error
+              Utils.runtime_error(
+                "Nieznana metoda statyczna '#{node.method_name}' w klasie #{class_name}",
+                node.line
+              )
+            end
+
 						# look for static method in class hierarchy
 						method_info = nil
 						current_class_def = class_def
@@ -961,6 +988,27 @@ module AlexScript
 							
 							return [result_type, result]
 						end
+
+
+						# Native instance method dispatch
+            if object_value[:class_def] && object_value[:class_def][:native]
+              native_methods = object_value[:class_def][:native_methods]
+              if native_methods && native_methods.key?(node.method_name)
+                arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+                begin
+                  result = Utils::NativeClassRegistry.dispatch_instance_method(
+                    object_value, node.method_name, arguments
+                  )
+                rescue => e
+                  Utils.runtime_error(
+                    "Błąd metody #{node.method_name} klasy #{object_value[:class_name]}: #{e.message}",
+                    node.line)
+                end
+
+                return result
+              end
+            end
 						
 						# find method in class hierarchy
 						method_result = env.find_method_in_hierarchy(object_value, node.method_name)
@@ -1226,6 +1274,26 @@ module AlexScript
 
 					# check if class is not abstract
   				Utils.runtime_error("Nie można utworzyć instancji klasy abstrakcyjnej #{node.class_name}", node.line) if class_def[:is_abstract]
+
+					# Native class constructor 
+          if class_def[:native]
+            arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+            begin
+              native_obj = Utils::NativeClassRegistry.dispatch_constructor(node.class_name, arguments)
+            rescue => e
+              Utils.runtime_error("Błąd konstruktora natywnego #{node.class_name}: #{e.message}", node.line)
+            end
+
+            instance = {
+              class_name: node.class_name,
+              instance_vars: {},
+              class_def: class_def,
+              __native__: native_obj
+            }
+
+            return [:type_instance, instance]
+          end
 					
 					# create new instance
 					instance = {
@@ -1256,7 +1324,7 @@ module AlexScript
 						
 						if arguments.size < min_args
 							Utils.runtime_error(
-								"Konstruktor klasy #{node.class_name} oczekiwała,  minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+								"Konstruktor klasy #{node.class_name} oczekiwał minimum #{min_args} argumentów, otrzymała #{arguments.size}",
 								node.line
 							)
 						end
@@ -1264,7 +1332,7 @@ module AlexScript
 						unless rest_param
 							if arguments.size > max_args
 								Utils.runtime_error(
-									"Konstruktor klasy #{node.class_name} oczekiwała,  maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+									"Konstruktor klasy #{node.class_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
 									node.line
 								)
 							end
@@ -1485,6 +1553,26 @@ module AlexScript
 					if class_def[:is_abstract]
 						Utils.runtime_error("Nie można utworzyć instancji klasy abstrakcyjnej #{class_name}", node.line)
 					end
+
+					# native class constructor (in module)
+          if class_def[:native]
+            arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+            begin
+              native_obj = Utils::NativeClassRegistry.dispatch_constructor(class_name, arguments)
+            rescue => e
+              Utils.runtime_error("Błąd konstruktora natywnego #{class_name}: #{e.message}", node.line)
+            end
+
+            instance = {
+              class_name: class_name,
+              module_path: module_path,
+              instance_vars: {},
+              class_def: class_def,
+              __native__: native_obj
+            }
+            return [:type_instance, instance]
+          end
 					
 					# create instance like normal
 					instance = {
@@ -1902,6 +1990,32 @@ module AlexScript
 						
 						return [result_type, result]
 					end
+
+					# ── Native static method dispatch ──
+            if class_def[:native]
+              native_static = class_def[:native_static_methods]
+              if native_static && native_static.key?(node.method_name)
+                arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+                begin
+                  result = Utils::NativeClassRegistry.dispatch_static_method(
+                    node.class_name, node.method_name, arguments
+                  )
+                rescue => e
+                  Utils.runtime_error(
+                    "Błąd metody statycznej #{node.method_name} klasy #{node.class_name}: #{e.message}",
+                    node.line
+                  )
+                end
+
+                return result
+              end
+
+              Utils.runtime_error(
+                "Nieznana metoda statyczna '#{node.method_name}' w klasie #{node.class_name}",
+                node.line
+              )
+            end
 					
 					# look for static method in whole class hierarchy
 					method_info = nil

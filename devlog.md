@@ -91,5 +91,5 @@ first fully working version with basic structures:
 ### 0.6.15
 * add build in class and instance methods
 
-### 0.7.16
+### 0.7.15
 * implement debugger 

@@ -16,13 +16,17 @@ require 'colorize'
 require 'slop'
 require 'byebug' if ENV['DEBUG']
 
+require_relative '../lib/alexscript/native/native'
 require_relative '../lib/alexscript/core/core'
 require_relative '../lib/alexscript/ast/ast'
 require_relative '../lib/alexscript/utils/utils'
 
 
 module AlexScript
-  VERSION = '0.6.15'
+  VERSION = '0.7.15'
+
+  #load standard libraries
+  Native.setup!
 
   def self.start
     begin

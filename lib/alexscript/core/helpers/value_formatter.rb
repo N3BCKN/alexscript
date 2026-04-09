@@ -22,6 +22,12 @@ module AlexScript
             format_array_value(value)
           when :type_object
             format_object_value(value)
+          when :type_instance
+            if value[:__native__]
+              Utils::NativeClassRegistry.format_native_instance(value)
+            else
+              "{#{value[:class_name]}}"
+            end
           else
             value
           end
