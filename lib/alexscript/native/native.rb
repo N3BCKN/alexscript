@@ -3,6 +3,8 @@
 require_relative './czas'
 require_relative './mat'
 require_relative './plik'
+require_relative './json'
+require_relative './csv'
 
 module AlexScript
   module Native
@@ -11,9 +13,11 @@ module AlexScript
       CzasLibrary.register
       MatLibrary.register
       PlikLibrary.register
+      JsonLibrary.register
+      CsvLibrary.register
 
       # Register importable library names
-      # Maps importuj("czas") → register Czas class into caller's environment
+      # Maps import("czas") → register Czas class into caller's environment
       Utils::NativeClassRegistry.register_library('czas') do |env|
         Utils::NativeClassRegistry.register_into_env('Czas', env)
       end
@@ -24,6 +28,14 @@ module AlexScript
 
       Utils::NativeClassRegistry.register_library('plik') do |env|
         Utils::NativeClassRegistry.register_into_env('Plik', env)
+      end
+
+      Utils::NativeClassRegistry.register_library('json') do |env|
+        Utils::NativeClassRegistry.register_into_env('Json', env)
+      end
+ 
+      Utils::NativeClassRegistry.register_library('csv') do |env|
+        Utils::NativeClassRegistry.register_into_env('Csv', env)
       end
     end
   end

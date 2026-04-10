@@ -1,7 +1,8 @@
-importuj("czas")
+klasa Test { 
+  funkcja moja_funkcja(){
 
+  }
 
-niech x = Czas.nowy 
+}
 
-pokazl x 
-
+pokazl Test.metody()

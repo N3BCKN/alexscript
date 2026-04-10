@@ -3,10 +3,13 @@
 # lib/alexscript/utils/native_class_registry.rb
 #
 # Central registry for native (Ruby-backed) AlexScript classes.
-# Native classes bypass AST interpretation entirely — their methods
-# are Ruby lambdas called directly by the interpreter, giving 5-10x
-# speedup over the old ruby()/ruby_obj() bridge.
+# Native classes bypass AST interpretation — their methods are Ruby lambdas
+# called directly by the interpreter.
 #
+# Key design: native methods are injected into the standard [:methods] and
+# [:static_methods] hashes with a :native_lambda flag. This makes native
+# classes fully compatible with inheritance, introspection, and super calls
+# without any changes to environment.rb or introspection code.
 # Architecture:
 #   NativeClassRegistry — singleton registry + dispatch
 #   NativeTypeConverter — AS<->Ruby type conversion (zero allocation for common cases)
@@ -22,10 +25,7 @@
 module AlexScript
   module Utils
     # ─── Type Converter ────────────────────────────────────────────
-    # Stateless, no allocations for primitives.
     module NativeTypeConverter
-      # Convert AS [type, value] → Ruby value
-      # Hot path: called once per argument on every native method call.
       def self.to_ruby(type, value)
         case type
         when :type_int, :type_float
@@ -37,7 +37,6 @@ module AlexScript
         when :type_null
           nil
         when :type_instance
-          # Extract the wrapped Ruby object if this is a native instance
           value[:__native__] || value
         when :type_array
           value.map { |elem| to_ruby(elem[:type], elem[:value]) }
@@ -50,8 +49,6 @@ module AlexScript
         end
       end
 
-      # Convert Ruby value → AS [type, value]
-      # Used for return values from native methods.
       def self.from_ruby(value)
         case value
         when Integer  then [:type_int, value]
@@ -82,24 +79,13 @@ module AlexScript
 
     # ─── Native Class Registry ─────────────────────────────────────
     class NativeClassRegistry
-      # Class-level state (singleton pattern matching CallStackTracker etc.)
-      @classes = {}          # AS class name => class_info hash
-      @ruby_class_map = {}   # Ruby class => AS class name (for auto-wrapping returns)
-      @class_defs = {}       # AS class name => pre-built class_def (cached)
-      @libraries = {}        # library name => loader proc
+      @classes = {}
+      @ruby_class_map = {}
+      @class_defs = {}
+      @libraries = {}
 
       class << self
-        # ── Class Registration ──────────────────────────────────
 
-        # Define a native class.
-        #
-        # @param name [String] AlexScript class name (e.g. 'Czas')
-        # @param ruby_class [Class, nil] Ruby class for auto-wrapping returns
-        # @param constructor [Proc] called with Ruby-converted args, returns Ruby object
-        # @param methods [Hash<String, Proc>] instance methods: name => lambda(native_obj, *args)
-        # @param static_methods [Hash<String, Proc>] class methods: name => lambda(*args)
-        # @param static_vars [Hash<String, Object>] class constants: name => Ruby value
-        # @param parent [String, nil] parent class name for inheritance
         def define_class(name, ruby_class: nil, constructor:, methods: {},
                          static_methods: {}, static_vars: {}, parent: nil)
           class_info = {
@@ -114,43 +100,33 @@ module AlexScript
 
           @classes[name] = class_info
           @ruby_class_map[ruby_class] = name if ruby_class
-
-          # Pre-build and cache the interpreter-compatible class_def
           @class_defs[name] = build_class_def(class_info)
 
           class_info
         end
 
-        # Check if a class is registered
         def registered?(name)
           @classes.key?(name)
         end
 
-        # Get class info
         def get(name)
           @classes[name]
         end
 
-        # Get pre-built class_def (interpreter-compatible)
         def get_class_def(name)
           @class_defs[name]
         end
 
         # ── Library Registration ────────────────────────────────
 
-        # Register a native library loader.
-        # @param name [String] library name used in importuj("name")
-        # @param block [Proc] called with (env) to register classes
         def register_library(name, &block)
           @libraries[name] = block
         end
 
-        # Check if a library name is a native library
         def native_library?(name)
           @libraries.key?(name)
         end
 
-        # Load a native library into an environment
         def load_library(name, env)
           loader = @libraries[name]
           return false unless loader
@@ -158,7 +134,6 @@ module AlexScript
           true
         end
 
-        # Register a native class into an AS Environment
         def register_into_env(name, env)
           class_def = @class_defs[name]
           return false unless class_def
@@ -167,11 +142,10 @@ module AlexScript
         end
 
         # ── Dispatch ────────────────────────────────────────────
-        # These are the hot paths called by the interpreter.
 
-        # Dispatch native constructor. Returns the raw Ruby object.
         def dispatch_constructor(class_name, as_args)
           class_info = @classes[class_name]
+          return nil unless class_info
 
           if as_args.empty?
             class_info[:constructor].call
@@ -181,55 +155,42 @@ module AlexScript
           end
         end
 
-        # Dispatch native instance method. Returns AS [type, value].
+        def dispatch_native_lambda(native_lambda, native_obj, as_args)
+          if as_args.empty?
+            result = native_lambda.call(native_obj)
+          else
+            ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
+            result = native_lambda.call(native_obj, *ruby_args)
+          end
+          convert_return(result)
+        end
+
+        def dispatch_static_lambda(native_lambda, as_args)
+          if as_args.empty?
+            result = native_lambda.call
+          else
+            ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
+            result = native_lambda.call(*ruby_args)
+          end
+          convert_return(result)
+        end
+
+        # Keep old dispatch methods for backward compat
         def dispatch_instance_method(instance, method_name, as_args)
           native_obj = instance[:__native__]
           class_info = @classes[instance[:class_name]]
           lambda_fn = class_info[:methods][method_name]
-
-          # Fast path for zero-arg methods (getters) — no array allocation
-          if as_args.empty?
-            result = lambda_fn.call(native_obj)
-          else
-            ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
-            result = lambda_fn.call(native_obj, *ruby_args)
-          end
-
-          convert_return(result)
+          dispatch_native_lambda(lambda_fn, native_obj, as_args)
         end
 
-        # Dispatch native static method. Returns AS [type, value].
         def dispatch_static_method(class_name, method_name, as_args)
           class_info = @classes[class_name]
           lambda_fn = class_info[:static_methods][method_name]
-
-          if as_args.empty?
-            result = lambda_fn.call
-          else
-            ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
-            result = lambda_fn.call(*ruby_args)
-          end
-
-          convert_return(result)
-        end
-
-        # Check if a native class has a given instance method
-        def has_instance_method?(class_name, method_name)
-          info = @classes[class_name]
-          info && info[:methods].key?(method_name)
-        end
-
-        # Check if a native class has a given static method
-        def has_static_method?(class_name, method_name)
-          info = @classes[class_name]
-          info && info[:static_methods].key?(method_name)
+          dispatch_static_lambda(lambda_fn, as_args)
         end
 
         # ── Instance Wrapping ───────────────────────────────────
 
-        # Create a new AS instance wrapping a Ruby object.
-        # Used when a native method returns an object that maps
-        # to a known native class (e.g. Time → Czas).
         def wrap_native_object(as_class_name, ruby_obj)
           class_def = @class_defs[as_class_name]
           return nil unless class_def
@@ -243,7 +204,6 @@ module AlexScript
           [:type_instance, instance]
         end
 
-        # Format a native instance for display (pokazl)
         def format_native_instance(instance)
           native_obj = instance[:__native__]
           return instance.to_s unless native_obj
@@ -256,9 +216,6 @@ module AlexScript
           end
         end
 
-        # ── Cleanup ─────────────────────────────────────────────
-
-        # Reset all registrations (useful for testing)
         def reset!
           @classes.clear
           @ruby_class_map.clear
@@ -266,15 +223,9 @@ module AlexScript
           @libraries.clear
         end
 
-        private
-
-        # Convert a Ruby return value to AS [type, value].
-        # Checks if the value is a known native class first.
         def convert_return(ruby_value)
-          # Fast nil check
           return [:type_null, NULL_VALUE] if ruby_value.nil?
 
-          # Check if return is a known native class → auto-wrap
           as_name = @ruby_class_map[ruby_value.class]
           if as_name
             return wrap_native_object(as_name, ruby_value)
@@ -283,31 +234,52 @@ module AlexScript
           NativeTypeConverter.from_ruby(ruby_value)
         end
 
-        # Build an interpreter-compatible class_def hash from class_info.
-        # Called once at registration time, result is cached.
+        private
+
+        # Build interpreter-compatible class_def.
+        # Native methods are injected into [:methods] / [:static_methods]
+        # with :native_lambda flag — visible to inheritance + introspection.
         def build_class_def(class_info)
-          # Convert static_vars from Ruby values to AS format
           converted_static_vars = {}
           class_info[:static_vars].each do |name, ruby_value|
             r = NativeTypeConverter.from_ruby(ruby_value)
             converted_static_vars[name] = { type: r[0], value: r[1] }
           end
 
+          # Inject native instance methods into [:methods]
+          methods = {}
+          class_info[:methods].each do |name, lambda_fn|
+            methods[name] = {
+              declaration: nil,
+              env: nil,
+              private: false,
+              native_lambda: lambda_fn
+            }
+          end
+
+          # Inject native static methods into [:static_methods]
+          static_methods = {}
+          class_info[:static_methods].each do |name, lambda_fn|
+            static_methods[name] = {
+              declaration: nil,
+              env: nil,
+              private: false,
+              native_lambda: lambda_fn
+            }
+          end
+
           {
             parent: class_info[:parent],
             body: nil,
-            methods: {},               # No AST-based methods
-            static_methods: {},         # No AST-based static methods
+            methods: methods,
+            static_methods: static_methods,
             static_vars: converted_static_vars,
             is_abstract: false,
             included_modules: [],
             class_env: nil,
 
-            # Native-specific fields
             native: true,
             native_constructor: class_info[:constructor],
-            native_methods: class_info[:methods],
-            native_static_methods: class_info[:static_methods],
             native_ruby_class: class_info[:ruby_class]
           }
         end

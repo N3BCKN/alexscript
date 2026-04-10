@@ -516,91 +516,123 @@ module AlexScript
 								current_class_name = current_class_def[:parent]
 							end
 							
-							if method_info
+if method_info
 								class_method_called = true
-								# this is a method call from class hierarchy (can be private)
-								
-								# evaluate arguments
-								arguments = node.arguments.map do |arg|
-									if arg.is_a?(AST::Identifier)
-										var = env.get_var(arg.name)
-										if var
-											[var[:type], var[:value]]
+
+								# Native method called from inside instance (without sam.)
+								if method_info[:native_lambda]
+									arguments = node.arguments.map do |arg|
+										if arg.is_a?(AST::Identifier)
+											var = env.get_var(arg.name)
+											if var
+												[var[:type], var[:value]]
+											else
+												func_value = env.get_func_as_value(arg.name)
+												Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
+												func_value
+											end
 										else
-											func_value = env.get_func_as_value(arg.name)
-											Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
-											func_value
+											interpret!(arg, env)
 										end
-									else
-										interpret!(arg, env)
 									end
-								end
-								
-								# handle parameters, similar to regular functions
-								func_declr = method_info[:declaration]
-								func_env = method_info[:env]
-								
-								# rest type parameters
-								rest_param = func_declr.params.find(&:rest?)
-								min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
-								max_args = rest_param ? Float::INFINITY : func_declr.params.size
-								
-								# validate argument count
-								if node.arguments.size < min_args
-									Utils.runtime_error(
-										"Metoda #{node.name} oczekiwala minimum #{min_args} argumentów, otrzymała #{node.arguments.size}"
-									)
-								end
-								
-								unless rest_param
-									if node.arguments.size > max_args
+
+									native_obj = current_instance[:__native__]
+									unless native_obj
+										Utils.runtime_error("Brak obiektu natywnego — upewnij się, że konstruktor wywołuje super()", node.line)
+									end
+
+									begin
+										result = Utils::NativeClassRegistry.dispatch_native_lambda(
+											method_info[:native_lambda], native_obj, arguments
+										)
+									rescue => e
+										Utils.runtime_error("Błąd metody #{node.name}: #{e.message}", node.line)
+									end
+								else
+									# this is a method call from class hierarchy (can be private)
+									
+									# evaluate arguments
+									arguments = node.arguments.map do |arg|
+										if arg.is_a?(AST::Identifier)
+											var = env.get_var(arg.name)
+											if var
+												[var[:type], var[:value]]
+											else
+												func_value = env.get_func_as_value(arg.name)
+												Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
+												func_value
+											end
+										else
+											interpret!(arg, env)
+										end
+									end
+									
+									# handle parameters, similar to regular functions
+									func_declr = method_info[:declaration]
+									func_env = method_info[:env]
+									
+									# rest type parameters
+									rest_param = func_declr.params.find(&:rest?)
+									min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
+									max_args = rest_param ? Float::INFINITY : func_declr.params.size
+									
+									# validate argument count
+									if node.arguments.size < min_args
 										Utils.runtime_error(
-											"Metoda #{node.name} oczekiwala maksymalnie #{max_args} argumentów, otrzymała #{node.arguments.size}"
+											"Metoda #{node.name} oczekiwala minimum #{min_args} argumentów, otrzymała #{node.arguments.size}"
 										)
 									end
-								end
-								
-								# create new environment for method
-								new_func_env = func_env.new_env
-								new_func_env.set_instance(current_instance)
-								
-								# handle regular parameters
-								rest_idx = func_declr.params.index(&:rest?)
-								rest_position = rest_idx || func_declr.params.size
-								
-								normal_params = func_declr.params.reject(&:rest?)
-								normal_params.each_with_index do |param, idx|
-									if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
-										arg_val = arguments[idx]
-										new_func_env.set_local_var(param.name, arg_val[1], arg_val[0])
-									else
-										if param.has_default?
-											default_value = interpret!(param.default_value, func_env)
-											new_func_env.set_local_var(param.name, default_value[1], default_value[0])
-										else
-											Utils.runtime_error("Brakujacy argument #{param.name}")
+									
+									unless rest_param
+										if node.arguments.size > max_args
+											Utils.runtime_error(
+												"Metoda #{node.name} oczekiwala maksymalnie #{max_args} argumentów, otrzymała #{node.arguments.size}"
+											)
 										end
 									end
-								end
-								
-								# handle rest parameter
-								if rest_param
-									rest_args = arguments[rest_position..-1] || []
-									rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
-									new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
-								end
-								
-								# execute method body
-								Utils::CallStackTracker.push(:function, node.name, @current_file, node.line) # for exception handler
-								begin
-									Utils::ContextTracker.track_method_call(node.name) do
-										interpret!(func_declr.body_statement, new_func_env)
+									
+									# create new environment for method
+									new_func_env = func_env.new_env
+									new_func_env.set_instance(current_instance)
+									
+									# handle regular parameters
+									rest_idx = func_declr.params.index(&:rest?)
+									rest_position = rest_idx || func_declr.params.size
+									
+									normal_params = func_declr.params.reject(&:rest?)
+									normal_params.each_with_index do |param, idx|
+										if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
+											arg_val = arguments[idx]
+											new_func_env.set_local_var(param.name, arg_val[1], arg_val[0])
+										else
+											if param.has_default?
+												default_value = interpret!(param.default_value, func_env)
+												new_func_env.set_local_var(param.name, default_value[1], default_value[0])
+											else
+												Utils.runtime_error("Brakujacy argument #{param.name}")
+											end
+										end
 									end
-									result = [:type_null, Utils::NULL_VALUE] # return 'nic' if function does not return any value
-								rescue Utils::ReturnError => e
-									result = e.value
-								ensure
-    							Utils::CallStackTracker.pop
+									
+									# handle rest parameter
+									if rest_param
+										rest_args = arguments[rest_position..-1] || []
+										rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+										new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+									end
+									
+									# execute method body
+									Utils::CallStackTracker.push(:function, node.name, @current_file, node.line)
+									begin
+										Utils::ContextTracker.track_method_call(node.name) do
+											interpret!(func_declr.body_statement, new_func_env)
+										end
+										result = [:type_null, Utils::NULL_VALUE]
+									rescue Utils::ReturnError => e
+										result = e.value
+									ensure
+										Utils::CallStackTracker.pop
+									end
 								end
 							end
 						end
@@ -754,7 +786,7 @@ module AlexScript
           when :type_array
             Utils.runtime_error('Indeks tablicy musi byc liczbą całkowitą') unless key_type == :type_int
             length = object_var[:value].length
-            Utils.runtime_error('Indeks poza zakresem') if key_value >= length || key_value < -length
+            Utils.runtime_error('Indeks poza zakresem', node.line) if key_value >= length || key_value < -length
 
             element = object_var[:value][key_value]
             [element[:type], element[:value]]
@@ -785,7 +817,7 @@ module AlexScript
           when :type_array
             Utils.runtime_error('Indeks tablicy musi byc liczbą całkowitą') unless key_type == :type_int
             length = object_var[:value].length
-            Utils.runtime_error('Indeks poza zakresem') if key_value >= length || key_value < -length
+            Utils.runtime_error('Indeks poza zakresem', node.line) if key_value >= length || key_value < -length
 
             object_var[:value][key_value] = { type: value_type, value: value }
           when :type_object
@@ -840,33 +872,6 @@ module AlexScript
 							# if no built-in method, continue with normal static methods
 						end
 						
-						# Native static method dispatch
-            if class_def[:native]
-              native_static = class_def[:native_static_methods]
-              if native_static && native_static.key?(node.method_name)
-                arguments = node.arguments.map { |arg| interpret!(arg, env) }
-
-                begin
-                  result = Utils::NativeClassRegistry.dispatch_static_method(
-                    class_name, node.method_name, arguments
-                  )
-                rescue => e
-                  Utils.runtime_error(
-                    "Błąd metody statycznej #{node.method_name} klasy #{class_name}: #{e.message}",
-                    node.line
-                  )
-                end
-
-                return result
-              end
-
-              # If not found as native static, fall through to error
-              Utils.runtime_error(
-                "Nieznana metoda statyczna '#{node.method_name}' w klasie #{class_name}",
-                node.line
-              )
-            end
-
 						# look for static method in class hierarchy
 						method_info = nil
 						current_class_def = class_def
@@ -886,6 +891,18 @@ module AlexScript
 						end
 						
 						if method_info
+							# native static via hierarchy
+							if method_info[:native_lambda]
+								arguments = node.arguments.map { |arg| interpret!(arg, env) }
+								begin
+									result = Utils::NativeClassRegistry.dispatch_static_lambda(method_info[:native_lambda], arguments)
+								rescue => e
+									Utils.runtime_error("Błąd metody statycznej #{node.method_name}: #{e.message}", node.line)
+								end
+								return result
+							end
+
+
 							# handle static method call
 							
 							# evaluate arguments
@@ -989,32 +1006,45 @@ module AlexScript
 							return [result_type, result]
 						end
 
-
-						# Native instance method dispatch
-            if object_value[:class_def] && object_value[:class_def][:native]
-              native_methods = object_value[:class_def][:native_methods]
-              if native_methods && native_methods.key?(node.method_name)
-                arguments = node.arguments.map { |arg| interpret!(arg, env) }
-
-                begin
-                  result = Utils::NativeClassRegistry.dispatch_instance_method(
-                    object_value, node.method_name, arguments
-                  )
-                rescue => e
-                  Utils.runtime_error(
-                    "Błąd metody #{node.method_name} klasy #{object_value[:class_name]}: #{e.message}",
-                    node.line)
-                end
-
-                return result
-              end
-            end
 						
 						# find method in class hierarchy
 						method_result = env.find_method_in_hierarchy(object_value, node.method_name)
 						Utils.runtime_error("Nieznana metoda #{node.method_name} dla instancji klasy #{object_value[:class_name]}", node.line) unless method_result
 						
 						method_info = method_result[:method_info]
+
+						# native method dispatch (inherited or direct)
+            if method_info[:native_lambda]
+              # Check privacy
+              if method_info[:private]
+                current_instance = env.get_instance
+                same_instance = current_instance == object_value
+                from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
+                from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
+                unless same_instance || from_inside_class || from_subclass
+                  Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
+                end
+              end
+ 
+              arguments = node.arguments.map { |arg| interpret!(arg, env) }
+              native_obj = object_value[:__native__]
+ 
+              unless native_obj
+                Utils.runtime_error("Brak obiektu natywnego — upewnij się, że konstruktor wywołuje super()",node.line)
+              end
+ 
+                begin
+                  result = Utils::NativeClassRegistry.dispatch_native_lambda(
+                    method_info[:native_lambda], native_obj, arguments
+                  )
+              rescue => e
+                Utils.runtime_error(
+                  "Błąd metody #{node.method_name}: #{e.message}",
+                  node.line
+                )
+               end
+              return result
+            end
 						
 						# check if method is private
 						if method_info[:private]
@@ -1373,6 +1403,21 @@ module AlexScript
 						ensure
   						Utils::CallStackTracker.pop
 						end
+					elsif !constructor
+              # No constructor in current class — check if parent has a native constructor
+              parent_name = class_def[:parent]
+              if parent_name
+                parent_def = env.get_class(parent_name)
+                if parent_def && parent_def[:native]
+                  arguments = node.arguments.map { |arg| interpret!(arg, env) } if arguments.nil? || arguments.empty?
+                  begin
+                    native_obj = Utils::NativeClassRegistry.dispatch_constructor(parent_name, arguments || [])
+                    instance[:__native__] = native_obj
+                  rescue => e
+                    Utils.runtime_error("Błąd konstruktora natywnego #{parent_name}: #{e.message}", node.line)
+                  end
+                end
+              end
 					end
 					
 					[:type_instance, instance]
@@ -1841,9 +1886,64 @@ module AlexScript
 					
 					# find method in parent class
 					method_result = env.find_parent_method(instance, current_method_name)
+
+					# super() for native parent constructor
+					if method_result.nil? && current_method_name == "konstruktor"
+						parent_name = instance[:class_def][:parent]
+						if parent_name
+							parent_def = env.get_class(parent_name)
+							if parent_def && parent_def[:native] && parent_def[:native_constructor]
+								arguments = node.arguments.map { |arg| interpret!(arg, env) }
+								begin
+									native_obj = Utils::NativeClassRegistry.dispatch_constructor(parent_name, arguments)
+									instance[:__native__] = native_obj
+								rescue => e
+									Utils.runtime_error("Błąd konstruktora natywnego: #{e.message}", node.line)
+								end
+								return [:type_null, Utils::NULL_VALUE]
+							end
+						end
+					end
+
 					Utils.runtime_error("Nie znaleziono metody #{current_method_name} w klasie nadrzędnej", node.line) unless method_result
 					
 					method_info = method_result[:method_info]
+
+					  # Native super dispatch ──
+            if method_info[:native_lambda]
+              arguments = node.arguments.map { |arg| interpret!(arg, env) }
+ 
+              # For constructor super(), create native object and attach to instance
+              if current_method_name == "konstruktor"
+                parent_class_name = method_result[:class_name]
+                begin
+                  native_obj = Utils::NativeClassRegistry.dispatch_constructor(parent_class_name, arguments)
+                  instance[:__native__] = native_obj
+                rescue => e
+                  Utils.runtime_error("Błąd konstruktora natywnego: #{e.message}", node.line)
+                end
+                return [:type_null, Utils::NULL_VALUE]
+              end
+ 
+              # For regular method super(), dispatch native lambda
+              native_obj = instance[:__native__]
+              unless native_obj
+                Utils.runtime_error(
+                  "Brak obiektu natywnego — upewnij się, że konstruktor wywołuje super()",
+                  node.line
+                )
+              end
+ 
+              begin
+                result = Utils::NativeClassRegistry.dispatch_native_lambda(
+                  method_info[:native_lambda], native_obj, arguments
+                )
+              rescue => e
+                Utils.runtime_error("Błąd metody #{current_method_name}: #{e.message}", node.line)
+              end
+ 
+              return result
+            end
 					
 					# evaluate arguments
 					arguments = node.arguments.map { |arg| interpret!(arg, env) }
@@ -1990,32 +2090,6 @@ module AlexScript
 						
 						return [result_type, result]
 					end
-
-					# ── Native static method dispatch ──
-            if class_def[:native]
-              native_static = class_def[:native_static_methods]
-              if native_static && native_static.key?(node.method_name)
-                arguments = node.arguments.map { |arg| interpret!(arg, env) }
-
-                begin
-                  result = Utils::NativeClassRegistry.dispatch_static_method(
-                    node.class_name, node.method_name, arguments
-                  )
-                rescue => e
-                  Utils.runtime_error(
-                    "Błąd metody statycznej #{node.method_name} klasy #{node.class_name}: #{e.message}",
-                    node.line
-                  )
-                end
-
-                return result
-              end
-
-              Utils.runtime_error(
-                "Nieznana metoda statyczna '#{node.method_name}' w klasie #{node.class_name}",
-                node.line
-              )
-            end
 					
 					# look for static method in whole class hierarchy
 					method_info = nil
@@ -2041,6 +2115,18 @@ module AlexScript
 					arguments = node.arguments.map do |arg|
 						interpret!(arg, env)
 					end
+
+					if method_info[:native_lambda]
+                arguments = node.arguments.map { |arg| interpret!(arg, env) }
+                begin
+                  result = Utils::NativeClassRegistry.dispatch_static_lambda(
+                    method_info[:native_lambda], arguments
+                  )
+                rescue => e
+                  Utils.runtime_error("Błąd metody statycznej #{node.method_name}: #{e.message}",node.line)
+              end
+            return result
+           end
 					
 					# check argument count
 					params = method_info[:declaration].params

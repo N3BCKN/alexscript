@@ -484,7 +484,19 @@ module AlexScript
         end
         
         @current = end_pos + 1  # Position after closing quote
-        text = @source[@start...end_pos]
+        text = @source[@start...end_pos].gsub(/\\(.)/) do |match|
+          case $1
+          when 'n'  then "\n"
+          when 't'  then "\t"
+          when 'r'  then "\r"
+          when '\\' then "\\"
+          when '"'  then '"'
+          when '\'' then "'"
+          when '0'  then "\0"
+          else
+            match  # unknown escape — preserve as-is
+          end
+        end
         
         @tokens << Utils::Token.new(:tok_string, text, @line)
       end

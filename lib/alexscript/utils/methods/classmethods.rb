@@ -81,7 +81,9 @@ module AlexScript
             if only_own
               alex_string_array(get_own_public_methods(class_def))
             else
-              alex_string_array(get_all_public_methods(class_def, env))
+              methods = get_all_public_methods(class_def, env)
+              builtin_methods = @methods.keys
+              alex_string_array((methods + builtin_methods).uniq.sort)
             end
           })
 

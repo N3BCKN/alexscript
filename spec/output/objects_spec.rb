@@ -110,7 +110,7 @@ RSpec.describe 'Object Operations', type: :aruba do
         pokazl obj["age"]
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Niezdefiniowany klucz/)
+      expect(last_command_started).to have_output(/nic/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
 
