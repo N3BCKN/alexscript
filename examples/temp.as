@@ -1,8 +1,3 @@
-klasa Test { 
-  funkcja moja_funkcja(){
-
-  }
-
-}
-
-pokazl Test.metody()
+import("socket")
+pokazl Socket.wolny_port()
+pokazl SocketTcp.metody()

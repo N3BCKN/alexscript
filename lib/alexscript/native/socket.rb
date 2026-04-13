@@ -20,6 +20,10 @@ module AlexScript
         register_serwer_tcp
         register_socket_udp
         register_socket_helpers
+      rescue => e
+        $stderr.puts "[AlexScript] Socket registration error: #{e.message}"
+        $stderr.puts e.backtrace.first(3).join("\n")
+        raise
       end
 
       # ════════════════════════════════════════════════════════════
@@ -272,11 +276,15 @@ module AlexScript
             'czy_port_wolny' => ->(port, *args) {
               adres = args.empty? ? '127.0.0.1' : args[0].to_s
               begin
-                server = TCPServer.new(adres, port.to_i)
-                server.close
+                # Try to connect — if something is listening, port is occupied
+                sock = TCPSocket.new(adres, port.to_i)
+                sock.close
+                false  # connection succeeded → port is in use
+              rescue Errno::ECONNREFUSED, Errno::ECONNRESET
+                # Nothing listening → port is free
                 true
-              rescue Errno::EADDRINUSE, Errno::EACCES
-                false
+              rescue Errno::EADDRNOTAVAIL
+                true
               end
             },
 

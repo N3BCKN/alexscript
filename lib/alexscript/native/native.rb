@@ -42,11 +42,14 @@ module AlexScript
         Utils::NativeClassRegistry.register_into_env('Csv', env)
       end
 
-            Utils::NativeClassRegistry.register_library('socket') do |env|
+      Utils::NativeClassRegistry.register_library('socket') do |env|
+        Utils::NativeClassRegistry.register_into_env('SocketTcp', env)
+        Utils::NativeClassRegistry.register_into_env('SerwerTcp', env)
+        Utils::NativeClassRegistry.register_into_env('SocketUdp', env)
         Utils::NativeClassRegistry.register_into_env('Socket', env)
       end
 
-            Utils::NativeClassRegistry.register_library('http') do |env|
+      Utils::NativeClassRegistry.register_library('http') do |env|
         Utils::NativeClassRegistry.register_into_env('Http', env)
       end
     end
