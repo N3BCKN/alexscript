@@ -20,10 +20,8 @@ module AlexScript
         if NativeClassRegistry.native_library?(file_path)
           # Use the raw name as cache key for native libs
           return @environments[file_path] if @imported_files.include?(file_path)
-
           env = Core::Environment.new(parent_env)
           NativeClassRegistry.load_library(file_path, env)
-
           @environments[file_path] = env
           @imported_files.add(file_path)
           return env
