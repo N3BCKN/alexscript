@@ -91,7 +91,7 @@ module AlexScript
         # unless array.is_a?(Identifier) || array.is_a?(ObjectOrArrayAccess)
         #   raise TypeError, "Invalid array/object: Expected Identifier or ObjectOrArrayAccess, got #{array.class}"
         # end
-        validate_types([array], [Identifier, ObjectOrArrayAccess, InstanceVariable, MethodCall, FuncCall], 'index')
+        validate_types([array], [Identifier, ObjectOrArrayAccess, InstanceVariable, MethodCall, FuncCall, StaticMethodCall], 'index')
         validate_types([index], [Expr], 'index')
         @array = array
         @index = index

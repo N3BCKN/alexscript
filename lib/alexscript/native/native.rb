@@ -7,6 +7,8 @@ require_relative './json'
 require_relative './csv'
 require_relative './socket'
 require_relative './http'
+require_relative './digest'
+require_relative './secure_random'
 
 module AlexScript
   module Native
@@ -19,6 +21,8 @@ module AlexScript
       CsvLibrary.register
       SocketLibrary.register
       HttpLibrary.register
+      DigestLibrary.register
+      SecureRandomLibrary.register
 
       # Register importable library names
       # Maps import("czas") → register Czas class into caller's environment
@@ -51,6 +55,14 @@ module AlexScript
 
       Utils::NativeClassRegistry.register_library('http') do |env|
         Utils::NativeClassRegistry.register_into_env('Http', env)
+      end
+
+      Utils::NativeClassRegistry.register_library('digest') do |env|
+        Utils::NativeClassRegistry.register_into_env('Digest', env)
+      end
+ 
+      Utils::NativeClassRegistry.register_library('securerandom') do |env|
+        Utils::NativeClassRegistry.register_into_env('SecureRandom', env)
       end
     end
   end

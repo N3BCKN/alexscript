@@ -2191,52 +2191,6 @@ if method_info
 					end
 					
 					result
-				elsif node.is_a? AST::RubyCall
-					module_path = node.module_path
-					method_name = node.method_name
-					
-					# evaluate arguments
-					args = node.arguments.map do |arg|
-						type, value = interpret!(arg, env)
-						{ type: type, value: value }
-					end
-					
-					# execute safe ruby call
-					result = Utils::RubyEvaluator.safe_call(module_path, method_name, args, @current_file)
-					[result[:type], result[:value]]
-				elsif node.is_a? AST::RubyCallStmt
-					interpret!(node.expression, env)
-				elsif node.is_a? AST::RequireRubyStmt
-					begin
-						success = Utils::RubyEvaluator.require_library(node.library_name, @current_file)
-						[:type_bool, success ? Utils::Utils::BOOL_TRUE : Utils::Utils::BOOL_FALSE]
-					rescue StandardError => e
-						Utils.runtime_error("Błąd podczas importu biblioteki Ruby: #{e.message}", node.line)
-					end
-				elsif node.is_a? AST::RubyObjCall
-					object_type, object_value = interpret!(node.object, env)
-					
-					# check if object is ruby_object type
-					if object_type != :type_ruby_object
-						Utils.runtime_error("Operacja ruby_obj wymaga obiektu Ruby, otrzymano: #{object_type}", node.line)
-					end
-					
-					# get ruby object id
-					object_id = object_value[:id]
-					
-					# evaluate arguments
-					args = node.arguments.map do |arg|
-						type, value = interpret!(arg, env)
-						{ type: type, value: value }
-					end
-					
-					# call method on ruby object
-					result = Utils::RubyEvaluator.call_object_method(object_id, node.method_name, args, @current_file)
-					
-					[result[:type], result[:value]]
-				
-				elsif node.is_a? AST::RubyObjCallStmt
-					interpret!(node.expression, env)
         end
       end
 

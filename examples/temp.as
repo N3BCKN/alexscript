@@ -1,3 +1,4 @@
-import("socket")
-pokazl Socket.wolny_port()
-pokazl SocketTcp.metody()
+klasa Test {}
+
+pokazl Test.metody()
+pokazl Test.metody()[0]

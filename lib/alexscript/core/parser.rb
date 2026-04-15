@@ -153,12 +153,6 @@ module AlexScript
           return AST::Grouping.new(expr, previous_token.line)
         end
 
-        if match(:tok_ruby)
-          return ruby_call
-        elsif match(:tok_ruby_obj)
-          return ruby_obj_call
-        end
-
         if match(:tok_super)
           return super_expression
         end
@@ -297,7 +291,6 @@ module AlexScript
                    identifier.lexeme[0] >= 'A' && identifier.lexeme[0] <= 'Z' && 
                    !["String", "Number", "Array", "Object", "Boolean"].include?(identifier.lexeme)
                   expr = AST::StaticMethodCall.new(identifier.lexeme, method_name, arguments, previous_token.line)
-                  break
                 else
                   expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
                 end
@@ -333,70 +326,6 @@ module AlexScript
 					Utils.parse_error("Oczekiwano '(' lub '.' po 'super'", token_line)
 				end
 			end
-
-      def ruby_call      
-        expect(:tok_lparen)
-        
-        # first argument is module path
-        module_path_token = expect(:tok_string)
-        module_path = module_path_token.lexeme
-        
-        expect(:tok_comma)
-        
-        # second argument is method name
-        method_name_token = expect(:tok_string)
-        method_name = method_name_token.lexeme
-        
-        # remaining arguments are call parameters
-        arguments = []
-        if match(:tok_comma)
-          loop do
-            arguments << expression
-            break unless match(:tok_comma)
-          end
-        end
-        
-        expect(:tok_rparen)
-        AST::RubyCall.new(module_path, method_name, arguments, previous_token.line)
-      end
-
-      def ruby_call_statement
-        expect(:tok_ruby)
-        ruby_call_expr = ruby_call()  # Używamy istniejącej metody ruby_call
-        AST::RubyCallStmt.new(ruby_call_expr, previous_token.line)
-      end
-
-      def ruby_obj_call        
-        expect(:tok_lparen)
-        
-        # first argument is ruby object
-        object = expression
-        
-        expect(:tok_comma)
-        
-        # second argument is method name
-        method_name_token = expect(:tok_string)
-        method_name = method_name_token.lexeme
-        
-        # remaining arguments are call parameters
-        arguments = []
-        if match(:tok_comma)
-          loop do
-            arguments << expression
-            break unless match(:tok_comma)
-          end
-        end
-        
-        expect(:tok_rparen)
-        
-        AST::RubyObjCall.new(object, method_name, arguments, previous_token.line)
-      end
-      
-      def ruby_obj_call_statement
-        expect(:tok_ruby_obj)
-        ruby_obj_expr = ruby_obj_call()
-        AST::RubyObjCallStmt.new(ruby_obj_expr, previous_token.line)
-      end
 
       # <unary> ::= ('+'|'-'|'~') <unary> | <primary>
       # Handles unary operations like negation
@@ -1060,10 +989,6 @@ module AlexScript
 					AST::StaticKeyword.new(previous_token.line)
 				elsif token == :tok_abstract  
 					class_definition
-        elsif token == :tok_ruby
-          ruby_call_statement
-        elsif token == :tok_ruby_obj
-          ruby_obj_call_statement
         elsif token == :tok_debug
           debug_statement
         elsif token == :tok_include

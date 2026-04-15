@@ -55,8 +55,6 @@ module AlexScript
           'statyczny' => :tok_static,
           'prywatne' => :tok_private,
           'abstrakcyjna' => :tok_abstract,
-          'ruby' => :tok_ruby,
-          'ruby_obj' => :tok_ruby_obj,
           'require_ruby' => :tok_require_ruby,
           'modul' => :tok_module,
           'dolacz' => :tok_include,
