@@ -249,15 +249,18 @@ module AlexScript
         loop do
           if match(:tok_lparen)
             f_args = []
-            unless next?(:tok_rparen)  # <-- parsuj argumenty TUTAJ bezpośrednio
+            unless next?(:tok_rparen)
               loop do
                 f_args << expression
                 break unless match(:tok_comma)
               end
             end
             expect(:tok_rparen)
-            expr = AST::FuncCall.new(identifier.lexeme, f_args, previous_token.line)
-            break
+            if expr.is_a?(AST::Identifier)
+              expr = AST::FuncCall.new(identifier.lexeme, f_args, previous_token.line)
+            else
+              expr = AST::LambdaCall.new(expr, f_args, previous_token.line)
+            end
           elsif match(:tok_lsquare)
             key = expression
             expect(:tok_rsquare)

@@ -162,58 +162,5 @@ module AlexScript
         ].join("\n")
       end
     end
-
-
-    # fn(params) { body }
-    class LambdaExpr < Expr
-      attr_reader :params, :body_statement, :line
-
-      def initialize(params, body_statement, line)
-        @params = params
-        @body_statement = body_statement
-        @line = line
-        # Cache: implicit return for single-expression bodies
-        @_implicit = (body_statement.stmts.size == 1 &&
-                      body_statement.stmts[0].is_a?(ExpressionStmt))
-      end
-
-      def name
-        '<fn>'
-      end
-
-      def implicit_return?
-        @_implicit
-      end
-
-      def pretty_print(level = 0)
-        params_str = @params.map { |p| p.name }.join(', ')
-        [
-          "#{indent(level)}LambdaExpr(#{params_str})",
-          @body_statement.pretty_print(level + 1),
-          "#{indent(level)})"
-        ].join("\n")
-      end
-    end
-
-    # fn(x) { x }(5) — IIFE or calling expression that evaluates to function
-    class LambdaCall < Expr
-      attr_reader :callee, :arguments, :line
-
-      def initialize(callee, arguments, line)
-        @callee = callee
-        @arguments = arguments
-        @line = line
-      end
-
-      def pretty_print(level = 0)
-        args_str = @arguments.map { |a| a.pretty_print(level + 1) }.join("\n")
-        [
-          "#{indent(level)}LambdaCall(",
-          @callee.pretty_print(level + 1),
-          args_str,
-          "#{indent(level)})"
-        ].join("\n")
-      end
-    end
   end
 end

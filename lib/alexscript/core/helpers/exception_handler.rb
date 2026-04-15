@@ -144,6 +144,8 @@ module AlexScript
           
           begin
             interpret!(node.try_block, try_env)
+          rescue Utils::ReturnError, Utils::BreakException, Utils::ContinueException
+            raise
           rescue StandardError => e
             caught = false
             

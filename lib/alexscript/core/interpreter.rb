@@ -5,7 +5,11 @@ require 'weakref'
 module AlexScript
   module Core
     class Interpreter
-			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper, Helpers::ExceptionHandler
+			include Helpers::DeepEquality, Helpers::ValueFormatter, Helpers::TypeConverter, Helpers::ValidationHelper, Helpers::ExceptionHandler,
+			Helpers::LambdaHelper
+
+      # higher order array method names.  frozen Set for O(1) lookup
+      ARRAY_HOF_METHODS = %w[mapuj filtruj redukuj kazdy znajdz dowolny wszystkie].freeze
 
       def initialize
         @import_manager = Utils::ImportManager.new
@@ -20,7 +24,7 @@ module AlexScript
       def interpret!(node, env)
         Utils::ContextTracker.current_line = node.line if node.respond_to?(:line) # always set line first
 
-				# Debugger stepping hook
+				# debugger stepping hook
     		Utils::Debugger.check(node, env, self) if Utils::Debugger.stepping?
 
         if node.is_a? AST::Int
@@ -1144,6 +1148,12 @@ if method_info
 						# keep existing handling for regular object methods
 						Utils.runtime_error('Nie można wywolac metody na niezdefiniowanym obiekcie') unless object_value
 				
+						# Higher-order array methods — intercept before call_method
+						# because these need interpreter access to invoke fn callbacks
+						if object_type == :type_array && ARRAY_HOF_METHODS.include?(node.method_name)
+							return interpret_array_hof(node.method_name, object_value, node, env)
+						end
+
 						# evaluate method arguments
 						evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 				

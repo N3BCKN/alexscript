@@ -1,6 +1,8 @@
-niech x = fn() {"Hello, World from x"}
-niech y = fn() { zwroc "Hello, World from y" }
-pokazl x()
-pokazl y()
-
-pokazl x.typ()
+niech f = fn(a, b) {
+    proba {
+        zwroc a + b
+    } zlap (e) {
+        zwroc -1
+    }
+}
+pokazl f(2, 3)
