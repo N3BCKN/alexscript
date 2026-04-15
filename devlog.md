@@ -93,3 +93,6 @@ first fully working version with basic structures:
 
 ### 0.7.15
 * implement debugger 
+
+### 0.7.16
+* new standard libraries (HTTP, JSON, CSV, Plik, Digest, SecureRandom)
