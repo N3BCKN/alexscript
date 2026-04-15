@@ -1,4 +1,6 @@
-klasa Test {}
+niech x = fn() {"Hello, World from x"}
+niech y = fn() { zwroc "Hello, World from y" }
+pokazl x()
+pokazl y()
 
-pokazl Test.metody()
-pokazl Test.metody()[0]
+pokazl x.typ()

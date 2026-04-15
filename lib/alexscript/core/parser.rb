@@ -175,6 +175,11 @@ module AlexScript
           return AST::ObjectLiteral.new(pairs, previous_token.line)
         end
 
+        # fn
+        if match(:tok_fn)
+          return parse_lambda
+        end
+
         identifier = expect(:tok_identifier)
 
         # check for module path TYLKO jeśli następny token to ::
@@ -298,6 +303,60 @@ module AlexScript
                 expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
               end
             end 
+          else
+            break
+          end
+        end
+
+        expr
+      end
+
+      def parse_lambda
+        line = previous_token.line
+        expect(:tok_lparen)
+        fn_params = params
+        expect(:tok_rparen)
+        expect(:tok_lcurly)
+
+        body = if next?(:tok_rcurly)
+                AST::Stmts.new([], previous_token.line)
+              else
+                statements
+              end
+
+        expect(:tok_rcurly)
+
+        expr = AST::LambdaExpr.new(fn_params, body, line)
+
+        # Postfix: IIFE fn(x){x}(5) and method calls fn(x){x}.typ()
+        loop do
+          if match(:tok_lparen)
+            f_args = []
+            unless next?(:tok_rparen)
+              loop do
+                f_args << expression
+                break unless match(:tok_comma)
+              end
+            end
+            expect(:tok_rparen)
+            expr = AST::LambdaCall.new(expr, f_args, previous_token.line)
+          elsif match(:tok_dot)
+            method_name = parse_method_name
+            arguments = []
+            if match(:tok_lparen)
+              unless next?(:tok_rparen)
+                loop do
+                  arguments << expression
+                  break unless match(:tok_comma)
+                end
+              end
+              expect(:tok_rparen)
+            end
+            expr = AST::MethodCall.new(expr, method_name, arguments, previous_token.line)
+          elsif match(:tok_lsquare)
+            key = expression
+            expect(:tok_rsquare)
+            expr = AST::ObjectOrArrayAccess.new(expr, key, previous_token.line)
           else
             break
           end
