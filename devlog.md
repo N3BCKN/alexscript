@@ -96,3 +96,6 @@ first fully working version with basic structures:
 
 ### 0.7.16
 * new standard libraries (HTTP, JSON, CSV, Plik, Digest, SecureRandom)
+
+### 0.8.16
+* anonymous functions
