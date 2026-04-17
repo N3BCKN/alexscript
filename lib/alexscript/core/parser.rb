@@ -542,8 +542,24 @@ module AlexScript
         expr
       end
 
+      # <ternary> ::= <logical_or> ("?" <ternary> ":" <ternary>)?
+      # right-associative: a ? b : c ? d : e  =>  a ? b : (c ? d : e)
+      def ternary
+        condition = logical_or
+
+        if match(:tok_question)
+          line = previous_token.line
+          then_expr = ternary          # right-recursive => right-associative
+          expect(:tok_colon)
+          else_expr = ternary
+          return AST::TernaryOp.new(condition, then_expr, else_expr, line)
+        end
+
+        condition
+      end
+
       def expression
-        expr = logical_or
+        expr = ternary
         postfix(expr)
       end
 

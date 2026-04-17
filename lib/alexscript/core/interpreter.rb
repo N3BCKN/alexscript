@@ -302,6 +302,13 @@ module AlexScript
           right_type, right_value = interpret!(node.right.right, env)
           env.set_var(node.right.left.name, right_value, right_type)
           [right_type, right_value]
+				elsif node.is_a? AST::TernaryOp
+					cond_type, cond_value = interpret!(node.condition, env)
+					if is_truthy?(cond_type, cond_value, node.line)
+						interpret!(node.then_expr, env)
+					else
+						interpret!(node.else_expr, env)
+					end
         elsif node.is_a? AST::Stmts
           i = 0
           while i < node.stmts.size

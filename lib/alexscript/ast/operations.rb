@@ -146,5 +146,29 @@ module AlexScript
          "#{indent(level)})"].join("\n")
       end
     end
+
+    # ternary conditional expression: condition ? then_expr : else_expr
+    # example: wiek >= 30 ? "stary" : "mlody"
+    class TernaryOp < Expr
+      attr_reader :condition, :then_expr, :else_expr, :line
+
+      def initialize(condition, then_expr, else_expr, line)
+        validate_types([condition, then_expr, else_expr], [Expr])
+        @condition = condition
+        @then_expr = then_expr
+        @else_expr = else_expr
+        @line = line
+      end
+
+      def pretty_print(level = 0)
+        [
+          "#{indent(level)}TernaryOp(",
+          "#{indent(level + 1)}condition: #{@condition.pretty_print(0)}",
+          "#{indent(level + 1)}then: #{@then_expr.pretty_print(0)}",
+          "#{indent(level + 1)}else: #{@else_expr.pretty_print(0)}",
+          "#{indent(level)})"
+        ].join("\n")
+      end
+    end
   end
 end
