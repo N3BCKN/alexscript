@@ -1,13 +1,17 @@
-funkcja zastosuj_dwa_razy(wartosc, f) {
-    zwroc f(wartosc)
+modul Test {
+    niech PI = 3.14
+
+    funkcja w_module(a){
+        zwroc a * 5
+    }
+
+    klasa Wmodule{ 
+        funkcja zwroc_teksts(){
+            zwroc "Z funkcji"
+        }
+    }
 }
 
-zastosuj_dwa_razy(3, fn(x) {
-    dla niech x = 0; 10; 1 {
-        pokazl x
-    }
-    zwroc 5
-})
 
 
-zastosuj_dwa_razy(3,5)
+pokazl Test::PI + 3.14

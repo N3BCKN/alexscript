@@ -188,20 +188,27 @@ module AlexScript
           module_path = [-identifier.lexeme]
 
           while match(:tok_double_colon)
-              next_id = expect(:tok_identifier)
-              module_path << -next_id.lexeme
-            end
-            
-            member_name = module_path.pop
-            
-            if module_path.empty?
-              Utils.parse_error("Nieprawidłowa składnia modułu", identifier.line)
-            end
-            
-            # Modul::Klasa.nowy()
+            next_id = expect(:tok_identifier)
+            module_path << -next_id.lexeme
+          end
+
+          member_name = module_path.pop
+
+          if module_path.empty?
+            Utils.parse_error("Nieprawidłowa składnia modułu", identifier.line)
+          end
+
+          # Build the base module expression. Three distinct cases:
+          #   1) Modul::Klasa.nowy(args)  -> ModuleClassInstantiation
+          #   2) Modul::funkcja(args)     -> ModuleFunctionCall
+          #   3) Modul::CZLON             -> ModuleAccess (constant/class-as-value/function-as-value)
+          # After building the base, we fall into the generic postfix loop
+          # so any further chaining (.metoda(), [klucz], (...)) works uniformly.
+          expr =
             if match(:tok_dot)
-              method = expect(:tok_identifier).lexeme
-              if method == "nowy" && match(:tok_lparen)
+              method_name = parse_method_name
+
+              if method_name == "nowy" && match(:tok_lparen)
                 arguments = []
                 unless next?(:tok_rparen)
                   loop do
@@ -210,14 +217,25 @@ module AlexScript
                   end
                 end
                 expect(:tok_rparen)
-                return AST::ModuleClassInstantiation.new(module_path, member_name, arguments, identifier.line)
+                AST::ModuleClassInstantiation.new(module_path, member_name, arguments, identifier.line)
               else
-                Utils.parse_error("Nieoczekiwana metoda #{method} po dostępie do modułu", identifier.line)
+                # Generic method call on a module member:
+                #   Modul::CZLON.metoda(...)
+                # Build ModuleAccess first, then wrap in MethodCall.
+                module_access = AST::ModuleAccess.new(module_path, member_name, identifier.line)
+                arguments = []
+                if match(:tok_lparen)
+                  unless next?(:tok_rparen)
+                    loop do
+                      arguments << expression
+                      break unless match(:tok_comma)
+                    end
+                  end
+                  expect(:tok_rparen)
+                end
+                AST::MethodCall.new(module_access, method_name, arguments, identifier.line)
               end
-            end
-            
-            # NOWE: Modul::funkcja(args) - wywołanie funkcji modułowej
-            if match(:tok_lparen)
+            elsif match(:tok_lparen)
               arguments = []
               unless next?(:tok_rparen)
                 loop do
@@ -226,14 +244,56 @@ module AlexScript
                 end
               end
               expect(:tok_rparen)
-              
-              # zwróć ModuleFunctionCall zamiast ModuleAccess
-              return AST::ModuleFunctionCall.new(module_path, member_name, arguments, identifier.line)
+              AST::ModuleFunctionCall.new(module_path, member_name, arguments, identifier.line)
+            else
+              AST::ModuleAccess.new(module_path, member_name, identifier.line)
             end
-            
-            # Modul::STALA (bez wywołania)
-            return AST::ModuleAccess.new(module_path, member_name, identifier.line)
+
+          # Postfix chaining on the module expression:
+          #   Test::PI.typ().duzymi()
+          #   Test::LIST[0]
+          #   Test::Wmodule.nowy().metoda()
+          loop do
+            if match(:tok_lparen)
+              f_args = []
+              unless next?(:tok_rparen)
+                loop do
+                  f_args << expression
+                  break unless match(:tok_comma)
+                end
+              end
+              expect(:tok_rparen)
+              expr = AST::LambdaCall.new(expr, f_args, previous_token.line)
+            elsif match(:tok_lsquare)
+              key = expression
+              expect(:tok_rsquare)
+              if match(:tok_assign)
+                value = expression
+                expr = AST::ObjectOrArrayAssignment.new(expr, key, value, identifier.line)
+                break
+              else
+                expr = AST::ObjectOrArrayAccess.new(expr, key, identifier.line)
+              end
+            elsif match(:tok_dot)
+              method_name = parse_method_name
+              arguments = []
+              if match(:tok_lparen)
+                unless next?(:tok_rparen)
+                  loop do
+                    arguments << expression
+                    break unless match(:tok_comma)
+                  end
+                end
+                expect(:tok_rparen)
+              end
+              expr = AST::MethodCall.new(expr, method_name, arguments, identifier.line)
+            else
+              break
+            end
           end
+
+          return expr
+        end
 
         # check static variable: ClassName.CONSTANT_VARIABLE
         if next?(:tok_dot) && peek_next && peek_next.token_type == :tok_identifier && 
