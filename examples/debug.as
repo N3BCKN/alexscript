@@ -9,7 +9,7 @@ modul Test {
   niech PI = 5
 
   klasa MojaKlasa{
-    statyczny funkcja dupa(){
+    statyczna funkcja dupa(){
       zwroc "kupa"
     }
   }

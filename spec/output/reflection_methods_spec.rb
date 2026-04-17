@@ -247,7 +247,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'returns static methods with metody_statyczne()' do
         code = '
           klasa Test {
-            statyczny funkcja metoda_statyczna() {}
+            statyczna funkcja metoda_statyczna() {}
           }
           pokazl Test.metody_statyczne().zawiera("metoda_statyczna")
         '
@@ -258,10 +258,10 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'includes inherited static methods' do
         code = '
           klasa Bazowa {
-            statyczny funkcja statyczna_bazowa() {}
+            statyczna funkcja statyczna_bazowa() {}
           }
           klasa Pochodna < Bazowa {
-            statyczny funkcja statyczna_pochodna() {}
+            statyczna funkcja statyczna_pochodna() {}
           }
           niech metody = Pochodna.metody_statyczne()
           pokazl metody.zawiera("statyczna_bazowa")
@@ -273,7 +273,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'returns prawda for ma_metode_statyczna() when exists' do
         code = '
           klasa Test {
-            statyczny funkcja test() {}
+            statyczna funkcja test() {}
           }
           pokazl Test.ma_metode_statyczna("test")
         '
@@ -284,7 +284,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'returns static variables with zmienne_statyczne()' do
         code = '
           klasa Test {
-            statyczny niech STALA = 10
+            statyczna niech STALA = 10
           }
           pokazl Test.zmienne_statyczne().zawiera("STALA")
         '
@@ -295,10 +295,10 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'includes inherited static variables' do
         code = '
           klasa Bazowa {
-            statyczny niech BAZOWA_STALA = 5
+            statyczna niech BAZOWA_STALA = 5
           }
           klasa Pochodna < Bazowa {
-            statyczny niech POCHODNA_STALA = 10
+            statyczna niech POCHODNA_STALA = 10
           }
           pokazl Pochodna.zmienne_statyczne().zawiera("BAZOWA_STALA")
         '
@@ -309,7 +309,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       it 'returns prawda for ma_zmienna_statyczna() when exists' do
         code = '
           klasa Test {
-            statyczny niech VAR = 5
+            statyczna niech VAR = 5
           }
           pokazl Test.ma_zmienna_statyczna("VAR")
         '
@@ -808,12 +808,12 @@ RSpec.describe 'Reflection Methods', type: :aruba do
     it 'static methods and variables are inherited correctly' do
       code = '
         klasa Bazowa {
-          statyczny niech STALA_BAZOWA = 10
-          statyczny funkcja metoda_bazowa() { zwroc 1 }
+          statyczna niech STALA_BAZOWA = 10
+          statyczna funkcja metoda_bazowa() { zwroc 1 }
         }
         klasa Pochodna < Bazowa {
-          statyczny niech STALA_POCHODNA = 20
-          statyczny funkcja metoda_pochodna() { zwroc 2 }
+          statyczna niech STALA_POCHODNA = 20
+          statyczna funkcja metoda_pochodna() { zwroc 2 }
         }
         
         pokazl Pochodna.zmienne_statyczne().dlg
@@ -881,8 +881,8 @@ RSpec.describe 'Reflection Methods', type: :aruba do
           funkcja jedz() {}
           funkcja parkuj() {}
           
-          statyczny niech KOLA = 4
-          statyczny funkcja opis() { zwroc "Samochod" }
+          statyczna niech KOLA = 4
+          statyczna funkcja opis() { zwroc "Samochod" }
         }
         
         niech auto = Samochod.nowy("Civic", "Honda")

@@ -68,7 +68,7 @@ module AlexScript
         return AST::Int.new(previous_token.lexeme.to_i, previous_token.line) if match(:tok_int)
         return AST::Flt.new(previous_token.lexeme.to_f, previous_token.line) if match(:tok_float)
         return AST::Bool.new(previous_token.lexeme, previous_token.line) if match(:tok_true) || match(:tok_false)
-        return AST::Str.new(previous_token.lexeme.to_s, previous_token.line) if match(:tok_string)
+        return parse_string_with_possible_interpolation if match(:tok_string)
         return AST::Null.new(previous_token.line) if match(:tok_null)
         return array_statement if match(:tok_lsquare)
         return input_statement if match(:tok_input)
@@ -312,6 +312,31 @@ module AlexScript
         end
 
         expr
+      end
+
+      def parse_string_with_possible_interpolation
+        first_lexeme = previous_token.lexeme
+        line = previous_token.line
+
+        unless next?(:tok_interp_start)
+          return AST::Str.new(first_lexeme, line)
+        end
+
+        parts = [first_lexeme]
+
+        while match(:tok_interp_start)
+          expr = expression
+          expect(:tok_interp_end)
+          parts << expr
+
+          if match(:tok_string)
+            parts << previous_token.lexeme
+          else
+            Utils.parse_error("Oczekiwano fragmentu stringu po interpolacji", previous_token.line)
+          end
+        end
+
+        AST::InterpolatedString.new(parts, line)
       end
 
       def parse_lambda
@@ -1046,7 +1071,7 @@ module AlexScript
         elsif token == :tok_require_ruby
              require_ruby_statement
 				elsif token == :tok_static
-					Utils.parse_error("Słowo kluczowe 'statyczny' może być używane tylko w ciele klasy", peek.line) unless @inside_class_body
+					Utils.parse_error("Słowo kluczowe 'statyczna' może być używane tylko w ciele klasy", peek.line) unless @inside_class_body
 					advance
 					AST::StaticKeyword.new(previous_token.line)
 				elsif token == :tok_abstract  

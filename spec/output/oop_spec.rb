@@ -340,8 +340,8 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
     it 'defines and accesses static variables' do
       code = '
         klasa Matematyka {
-          statyczny niech PI = 3.14159
-          statyczny niech E = 2.71828
+          statyczna niech PI = 3.14159
+          statyczna niech E = 2.71828
         }
         
         pokazl Matematyka.PI
@@ -354,11 +354,11 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
     it 'defines and calls static methods' do
       code = '
         klasa Matematyka {
-          statyczny funkcja kwadrat(x) {
+          statyczna funkcja kwadrat(x) {
             zwroc x * x
           }
           
-          statyczny funkcja szescian(x) {
+          statyczna funkcja szescian(x) {
             zwroc x * x * x
           }
         }
@@ -373,21 +373,21 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
     it 'uses static methods with more complex logic' do
       code = '
         klasa Matematyka {
-          statyczny niech PI = 3.14159
+          statyczna niech PI = 3.14159
           
-          statyczny funkcja pole_kola(promien) {
+          statyczna funkcja pole_kola(promien) {
             zwroc Matematyka.PI * Matematyka.kwadrat(promien)
           }
           
-          statyczny funkcja objetosc_sfery(promien) {
+          statyczna funkcja objetosc_sfery(promien) {
             zwroc 4 / 3 * Matematyka.PI * Matematyka.szescian(promien)
           }
           
-          statyczny funkcja kwadrat(x) {
+          statyczna funkcja kwadrat(x) {
             zwroc x * x
           }
           
-          statyczny funkcja szescian(x) {
+          statyczna funkcja szescian(x) {
             zwroc x * x * x
           }
         }
@@ -400,23 +400,23 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to include("113.097")
     end
 
-    it 'restricts keyword "statyczny" to class body only' do
+    it 'restricts keyword "statyczna" to class body only' do
       code = '
-        statyczny niech ZMIENNA = 10
+        statyczna niech ZMIENNA = 10
         pokazl ZMIENNA
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Słowo kluczowe 'statyczny' może być używane tylko w ciele klasy/)
+      expect(last_command_started).to have_output(/Słowo kluczowe 'statyczna' może być używane tylko w ciele klasy/)
       expect(last_command_started).to have_exit_status(1)
     end
 
     it 'combines static and instance methods' do
       code = '
         klasa Konwerter {
-          statyczny niech STOPY_NA_METRY = 0.3048
-          statyczny niech CALE_NA_CM = 2.54
+          statyczna niech STOPY_NA_METRY = 0.3048
+          statyczna niech CALE_NA_CM = 2.54
           
-          statyczny funkcja stopy_na_metry(stopy) {
+          statyczna funkcja stopy_na_metry(stopy) {
             zwroc stopy * Konwerter.STOPY_NA_METRY
           }
           
@@ -580,15 +580,15 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
     it 'inherits static methods and variables' do
       code = '
         klasa Matematyka {
-          statyczny niech PI = 3.14159
+          statyczna niech PI = 3.14159
           
-          statyczny funkcja kwadrat(x) {
+          statyczna funkcja kwadrat(x) {
             zwroc x * x
           }
         }
         
         klasa Geometria < Matematyka {
-          statyczny funkcja pole_kola(r) {
+          statyczna funkcja pole_kola(r) {
             zwroc Matematyka.PI * Matematyka.kwadrat(r)
           }
         }

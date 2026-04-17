@@ -91,7 +91,7 @@ RSpec.describe 'Exception Stack Trace', type: :aruba do
     it 'shows static method in stack' do
       code = '
         klasa Matematyka {
-          statyczny funkcja dziel(a, b) {
+          statyczna funkcja dziel(a, b) {
             jesli b == 0 to rzuc BladDzieleniaPrzezZero.nowy("Nie dziel przez zero")
             zwroc a / b
           }

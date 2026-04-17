@@ -52,7 +52,7 @@ module AlexScript
           'klasa' => :tok_class,
           'super' => :tok_super,
           'sam' => :tok_self,
-          'statyczny' => :tok_static,
+          'statyczna' => :tok_static,
           'prywatne' => :tok_private,
           'abstrakcyjna' => :tok_abstract,
           'require_ruby' => :tok_require_ruby,
@@ -456,48 +456,149 @@ module AlexScript
       end
       
       # optimized string handler with direct buffer access
+      # Supports interpolation via #{expr} syntax (Ruby-style)
       def handle_string(char)
         str_quote = char
         @start += 1  # skip the opening quote
-        
-        # find closing quote
-        end_pos = @current
-        escape_mode = false
-        
-        while end_pos < @source_size
-          c = @source[end_pos]
-          
-          if escape_mode
-            escape_mode = false
-          elsif c == '\\'
-            escape_mode = true
-          elsif c == str_quote
+
+        # Scan through string, detecting interpolation markers #{...}
+        # Strategy: emit a sequence of tokens:
+        #   tok_string (literal part) | tok_interp_start | <expr tokens> | tok_interp_end | ...
+        # If no interpolation is found, emit a single tok_string as before (zero overhead path).
+
+        literal_start = @start
+        parts_emitted = 0  # counts emitted (string part + interpolation) pairs
+        literal_buffer = nil  # lazily allocated only when interpolation is detected
+
+        while @current < @source_size
+          c = @source[@current]
+
+          if c == '\\' && @current + 1 < @source_size
+            # Escape sequence — accumulate into buffer if we're in interpolation mode
+            if literal_buffer
+              literal_buffer << process_escape(@source[@current + 1])
+            end
+            @current += 2
+            next
+          end
+
+          if c == '#' && @current + 1 < @source_size && @source[@current + 1] == '{'
+            # Found interpolation start — emit literal part, then markers + inner tokens
+
+            # Emit the literal text accumulated so far
+            literal_text = if literal_buffer
+                             literal_buffer.dup
+                           else
+                             apply_escapes(@source[literal_start...@current])
+                           end
+            @tokens << Utils::Token.new(:tok_string, literal_text, @line)
+            @tokens << Utils::Token.new(:tok_interp_start, '#{', @line)
+            parts_emitted += 1
+
+            # Skip #{
+            @current += 2
+
+            # Tokenize inner expression until matching } (accounting for nested braces)
+            tokenize_interpolation_body
+
+            # After tokenize_interpolation_body, @current is past the closing }
+            # Reset literal accumulator for next literal segment
+            literal_buffer = String.new
+            literal_start = @current
+            next
+          end
+
+          if c == str_quote
+            # End of string
             break
           end
-          
-          end_pos += 1
+
+          if c == "\n"
+            @line += 1
+          end
+
+          # Normal character — accumulate if in interpolation mode
+          literal_buffer << c if literal_buffer
+          @current += 1
         end
-        
-        if end_pos >= @source_size
-          Utils.lexing_error("Niezakonczony ciag znakow.'", @line)
+
+        if @current >= @source_size
+          Utils.lexing_error("Niezakonczony ciag znakow", @line)
         end
-        
-        @current = end_pos + 1  # Position after closing quote
-        text = @source[@start...end_pos].gsub(/\\(.)/) do |match|
-          case $1
-          when 'n'  then "\n"
-          when 't'  then "\t"
-          when 'r'  then "\r"
-          when '\\' then "\\"
-          when '"'  then '"'
-          when '\'' then "'"
-          when '0'  then "\0"
+
+        # Emit final literal part
+        final_text = if literal_buffer
+                       literal_buffer
+                     else
+                       apply_escapes(@source[literal_start...@current])
+                     end
+
+        @current += 1  # skip closing quote
+
+        if parts_emitted == 0
+          # No interpolation — emit single tok_string (fast path, identical to before)
+          @tokens << Utils::Token.new(:tok_string, final_text, @line)
+        else
+          # Had interpolation — emit final literal segment (may be empty)
+          @tokens << Utils::Token.new(:tok_string, final_text, @line)
+        end
+      end
+
+      # Apply escape sequences to a raw string slice (used for non-interpolated path)
+      def apply_escapes(text)
+        text.gsub(/\\(.)/) do |_|
+          process_escape($1)
+        end
+      end
+
+      # Convert a single escape character to its actual value
+      def process_escape(ch)
+        case ch
+        when 'n'  then "\n"
+        when 't'  then "\t"
+        when 'r'  then "\r"
+        when '\\' then "\\"
+        when '"'  then '"'
+        when '\'' then "'"
+        when '0'  then "\0"
+        when '#'  then '#'   # escaped # to avoid interpolation
+        else "\\#{ch}"        # unknown escape — preserve
+        end
+      end
+
+      # Tokenize the body of #{...} — reuses main lexer logic but tracks brace depth
+      # so we know when to stop and emit tok_interp_end
+      def tokenize_interpolation_body
+        depth = 1
+
+        while @current < @source_size && depth > 0
+          @start = @current
+          char = @source[@current]
+
+          if char == '{'
+            depth += 1
+            @current += 1
+            add_token(:tok_lcurly)
+          elsif char == '}'
+            depth -= 1
+            @current += 1
+            if depth == 0
+              @tokens << Utils::Token.new(:tok_interp_end, '}', @line)
+              return
+            end
+            add_token(:tok_rcurly)
           else
-            match  # unknown escape — preserve as-is
+            @current += 1
+            if char.ord < 256
+              method_name = @dispatch_table[char.ord]
+              send(method_name, char)
+            else
+              handle_unknown(char)
+            end
           end
         end
-        
-        @tokens << Utils::Token.new(:tok_string, text, @line)
+
+        Utils.lexing_error("Niezakonczona interpolacja stringu (brakuje '}')", @line)
       end
       
       # handler for unknown characters

@@ -1,6 +1,6 @@
 klasa Heh {
-  statyczny niech PI = 3.14
-  statyczny funkcja test(){
+  statyczna niech PI = 3.14
+  statyczna funkcja test(){
     pokazl "z funkcji test"
   } 
 }

@@ -2,10 +2,14 @@
 
 # all methods responsible for handling anonymous functions (fn) and higher order methods such as mapuj, filtruj etc
 
+# higher order methods are placed here instead of Utils::Methods section as they require direct access to interpreter 
+
 module AlexScript
   module Core
     module Helpers
       module LambdaHelper
+
+        SORTABLE_TYPES = %i[type_int type_float type_string].freeze
 
         # function value invocation helper 
         # lightweight caller for fn values, used by HOF array methods.
@@ -45,21 +49,26 @@ module AlexScript
         end
 
         # Higher-order array methods 
-        # Handles: mapuj, filtruj, redukuj, kazdy, znajdz, dowolny, wszystkie
+        # Handles: mapuj, filtruj, redukuj, kazdy, znajdz, dowolny, wszystkie, sortuj
         def interpret_array_hof(method_name, array, node, env)
-          # Evaluate first argument as function value (with type preserved)
+          # sortuj can work without fn (natural sort) or with fn (comparator)
+          if method_name == 'sortuj' && node.arguments.empty?
+            return interpret_array_sort_natural(array, node)
+          end
+  
+          # All other HOF methods require a function argument
           unless node.arguments.size >= 1
             Utils.runtime_error("Metoda #{method_name} wymaga funkcji jako argumentu", node.line)
           end
-
+  
           fn_type, fn_value = interpret!(node.arguments[0], env)
           unless fn_type == :type_function
             Utils.runtime_error("Argument metody #{method_name} musi być funkcją", node.line)
           end
-
+  
           # Check if fn accepts index as second param (for mapuj)
           fn_param_count = fn_value[:declaration].params.size
-
+  
           case method_name
           when 'mapuj'
             result = Array.new(array.size)
@@ -70,7 +79,7 @@ module AlexScript
               result[idx] = { type: res_type, value: res_value }
             end
             [:type_array, result]
-
+  
           when 'filtruj'
             result = []
             array.each do |elem|
@@ -82,14 +91,14 @@ module AlexScript
               end
             end
             [:type_array, result]
-
+  
           when 'redukuj'
             # Second argument is initial value
             unless node.arguments.size >= 2
               Utils.runtime_error("Metoda redukuj wymaga wartości początkowej jako drugiego argumentu", node.line)
             end
             acc_type, acc_value = interpret!(node.arguments[1], env)
-
+  
             array.each do |elem|
               args = [
                 [acc_type, acc_value],
@@ -98,7 +107,7 @@ module AlexScript
               acc_type, acc_value = invoke_function_value(fn_value, args, env, node.line)
             end
             [acc_type, acc_value]
-
+  
           when 'kazdy'
             array.each_with_index do |elem, idx|
               args = [[ elem[:type], elem[:value] ]]
@@ -106,7 +115,7 @@ module AlexScript
               invoke_function_value(fn_value, args, env, node.line)
             end
             [:type_null, Utils::NULL_VALUE]
-
+  
           when 'znajdz'
             array.each do |elem|
               args = [[ elem[:type], elem[:value] ]]
@@ -116,7 +125,7 @@ module AlexScript
               end
             end
             [:type_null, Utils::NULL_VALUE]
-
+  
           when 'dowolny'
             array.each do |elem|
               args = [[ elem[:type], elem[:value] ]]
@@ -126,7 +135,7 @@ module AlexScript
               end
             end
             [:type_bool, Utils::BOOL_FALSE]
-
+  
           when 'wszystkie'
             array.each do |elem|
               args = [[ elem[:type], elem[:value] ]]
@@ -136,10 +145,35 @@ module AlexScript
               end
             end
             [:type_bool, Utils::BOOL_TRUE]
-
+  
+          when 'sortuj'
+            sorted = array.sort do |a, b|
+              args = [
+                [a[:type], a[:value]],
+                [b[:type], b[:value]]
+              ]
+              res_type, res_value = invoke_function_value(fn_value, args, env, node.line)
+              Utils.runtime_error("Komparator sortuj musi zwracać liczbę", node.line) unless [:type_int, :type_float].include?(res_type)
+              res_value
+            end
+            [:type_array, sorted]
+  
           else
             Utils.runtime_error("Nieznana metoda wyższego rzędu: #{method_name}", node.line)
           end
+        end
+
+
+        # Natural sort (no comparator fn) — sorts numbers and strings
+        def interpret_array_sort_natural(array, node)
+          sorted = array.sort do |a, b|
+            if a[:type] == b[:type] && SORTABLE_TYPES.include?(a[:type])
+              a[:value] <=> b[:value]
+            else
+              Utils.runtime_error("Nie można porównać elementów typu #{a[:type]} i #{b[:type]} — użyj komparatora fn", node.line)
+            end
+          end
+          [:type_array, sorted]
         end
 
       end 

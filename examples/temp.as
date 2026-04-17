@@ -1,8 +1,13 @@
-niech f = fn(a, b) {
-    proba {
-        zwroc a + b
-    } zlap (e) {
-        zwroc -1
-    }
+funkcja zastosuj_dwa_razy(wartosc, f) {
+    zwroc f(wartosc)
 }
-pokazl f(2, 3)
+
+zastosuj_dwa_razy(3, fn(x) {
+    dla niech x = 0; 10; 1 {
+        pokazl x
+    }
+    zwroc 5
+})
+
+
+zastosuj_dwa_razy(3,5)

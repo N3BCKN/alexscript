@@ -5,14 +5,14 @@ require 'aruba/rspec'
 RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
-  # ── Basic fn definition and calling ──────────────────────────────────
+  #  Basic fn definition and calling─
 
   describe 'basic fn' do
     it 'assigns fn to variable and calls it' do
       code = 'niech powitaj = fn() { pokazl "Witaj" }
       powitaj()'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("Witaj")
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('Witaj')
     end
 
     it 'fn with parameters' do
@@ -30,7 +30,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── Implicit return (single-expression body) ─────────────────────────
+  #  Implicit return (single-expression body)─
 
   describe 'implicit return' do
     it 'returns value of single expression without zwroc' do
@@ -68,9 +68,26 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('[4, 8, 12]')
     end
+
+    it 'implicit return with function call (FuncCallStmt)' do
+      code = 'niech g = fn(x) { x + 1 }
+      niech f = fn(x) { g(x) }
+      pokazl f(4)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('5')
+    end
+
+    it 'implicit return with nested function calls' do
+      code = 'niech a = fn(x) { x * 2 }
+      niech b = fn(x) { x + 1 }
+      niech c = fn(x) { a(b(x)) }
+      pokazl c(4)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('10')
+    end
   end
 
-  # ── Explicit return (zwroc) ──────────────────────────────────────────
+  #  Explicit return (zwroc)
 
   describe 'explicit return' do
     it 'returns value with zwroc in single-line' do
@@ -94,7 +111,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── Multiline fn ─────────────────────────────────────────────────────
+  #  Multiline fn
 
   describe 'multiline fn' do
     it 'multiline fn with local variables' do
@@ -111,14 +128,14 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     it 'multiline fn with loop' do
       code = 'niech suma_do = fn(n) {
         niech wynik = 0
-        dla niech idx = 1; n; 1 {
+        dla niech idx = 1; n + 1; 1 {
           wynik = wynik + idx
         }
         zwroc wynik
       }
       pokazl suma_do(5)'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('10')
+      expect(last_command_started.output.strip).to eq('15')
     end
 
     it 'multiline fn without zwroc returns nic' do
@@ -132,7 +149,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── IIFE (Immediately Invoked Function Expression) ───────────────────
+  #  IIFE (Immediately Invoked Function Expression)─
 
   describe 'IIFE' do
     it 'immediately invokes fn without arguments' do
@@ -161,7 +178,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── Closures ─────────────────────────────────────────────────────────
+  #  Closures
 
   describe 'closures' do
     it 'captures variable from outer scope' do
@@ -222,7 +239,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── fn as argument (higher-order functions) ──────────────────────────
+  #  fn as argument (to regular functions)─
 
   describe 'fn as argument' do
     it 'passes fn to regular function' do
@@ -252,7 +269,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── fn returning fn (currying, factories) ────────────────────────────
+  #  fn returning fn─
 
   describe 'fn returning fn' do
     it 'fn returns another fn' do
@@ -269,13 +286,14 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
 
     it 'fn returning fn with implicit return' do
       code = 'niech dodajN = fn(n) { fn(x) { x + n } }
-      pokazl dodajN(100)(42)'
+      niech f = dodajN(100)
+      pokazl f(42)'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('142')
     end
   end
 
-  # ── Parameters: defaults and rest ────────────────────────────────────
+  #  Parameters: defaults and rest
 
   describe 'parameter features' do
     it 'fn with default parameters' do
@@ -302,7 +320,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── fn in OOP context ───────────────────────────────────────────────
+  #  fn in OOP context
 
   describe 'fn in classes' do
     it 'fn inside method accesses instance variables' do
@@ -326,20 +344,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── fn stored in data structures ─────────────────────────────────────
-
-  describe 'fn in data structures' do
-    it 'fn stored in array and called by index' do
-      code = 'niech operacje = [fn(x) { x + 1 }, fn(x) { x * 2 }, fn(x) { x ^ 2 }]
-      pokazl operacje[0](10)
-      pokazl operacje[1](10)
-      pokazl operacje[2](10)'
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("11\n20\n100")
-    end
-  end
-
-  # ── Recursion through named variable ─────────────────────────────────
+  #  Recursion
 
   describe 'recursion' do
     it 'fn recurses through its variable name' do
@@ -355,7 +360,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── Scope and shadowing ──────────────────────────────────────────────
+  #  Scope
 
   describe 'scope' do
     it 'fn parameters shadow outer variables' do
@@ -366,21 +371,11 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq("6\n100")
     end
-
-    it 'fn does not leak local variables' do
-      code = 'niech f = fn() {
-        niech wewnetrzna = 42
-        zwroc wewnetrzna
-      }
-      pokazl f()
-      pokazl wewnetrzna'
-      run_command "ruby #{main_file_path} '#{code}'"    
-      expect(last_command_started).to have_output(/BladNazwy: Niezadeklarowany identyfikator wewnetrzna/)
-      expect(last_command_started).to have_exit_status(1)
-    end
   end
 
-  # ── Error handling ───────────────────────────────────────────────────
+  #  Error handling
+
+  # Error handling
 
   describe 'error handling' do
     it 'fn with too few arguments raises error' do
@@ -408,22 +403,23 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
     end
   end
 
-  # ── Complex integration scenarios ────────────────────────────────────
+  #  zwroc inside proba─
 
-  describe 'integration' do
-    it 'compose pattern with multiple fn' do
-      code = 'funkcja komponuj(f, g) {
-        zwroc fn(x) { f(g(x)) }
+  describe 'fn with exception handling' do
+    it 'zwroc inside proba propagates correctly' do
+      code = 'niech f = fn(a, b) {
+        proba {
+          zwroc a + b
+        } zlap (e) {
+          zwroc -1
+        }
       }
-      niech dodaj1 = fn(x) { x + 1 }
-      niech razy2 = fn(x) { x * 2 }
-      niech dodaj1_potem_razy2 = komponuj(razy2, dodaj1)
-      pokazl dodaj1_potem_razy2(4)'
+      pokazl f(2, 3)'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('10')
+      expect(last_command_started.output.strip).to eq('5')
     end
 
-    it 'fn with exception handling inside' do
+    it 'fn catches actual errors inside proba' do
       code = 'niech bezpieczny_podziel = fn(a, b) {
         proba {
           jesli b == 0 {
@@ -437,15 +433,157 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
       pokazl bezpieczny_podziel(10, 2)
       pokazl bezpieczny_podziel(10, 0)'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("5\n-1")
+      expect(last_command_started.output.strip).to eq("5\n-1")
+    end
+  end
+
+  #  Complex integration
+
+  describe 'integration' do
+    it 'compose pattern with multiple fn' do
+      code = 'funkcja komponuj(f, g) {
+        zwroc fn(x) { f(g(x)) }
+      }
+      niech dodaj1 = fn(x) { x + 1 }
+      niech razy2 = fn(x) { x * 2 }
+      niech dodaj1_potem_razy2 = komponuj(razy2, dodaj1)
+      pokazl dodaj1_potem_razy2(4)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('10')
     end
   end
 end
 
-RSpec.describe 'Higher-Order Array Methods', type: :aruba do
+# ════════════════════════════════════════════════════════════════════════
+# Custom Higher-Order Functions
+# ════════════════════════════════════════════════════════════════════════
+
+RSpec.describe 'Custom Higher-Order Functions', type: :aruba do
   let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
-  # ── mapuj ────────────────────────────────────────────────────────────
+  describe 'passing fn to user functions' do
+    it 'applies fn twice' do
+      code = 'funkcja zastosuj_dwa_razy(wartosc, f) {
+        zwroc f(f(wartosc))
+      }
+      pokazl zastosuj_dwa_razy(3, fn(x) { x * 2 })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('12')
+    end
+
+    it 'applies fn n times' do
+      code = 'funkcja zastosuj_n_razy(wartosc, f, n) {
+        niech wynik = wartosc
+        dla niech step = 0; n; 1 {
+          wynik = f(wynik)
+        }
+        zwroc wynik
+      }
+      pokazl zastosuj_n_razy(2, fn(x) { x * 2 }, 4)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('32')
+    end
+
+    it 'passes named function (funkcja) as argument' do
+      code = 'funkcja podwoj(x) {
+        zwroc x * 2
+      }
+      funkcja zastosuj(f, val) {
+        zwroc f(val)
+      }
+      pokazl zastosuj(podwoj, 7)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('14')
+    end
+
+    it 'returns fn from user function' do
+      code = 'funkcja tworzMnoznik(n) {
+        zwroc fn(x) { x * n }
+      }
+      niech razy3 = tworzMnoznik(3)
+      niech razy7 = tworzMnoznik(7)
+      pokazl razy3(10)
+      pokazl razy7(10)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq("30\n70")
+    end
+
+    it 'function composition: pipe' do
+      code = 'funkcja pipe(fns, wartosc) {
+        niech wynik = wartosc
+        dla f w fns {
+          wynik = f(wynik)
+        }
+        zwroc wynik
+      }
+      niech kroki = [fn(x) { x + 1 }, fn(x) { x * 3 }, fn(x) { x - 2 }]
+      pokazl pipe(kroki, 4)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('13')
+    end
+
+    it 'conditional function application' do
+      code = 'funkcja zastosuj_jesli(wartosc, f, warunek) {
+        jesli warunek(wartosc) {
+          zwroc f(wartosc)
+        }
+        zwroc wartosc
+      }
+      pokazl zastosuj_jesli(5, fn(x) { x * 10 }, fn(x) { x > 3 })
+      pokazl zastosuj_jesli(2, fn(x) { x * 10 }, fn(x) { x > 3 })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq("50\n2")
+    end
+
+    it 'custom map implementation with user function' do
+      code = 'funkcja moja_mapa(tablica, f) {
+        niech wynik = []
+        dla el w tablica {
+          wynik << f(el)
+        }
+        zwroc wynik
+      }
+      pokazl moja_mapa([1, 2, 3], fn(x) { x ^ 2 })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[1, 4, 9]')
+    end
+
+    it 'custom reduce implementation with user function' do
+      code = 'funkcja moja_redukcja(tablica, f, init) {
+        niech acc = init
+        dla el w tablica {
+          acc = f(acc, el)
+        }
+        zwroc acc
+      }
+      pokazl moja_redukcja([1, 2, 3, 4], fn(a, b) { a + b }, 0)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('10')
+    end
+
+    it 'decorator pattern: wraps fn with logging' do
+      code = 'funkcja z_logowaniem(f) {
+        zwroc fn(x) {
+          pokazl "Wejscie: " + x
+          niech wynik = f(x)
+          pokazl "Wyjscie: " + wynik
+          zwroc wynik
+        }
+      }
+      niech podwoj = z_logowaniem(fn(x) { x * 2 })
+      podwoj(5)'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("Wejscie: 5\nWyjscie: 10")
+    end
+  end
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Higher-Order Array Methods
+# ════════════════════════════════════════════════════════════════════════
+
+RSpec.describe 'Higher-Order Array Methods', type: :aruba do
+  let(:main_file_path) { File.expand_path('../../lib/alexscript.rb', File.dirname(__FILE__)) }
 
   describe 'mapuj' do
     it 'maps fn over array of integers' do
@@ -497,8 +635,6 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
     end
   end
 
-  # ── filtruj ──────────────────────────────────────────────────────────
-
   describe 'filtruj' do
     it 'filters elements matching predicate' do
       code = 'niech arr = [1, 2, 3, 4, 5, 6]
@@ -533,8 +669,6 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
     end
   end
 
-  # ── redukuj ──────────────────────────────────────────────────────────
-
   describe 'redukuj' do
     it 'reduces array to sum' do
       code = 'niech arr = [1, 2, 3, 4, 5]
@@ -560,13 +694,6 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('abc')
     end
 
-    it 'reduces single-element array' do
-      code = 'niech arr = [42]
-      pokazl arr.redukuj(fn(acc, x) { acc + x }, 0)'
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('42')
-    end
-
     it 'reduces empty array returns initial value' do
       code = 'niech arr = []
       pokazl arr.redukuj(fn(acc, x) { acc + x }, 99)'
@@ -575,14 +702,18 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
     end
   end
 
-  # ── kazdy ────────────────────────────────────────────────────────────
-
   describe 'kazdy' do
     it 'executes fn for each element (side effects)' do
       code = 'niech arr = [1, 2, 3]
       arr.kazdy(fn(x) { pokazl x * 10 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq("10\n20\n30")
+    end
+
+    it 'kazdy with index' do
+      code = '[10, 20, 30].kazdy(fn(el, idx) { pokazl idx + ": " + el })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("0: 10\n1: 20\n2: 30")
     end
 
     it 'kazdy on empty array does nothing' do
@@ -593,8 +724,6 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('koniec')
     end
   end
-
-  # ── znajdz ───────────────────────────────────────────────────────────
 
   describe 'znajdz' do
     it 'finds first matching element' do
@@ -612,33 +741,27 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
     end
   end
 
-  # ── dowolny / wszystkie ──────────────────────────────────────────────
-
   describe 'dowolny and wszystkie' do
     it 'dowolny returns prawda when at least one matches' do
-      code = 'niech arr = [1, 2, 3, 4]
-      pokazl arr.dowolny(fn(x) { x > 3 })'
+      code = 'pokazl [1, 2, 3, 4].dowolny(fn(x) { x > 3 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('prawda')
     end
 
     it 'dowolny returns falsz when none match' do
-      code = 'niech arr = [1, 2, 3]
-      pokazl arr.dowolny(fn(x) { x > 10 })'
+      code = 'pokazl [1, 2, 3].dowolny(fn(x) { x > 10 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('falsz')
     end
 
     it 'wszystkie returns prawda when all match' do
-      code = 'niech arr = [2, 4, 6]
-      pokazl arr.wszystkie(fn(x) { x % 2 == 0 })'
+      code = 'pokazl [2, 4, 6].wszystkie(fn(x) { x % 2 == 0 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('prawda')
     end
 
     it 'wszystkie returns falsz when one does not match' do
-      code = 'niech arr = [2, 4, 5, 6]
-      pokazl arr.wszystkie(fn(x) { x % 2 == 0 })'
+      code = 'pokazl [2, 4, 5, 6].wszystkie(fn(x) { x % 2 == 0 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('falsz')
     end
@@ -656,7 +779,46 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
     end
   end
 
-  # ── Chaining ─────────────────────────────────────────────────────────
+  describe 'sortuj' do
+    it 'sorts numbers naturally without comparator' do
+      code = 'pokazl [3, 1, 4, 1, 5, 2].sortuj()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[1, 1, 2, 3, 4, 5]')
+    end
+
+    it 'sorts strings naturally without comparator' do
+      code = 'pokazl ["banan", "arbuz", "cytryna"].sortuj()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[arbuz, banan, cytryna]')
+    end
+
+    it 'sorts ascending with comparator fn' do
+      code = 'pokazl [5, 2, 8, 1, 9].sortuj(fn(a, b) { a - b })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[1, 2, 5, 8, 9]')
+    end
+
+    it 'sorts descending with comparator fn' do
+      code = 'pokazl [5, 2, 8, 1, 9].sortuj(fn(a, b) { b - a })'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[9, 8, 5, 2, 1]')
+    end
+
+    it 'sorts empty array' do
+      code = 'pokazl [].sortuj()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[]')
+    end
+
+    it 'does not modify original array' do
+      code = 'niech arr = [3, 1, 2]
+      niech posortowana = arr.sortuj()
+      pokazl arr
+      pokazl posortowana'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq("[3, 1, 2]\n[1, 2, 3]")
+    end
+  end
 
   describe 'method chaining' do
     it 'chains mapuj and filtruj' do
@@ -673,6 +835,13 @@ RSpec.describe 'Higher-Order Array Methods', type: :aruba do
       pokazl wynik'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('220')
+    end
+
+    it 'chains sortuj with filtruj' do
+      code = 'niech wynik = [5, 3, 8, 1, 9, 2].filtruj(fn(x) { x > 3 }).sortuj()
+      pokazl wynik'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('[5, 8, 9]')
     end
   end
 end

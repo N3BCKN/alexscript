@@ -9,7 +9,7 @@ module AlexScript
 			Helpers::LambdaHelper
 
       # higher order array method names.  frozen Set for O(1) lookup
-      ARRAY_HOF_METHODS = %w[mapuj filtruj redukuj kazdy znajdz dowolny wszystkie].freeze
+      ARRAY_HOF_METHODS = %w[mapuj filtruj redukuj kazdy znajdz dowolny wszystkie sortuj].freeze
 
       def initialize
         @import_manager = Utils::ImportManager.new
@@ -33,6 +33,17 @@ module AlexScript
           [:type_float, node.value.to_f]
         elsif node.is_a? AST::Str
           [:type_string, node.value.to_s]
+				elsif node.is_a? AST::InterpolatedString
+          buffer = String.new
+          node.parts.each do |part|
+            if part.is_a?(String)
+              buffer << part
+            else
+              value_type, value = interpret!(part, env)
+              buffer << stringify_for_interpolation(value_type, value)
+            end
+          end
+        	[:type_string, buffer]
         elsif node.is_a? AST::Bool
           # Return PrimivieValue instead of string
           bool_value = node.value == 'prawda' ? Utils::BOOL_TRUE : Utils::BOOL_FALSE
@@ -811,6 +822,13 @@ if method_info
 						else
 							[:type_null, Utils::NULL_VALUE]
 						end
+					when :type_string
+            Utils.runtime_error('Indeks napisu musi byc liczbą całkowitą', node.line) unless key_type == :type_int
+            str = object_var[:value]
+            length = str.length
+            Utils.runtime_error('Indeks poza zakresem', node.line) if key_value >= length || key_value < -length
+
+            [:type_string, -str[key_value]]
           else
             Utils.runtime_error("Wyrazenie #{get_access_path(node, env)} nie jest ani tablica ani obiektem", node.line)
           end
@@ -836,6 +854,8 @@ if method_info
           when :type_object
             Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow') unless key_type == :type_string
             object_var[:value][key_value] = { type: value_type, value: value }
+					when :type_string
+            Utils.runtime_error('Napisy sa niemutowalne — nie mozna przypisac znaku przez indeks', node.line)
           else
             Utils.runtime_error("Wyrazenie #{get_access_path(node, env)} nie jest ani tablica ani obiektem")
           end
@@ -2210,6 +2230,21 @@ if method_info
 					end
 					
 					result
+        end
+      end
+
+
+			def stringify_for_interpolation(type, value)
+        case type
+        when :type_string then value.to_s
+        when :type_null then 'nic'
+        when :type_bool then value == Utils::BOOL_TRUE ? 'prawda' : 'falsz'
+        when :type_int, :type_float then value.to_s
+        when :type_array then format_array_value(value).to_s
+        when :type_object then format_object_value(value)
+        when :type_function then '<funkcja>'
+        when :type_instance then "<#{value[:class_name]} instancja>"
+        else value.to_s
         end
       end
 
