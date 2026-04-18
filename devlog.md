@@ -98,4 +98,9 @@ first fully working version with basic structures:
 * new standard libraries (HTTP, JSON, CSV, Plik, Digest, SecureRandom)
 
 ### 0.8.16
-* anonymous functions
+* anonymous functions and higher order methods 
+
+### 0.8.17
+* add built-in methods for modules
+* fix static methods within modules
+* allow modules to be reopen multiple times 
