@@ -12,7 +12,7 @@ klasa Test1 {
 pokazl "=== Test 1: Podstawowe użycie ==="
 niech t1 = Test1.nowy()
 niech wynik = t1.pobierz_siebie()
-pokazl "Czy sam zwraca instancję? " + wynik.identyczny(t1)  # teraz zadziała!
+pokazl "Czy sam zwraca instancję? " + wynik.identyczny(t1)  
 pokazl ""
 
 # Test 2: Method chaining
@@ -40,14 +40,14 @@ klasa Builder {
 pokazl "=== Test 2: Method Chaining ==="
 niech builder = Builder.nowy()
     .ustaw_x(10)
-    .ustaw_y(20)  # teraz zadziała!
+    .ustaw_y(20)  
 builder.wyswietl()
 pokazl ""
 
 # Test 3: W konstruktorze z metodą .klasa()
 klasa Test3 {
     funkcja konstruktor() {
-        pokazl "W konstruktorze, typ: " + sam.klasa()  # teraz zadziała!
+        pokazl "W konstruktorze, typ: " + sam.klasa()  
     }
 }
 

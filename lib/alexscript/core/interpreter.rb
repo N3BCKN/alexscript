@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'weakref'
-
 module AlexScript
   module Core
     class Interpreter
@@ -507,7 +505,7 @@ module AlexScript
           end
         elsif node.is_a? AST::FuncDclr
           # store entire parsed 'body' of the function with its current env
-          env.set_func(node.name, [node, WeakRef.new(env)])# TODO: improve memory management here
+					env.set_func(node.name, [node, env])
 				elsif node.is_a? AST::FuncCall
 					env.increment_call_depth(node.line)
 					begin
@@ -1364,7 +1362,7 @@ if method_info
 								# static method
 								class_def[:static_methods][stmt.name] = {
 									declaration: stmt,
-									env: WeakRef.new(class_env),
+									env: class_env,
 									private: in_private_section
 								}
 								in_static_section = false  # reset flag
@@ -1372,7 +1370,7 @@ if method_info
 								# normal instance method
 								class_def[:methods][stmt.name] = {
 									declaration: stmt,
-									env: WeakRef.new(class_env),
+									env: class_env,
 									private: in_private_section
 								}
 							end
@@ -1576,7 +1574,7 @@ if method_info
 							# Reopen is often used precisely to swap implementations.
 							module_def[:functions][stmt.name] = [stmt, module_env]
 							# save function in module_env
-							module_env.set_func(stmt.name, [stmt, WeakRef.new(module_env)])
+							module_env.set_func(stmt.name, [stmt, module_env])
 						end
 					end
 					
@@ -2384,7 +2382,7 @@ if method_info
 					end
 					
 					# create new environment for static method
-					method_env = method_info[:env].__getobj__.new_env
+					method_env = method_info[:env].new_env
 					
 					# assign arguments to parameters
 					rest_idx = params.index(&:rest?)
