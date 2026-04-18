@@ -18,7 +18,8 @@ module AlexScript
             type_class: ClassMethods.instance,
             type_instance: InstanceMethods.instance,
             type_bool: BoolMethods.instance,
-            type_null: NullMethods.instance  
+            type_null: NullMethods.instance,
+            type_module: ModuleMethods.instance
           }.freeze
         end
 

@@ -22,12 +22,8 @@ module AlexScript
             format_array_value(value)
           when :type_object
             format_object_value(value)
-          when :type_instance
-            if value[:__native__]
-              Utils::NativeClassRegistry.format_native_instance(value)
-            else
-              "{#{value[:class_name]}}"
-            end
+          when :type_module
+            "modul #{value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value}"
           else
             value
           end
@@ -100,4 +96,4 @@ module AlexScript
       end
     end
   end 
-end 
+end

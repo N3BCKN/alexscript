@@ -61,6 +61,10 @@ module AlexScript
             func = env.get_func(node.name)
             return [:type_function, { declaration: func[0], env: func[1] }] if func
 
+            # if not a function, check if it's a module (modules are first-class values)
+            mod = env.get_module(node.name)
+            return [:type_module, mod] if mod
+
             Utils.runtime_error("Niezadeklarowany identyfikator #{node.name}")
           end
 
@@ -348,9 +352,9 @@ module AlexScript
           expression_type, expression_value = interpret!(node.value, env)
           formatted_value = format_value(expression_type, expression_value)
           
-          # For special values (bool, null), use puts to avoid adding quotes
+          # For special values (bool, null, module), use puts to avoid adding quotes
           # For other types, use p() which preserves string quotes
-          if expression_type == :type_bool || expression_type == :type_null
+          if expression_type == :type_bool || expression_type == :type_null || expression_type == :type_module
             puts formatted_value
           else
             p(formatted_value)
@@ -2104,6 +2108,37 @@ if method_info
 				elsif node.is_a? AST::StaticMethodCall
 					# get class definition
 					class_def = env.get_class(node.class_name)
+
+					# Fallback: Name is uppercase so parser produced StaticMethodCall,
+					# but it might be a module rather than a class.
+					# Modules are first-class values — support built-in reflection methods on them.
+					unless class_def
+						module_def = env.get_module(node.class_name)
+						if module_def
+							if env.built_in_methods.get_method(:type_module, node.method_name)
+								evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+								result = env.call_method(:type_module, node.method_name, module_def, evaluated_args)
+
+								# tuple shortcut (method already returned [type, value])
+								return result if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+
+								result_type = case result
+															when Integer then :type_int
+															when Float then :type_float
+															when String then :type_string
+															when TrueClass, FalseClass then :type_bool
+															when Array then :type_array
+															when NilClass then :type_null
+															when Hash then :type_object
+															else :type_object
+															end
+								return [result_type, result]
+							else
+								Utils.runtime_error("Nieznana metoda '#{node.method_name}' dla modułu #{node.class_name}", node.line)
+							end
+						end
+					end
+
 					Utils.runtime_error("Nieznana klasa #{node.class_name}", node.line) unless class_def
 
 					if env.built_in_methods.get_method(:type_class, node.method_name)

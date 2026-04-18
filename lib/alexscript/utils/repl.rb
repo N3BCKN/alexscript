@@ -194,6 +194,10 @@ module AlexScript
           "\e[35m#<#{class_name}:0x#{value.object_id.to_s(16)}>\e[0m"
         when :type_function
           "\e[35m<funkcja>\e[0m"
+        when :type_module
+          # dump the whole global scope. show a compact, Ruby-ish summary.
+          name = value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value.to_s
+          "\e[35mmodul #{name}\e[0m"
         else
           value.inspect
         end
