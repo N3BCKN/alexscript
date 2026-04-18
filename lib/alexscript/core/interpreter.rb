@@ -879,18 +879,34 @@ if method_info
 					# interpret object
 					object_type, object_value = interpret!(node.object, env)
 				
-					# check if this is a method call on a class (object is a class identifier)
-					if node.object.is_a?(AST::Identifier) && env.get_class(node.object.name)
-						class_name = node.object.name
-						class_def = env.get_class(class_name)
+					# check if this is a method call on a class value.
+					# covers both direct Identifier (rarely reached — see Identifier handler)
+					# AND ModuleAccess resolving to a class (Test::Cos.static_method()).
+					if object_type == :type_class
+						class_def = object_value
+
+						# class_name: best-effort for error messages and reflection
+						class_name =
+							if node.object.is_a?(AST::Identifier)
+								node.object.name
+							elsif node.object.is_a?(AST::ModuleAccess)
+								node.object.member_name
+							else
+								class_def[:name] || "<nieznana>"
+							end
+
+						# module_path: if we came via a module, parent lookups for inheritance
+						# must also happen within that module before falling back to global classes.
+						module_path =
+							node.object.is_a?(AST::ModuleAccess) ? node.object.module_path : nil
 						
 						# first check if this is a built-in info method for class
 						begin
 							# prepare arguments
 							evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 							
-							# add class name info to definition
-							class_def[:name] ||= node.class_name
+							# add class name info to definition (idempotent)
+							class_def[:name] ||= class_name
 
 							# add environment access for methods that need it
 							evaluated_args.unshift(env) if [:przodkowie, :czy_dziedziczy_po].include?(node.method_name.to_sym)
@@ -931,7 +947,13 @@ if method_info
 							parent_name = current_class_def[:parent]
 							break unless parent_name
 							
-							current_class_def = env.get_class(parent_name)
+							# module-aware parent lookup: try the same module first, fall back to global
+							current_class_def =
+								if module_path
+									env.get_module_class(module_path, parent_name) || env.get_class(parent_name)
+								else
+									env.get_class(parent_name)
+								end
 						end
 						
 						if method_info
@@ -1018,6 +1040,30 @@ if method_info
 							
 							return result
 						else
+							# Fallback: static variable access via dot on a module class value.
+							# e.g., Test::Cos.STALA — parsed as MethodCall(ModuleAccess, "STALA", []).
+							# For direct uppercase identifiers, parser builds AST::StaticVariable
+							# instead and this path isn't taken.
+							if node.method_name.match?(/^[A-Z_]+$/) && node.arguments.empty?
+								static_def = nil
+								lookup_class = class_def
+								while lookup_class && !static_def
+									if lookup_class[:static_vars] && lookup_class[:static_vars][node.method_name]
+										static_def = lookup_class[:static_vars][node.method_name]
+										break
+									end
+									parent_name = lookup_class[:parent]
+									break unless parent_name
+									lookup_class =
+										if module_path
+											env.get_module_class(module_path, parent_name) || env.get_class(parent_name)
+										else
+											env.get_class(parent_name)
+										end
+								end
+								return [static_def[:type], static_def[:value]] if static_def
+							end
+
 							Utils.runtime_error("Nieznana metoda statyczna '#{node.method_name}' w klasie #{class_name}", node.line)
 						end
 					end
@@ -1472,25 +1518,52 @@ if method_info
 					
 					[:type_instance, instance]
 				elsif node.is_a? AST::ModuleDefinition
-					module_def = {
-						name: node.name,
-						classes: {},
-						functions: {},
-						constants: {},
-						nested_modules: {},
-						parent_module: node.parent_module,
-						body: node.body
-					}
-					
-					# create env for module contents
-					module_env = env.new_env
-					module_def[:module_env] = module_env
-					
-					# process constants and functions
+					# ── Locate existing module for reopen, or prepare fresh one ──
+					# Modules are open: multiple `modul Foo { ... }` blocks (in the same
+					# file or across imported files) all contribute to a single module
+					# definition. Conflict policy:
+					#   - constants  → runtime error on redefinition (strict)
+					#   - functions  → silent overwrite (Ruby-style reopen)
+					#   - classes    → reopened in place; methods merge/overwrite
+					#   - nested     → recursive reopen
+					existing_module_def =
+						if node.parent_module.nil?
+							env.get_module(node.name)
+						else
+							parent_path = node.parent_module.split("::")
+							parent_def = env.resolve_module_path(parent_path)
+							parent_def && parent_def[:nested_modules] && parent_def[:nested_modules][node.name]
+						end
+
+					if existing_module_def
+						module_def = existing_module_def
+						module_env = module_def[:module_env]
+					else
+						module_def = {
+							name: node.name,
+							classes: {},
+							functions: {},
+							constants: {},
+							nested_modules: {},
+							parent_module: node.parent_module
+						}
+						module_env = env.new_env
+						module_def[:module_env] = module_env
+					end
+
+					# ── Phase 1: constants and functions ──
 					node.body.stmts.each do |stmt|
 						if stmt.is_a?(AST::VariableDeclaration)
 							var_name = stmt.left.name
 							if var_name.match?(/^[A-Z_]+$/)
+								# CONFLICT POLICY: constants are strict.
+								# Redefinition is almost always a bug, never intent.
+								if module_def[:constants].key?(var_name)
+									Utils.runtime_error(
+										"Stała '#{var_name}' jest już zdefiniowana w module #{node.name}",
+										stmt.line
+									)
+								end
 								value_type, value_value = interpret!(stmt.right, module_env)
 								module_def[:constants][var_name] = { type: value_type, value: value_value }
 								# save constants in module_env for classes 
@@ -1499,25 +1572,44 @@ if method_info
 								Utils.runtime_error("Tylko stałe (WIELKIE_LITERY) mogą być definiowane w module", stmt.line)
 							end
 						elsif stmt.is_a?(AST::FuncDclr)
-							# function in module
+							# CONFLICT POLICY: functions silently overwrite.
+							# Reopen is often used precisely to swap implementations.
 							module_def[:functions][stmt.name] = [stmt, module_env]
 							# save function in module_env
 							module_env.set_func(stmt.name, [stmt, WeakRef.new(module_env)])
 						end
 					end
 					
-					# process classes that already have access to constants and/or functions
+					# ── Phase 2: classes + nested modules ──
 					node.body.stmts.each do |stmt|
 						if stmt.is_a?(AST::ClassDefinition)
-							# class inside module
-							class_def = {
-								parent: stmt.parent_class,
-								body: stmt.body,
-								methods: {},
-								static_methods: {},
-								static_vars: {},
-								is_abstract: stmt.is_abstract
-							}
+							# CONFLICT POLICY: class reopen — preserve identity, merge members.
+							class_def = module_def[:classes][stmt.name]
+
+							if class_def.nil?
+								# First definition of this class within the module
+								class_def = {
+									parent: stmt.parent_class,
+									body: stmt.body,
+									methods: {},
+									static_methods: {},
+									static_vars: {},
+									is_abstract: stmt.is_abstract
+								}
+								module_def[:classes][stmt.name] = class_def
+							else
+								# Reopen: disallow changing the superclass mid-flight.
+								# Empty re-declaration (no parent) is OK and means "just add members".
+								if stmt.parent_class && class_def[:parent] && stmt.parent_class != class_def[:parent]
+									Utils.runtime_error(
+										"Klasa #{stmt.name} w module #{node.name} już dziedziczy po #{class_def[:parent]}, " \
+										"nie można zmienić na #{stmt.parent_class}",
+										stmt.line
+									)
+								end
+								# Allow adding inheritance on reopen if original had none.
+								class_def[:parent] ||= stmt.parent_class if stmt.parent_class
+							end
 							
 							# process class body
 							in_private = false
@@ -1569,6 +1661,7 @@ if method_info
 									end
 																		
 								elsif class_stmt.is_a?(AST::FuncDclr)
+									# CONFLICT POLICY: method reopen silently overwrites (Ruby-style).
 									if in_static
 										class_def[:static_methods][class_stmt.name] = {
 											declaration: class_stmt,
@@ -1590,18 +1683,18 @@ if method_info
 								end
 							end
 							
-							module_def[:classes][stmt.name] = class_def
-							
 						elsif stmt.is_a?(AST::ModuleDefinition)
-							# nested module - recurse
+							# nested module — recurse; reopen is handled inside the recursive call
+							# (same ModuleDefinition handler, looks up via parent_module path).
 							nested_module_def = interpret!(stmt, module_env)
+							# Overwriting with the same object on reopen is a no-op (identity).
 							module_def[:nested_modules][stmt.name] = nested_module_def
 						end
 					end
 
-					module_def.delete(:body) # delete AST body after processiong
+					module_def.delete(:body) if module_def.key?(:body)
 					
-					# register ONLY top-level modules
+					# Register top-level modules. Re-registration is a no-op (same object).
 					if node.parent_module.nil?
 						env.define_module(node.name, module_def)
 					end
@@ -1628,6 +1721,35 @@ if method_info
 					class_def = env.get_module_class(module_path, member_name)
 					if class_def
 						return [:type_class, class_def]
+					end
+
+					# Fallback: maybe module_path.last is a class, and member_name is its
+					# static variable. E.g., Test::Cos::STALA — treats `::` as equivalent to `.`
+					# for static-variable access on classes.
+					if member_name.match?(/^[A-Z_]+$/)
+						class_name = module_path.last
+						parent_path = module_path[0...-1]
+						host_class =
+							if parent_path.empty?
+								env.get_class(class_name)
+							else
+								env.get_module_class(parent_path, class_name)
+							end
+
+						if host_class
+							lookup_class = host_class
+							while lookup_class
+								if lookup_class[:static_vars] && lookup_class[:static_vars][member_name]
+									static_def = lookup_class[:static_vars][member_name]
+									return [static_def[:type], static_def[:value]]
+								end
+								parent_name = lookup_class[:parent]
+								break unless parent_name
+								lookup_class =
+									(parent_path.any? ? env.get_module_class(parent_path, parent_name) : nil) ||
+									env.get_class(parent_name)
+							end
+						end
 					end
 					
 					path_str = module_path.join("::")
@@ -1743,7 +1865,35 @@ if method_info
 					function_name = node.function_name
 					
 					func = env.get_module_function(module_path, function_name)
-					
+
+					# Fallback: maybe the last path segment is a class, and function_name
+					# is its static method. E.g., Test::Cos::moja_funkcja() — Cos is a
+					# class in module Test, not a nested module. Treats `::` as equivalent
+					# to `.` for static-method access.
+					unless func
+						class_name = module_path.last
+						parent_path = module_path[0...-1]
+						class_def =
+							if parent_path.empty?
+								env.get_class(class_name)
+							else
+								env.get_module_class(parent_path, class_name)
+							end
+
+						if class_def
+							# Re-dispatch through the appropriate AST shape so all existing
+							# static-method logic (hierarchy walk, native dispatch, built-ins)
+							# applies uniformly.
+							if parent_path.empty?
+								synthetic = AST::StaticMethodCall.new(class_name, function_name, node.arguments, node.line)
+							else
+								module_access = AST::ModuleAccess.new(parent_path, class_name, node.line)
+								synthetic = AST::MethodCall.new(module_access, function_name, node.arguments, node.line)
+							end
+							return interpret!(synthetic, env)
+						end
+					end
+
 					unless func
 						path_str = module_path.join("::")
 						Utils.runtime_error("Nie znaleziono funkcji '#{function_name}' w module #{path_str}", node.line)

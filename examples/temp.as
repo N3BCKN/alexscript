@@ -1,5 +1,12 @@
-funkcja test(){}
+modul Test{
+  klasa Cos{
+    statyczna funkcja moja_funkcja() {
+      zwroc "To ze statycznej funkcji"
+    }
 
-niech x = fn(){}
-
-pokazl test() + 1
+    funkcja zadziala(){
+      zwroc "to powinno zadzialac"
+    }
+  }
+}
+pokaz Test::Cos::moja_funkcja()
