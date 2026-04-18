@@ -128,7 +128,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl text - num
       '
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Niewspierany operator - pomiedzy hello a 5/)
+      expect(last_command_started).to have_output(/BladWykonania: Niewspierany operator - pomiedzy "hello" a 5 w linii 4/)
       expect(last_command_started).to have_exit_status(1)
     end
 

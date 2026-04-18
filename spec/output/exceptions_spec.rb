@@ -30,7 +30,7 @@ RSpec.describe 'Exceptions', type: :aruba do
       code = 'niech tekst = "abc"
               pokazl tekst - 5'
       run_command "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started).to have_output(/Niewspierany operator - pomiedzy abc a 5 w linii 2/)
+      expect(last_command_started).to have_output(/BladWykonania: Niewspierany operator - pomiedzy "abc" a 5 w linii 2/)
     end
 
     it 'tłumaczy błąd nieprawidłowego warunku w if' do

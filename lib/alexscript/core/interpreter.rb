@@ -153,7 +153,7 @@ module AlexScript
               right_str = right_type == :type_bool ? (from_bool_value(right_value) ? "prawda" : "falsz") : right_value.to_s
               [:type_string, left_str + right_str]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_minus # subtraction -
             case [left_type, right_type]
@@ -162,7 +162,7 @@ module AlexScript
             when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
               [:type_float, left_value.to_f - right_value.to_f]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_star # multiplication *
             case [left_type, right_type]
@@ -171,7 +171,7 @@ module AlexScript
             when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
               [:type_float, left_value.to_f * right_value.to_f]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_slash # division /
             Utils.runtime_error('Dzielenie przez zero', node.op.line) if right_value == 0
@@ -184,7 +184,7 @@ module AlexScript
             when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
               [:type_float, left_value.to_f / right_value.to_f]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_mod # modulo %
             case [left_type, right_type]
@@ -193,7 +193,7 @@ module AlexScript
             when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
               [:type_float, left_value.to_f % right_value.to_f]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_caret # exponentiation ^
             case [left_type, right_type]
@@ -203,7 +203,7 @@ module AlexScript
             when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
               [:type_float, left_value.to_f**right_value.to_f]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_greater # >
             case [left_type, right_type]
@@ -212,7 +212,7 @@ module AlexScript
             when %i[type_string type_string]
               [:type_bool, to_bool_value(left_value > right_value)]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_greateroreq # >=
             case [left_type, right_type]
@@ -221,7 +221,7 @@ module AlexScript
             when %i[type_string type_string]
               [:type_bool, to_bool_value(left_value >= right_value)]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_smaller # <
             case [left_type, right_type]
@@ -230,7 +230,7 @@ module AlexScript
             when %i[type_string type_string]
               [:type_bool, to_bool_value(left_value < right_value)]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
 					elsif node.op.token_type == :tok_append # <<
 						if left_type == :type_array
@@ -250,7 +250,7 @@ module AlexScript
             when %i[type_string type_string]
               [:type_bool, to_bool_value(left_value <= right_value)]
             else
-              runtime_error(left_value, right_value, node)
+              runtime_error(left_type, left_value, right_type, right_value, node)
             end
           elsif node.op.token_type == :tok_eq # ==
 						[:type_bool, to_bool_value(deep_equal?(left_type, left_value, right_type, right_value))]
@@ -268,7 +268,7 @@ module AlexScript
             when :type_float
               [:type_float, +operand_value]
             else
-              runtime_error_unop(operand_value, node)
+              runtime_error_unop(operand_type, operand_value, node)
             end
           elsif node.op.token_type == :tok_minus
             case operand_type
@@ -277,7 +277,7 @@ module AlexScript
             when :type_float
               [:type_float, -operand_value]
             else
-              runtime_error_unop(operand_value, node)
+              runtime_error_unop(operand_type, operand_value, node)
             end
           elsif node.op.token_type == :tok_not
             if operand_type == :type_bool
@@ -285,7 +285,7 @@ module AlexScript
             elsif operand_type == :type_null
               [:type_bool, Utils::BOOL_TRUE] # !nic returns true
             else
-              runtime_error_unop(operand_value, node)
+              runtime_error_unop(operand_type, operand_value, node)
             end
           end
 

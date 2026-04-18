@@ -10,7 +10,7 @@ require_relative('alexscript/utils/utils')
 require_relative('alexscript/native/native')
 
 module AlexScript
-  VERSION = '0.7.15'
+  VERSION = '0.8.17'
 
   #load standard libraries
   Native.setup!

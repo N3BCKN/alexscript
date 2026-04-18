@@ -15,13 +15,47 @@ module AlexScript
           true
         end
 
-        def runtime_error(left_value, right_value, node)
-          Utils.runtime_error("Niewspierany operator #{node.op.lexeme} pomiedzy #{left_value} a #{right_value}",
-                              node.op.line)
+        def runtime_error(left_type, left_value, right_type, right_value, node)
+          Utils.runtime_error(
+            "Niewspierany operator #{node.op.lexeme} pomiedzy " \
+            "#{format_operand_for_error(left_type, left_value)} a " \
+            "#{format_operand_for_error(right_type, right_value)}",
+            node.op.line
+          )
         end
 
-        def runtime_error_unop(value, node)
-          Utils.runtime_error("Niewspierany operator #{node.op.lexeme} z #{value}", node.op.line)
+        def runtime_error_unop(type, value, node)
+          Utils.runtime_error(
+            "Niewspierany operator #{node.op.lexeme} z #{format_operand_for_error(type, value)}",
+            node.op.line
+          )
+        end
+
+        # short, user-facing representation of an operand for error messages
+        # never dumps internal environment / class_def / module_def hashes, which would otherwise leak via Hash#to_s string interpolation
+        def format_operand_for_error(type, value)
+          case type
+          when :type_module
+            "modul #{value.is_a?(Hash) ? (value[:name] || '?') : value}"
+          when :type_class
+            "klasa #{value.is_a?(Hash) ? (value[:name] || '?') : value}"
+          when :type_function
+            "<funkcja>"
+          when :type_instance
+            "<instancja #{value.is_a?(Hash) ? (value[:class_name] || '?') : '?'}>"
+          when :type_string
+            "\"#{value}\""
+          when :type_bool
+            value == Utils::BOOL_TRUE ? 'prawda' : 'falsz'
+          when :type_null
+            'nic'
+          when :type_array
+            "[tablica(#{value.is_a?(Array) ? value.size : '?'})]"
+          when :type_object
+            "{obiekt(#{value.is_a?(Hash) ? value.size : '?'})}"
+          else
+            value.to_s
+          end
         end
 
         def get_access_path(node, env)
@@ -40,4 +74,4 @@ module AlexScript
       end
     end
   end 
-end 
+end
