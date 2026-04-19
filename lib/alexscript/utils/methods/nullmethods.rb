@@ -7,7 +7,7 @@ module AlexScript
         private
 
         def register_methods
-          register_method('typ', ->(_value) { 'null' })
+          register_method('typ', ->(_value) { 'nic' })
           register_method('napis', ->(_value) { 'nic' })
         end
       end

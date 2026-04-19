@@ -189,7 +189,7 @@ RSpec.describe 'Primitive Values (Bool and Null)', type: :aruba do
         pokazl x.typ()
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('null')
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('nic')
     end
   end
 

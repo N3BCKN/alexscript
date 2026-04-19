@@ -63,7 +63,7 @@ module AlexScript
             mod = env.get_module(node.name)
             return [:type_module, mod] if mod
 
-            Utils.runtime_error("Niezadeklarowany identyfikator #{node.name}")
+            Utils.runtime_error("Niezadeklarowany identyfikator #{node.name}", node.line)
           end
 
           Utils.runtime_error("Niezainicjowany identyfikator #{node.name}") if var_raw[:type].nil?

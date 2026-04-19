@@ -7,8 +7,7 @@ module AlexScript
 
       attr_reader :variables, :functions, :parent, :classes, :built_in_methods
 
-      @@call_depth = 0
-      @@max_call_depth = 600
+      MAX_CALL_DEPTH = 600
 
       @@built_in_methods = nil
 
@@ -315,14 +314,26 @@ module AlexScript
       end
 
       def increment_call_depth(line)
-        @@call_depth += 1
-        return unless @@call_depth > @@max_call_depth
+        new_depth = (Fiber[:alex_call_depth] ||= 0) + 1
+        Fiber[:alex_call_depth] = new_depth
+        return unless new_depth > MAX_CALL_DEPTH
 
-        Utils.runtime_error("Maksymalna głębokosc rekurencji (#{@@max_call_depth}) przekroczona, zbyt glebokie zagniezdzenie stosu", line)
+        Utils.runtime_error(
+          "Maksymalna glebokosc rekurencji (#{MAX_CALL_DEPTH}) przekroczona, zbyt glebokie zagniezdzenie stosu",
+          line
+        )
       end
 
       def decrement_call_depth
-        @@call_depth -= 1
+        Fiber[:alex_call_depth] = (Fiber[:alex_call_depth] || 0) - 1
+      end
+
+      def self.call_depth
+        Fiber[:alex_call_depth] ||= 0
+      end
+
+      def self.call_depth=(value)
+        Fiber[:alex_call_depth] = value
       end
 
       # for passing function as argments to other functions
