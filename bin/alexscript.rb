@@ -1,6 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# YJIT activation 
+unless ARGV.include?('--no-yjit')
+  begin
+    RubyVM::YJIT.enable if defined?(RubyVM::YJIT)
+  rescue StandardError
+    # YJIT not compiled, continue anyway
+  end
+end
+
+
 USER_PWD = ENV['ALEXSCRIPT_USER_PWD'] || Dir.pwd
 
 ALEXSCRIPT_ROOT = File.expand_path('..', __dir__) unless defined?(ALEXSCRIPT_ROOT)
@@ -57,6 +67,8 @@ module AlexScript
     opts = Slop.parse do |o|
       o.bool '-f', '--full', 'run in full mode'
       o.bool '-t', '--time', 'measure time of execution'
+      o.bool '--no-yjit',    'disable YJIT (for profiling interpreter internals)'
+      o.bool '--yjit-stats', 'print YJIT runtime statistics after execution'
     end
 
     Utils::Repl.new if ARGV.empty?
@@ -78,6 +90,11 @@ module AlexScript
     start_time = Time.new if opts.time?
 
     if opts.full?
+      yjit_status = (defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?) ? 'enabled' : 'disabled'
+      puts '***************************************'.colorize(:white)
+      puts "RUNTIME:  Ruby #{RUBY_VERSION}, YJIT #{yjit_status}".colorize(:white)
+      puts '***************************************'.colorize(:white)
+
       puts '***************************************'.colorize(:white)
       puts 'SOURCE:'.colorize(:white)
       puts '***************************************'.colorize(:white)
@@ -115,10 +132,27 @@ module AlexScript
     wynik = interpreter.interpret_ast(ast)
     puts wynik if wynik
 
-    return unless opts.time?
+    if opts.time?
+      end_time = Time.now
+      puts "Execution time: #{end_time - start_time}s"
+    end
 
-    end_time = Time.now
-    puts "Execution time: #{end_time - start_time}s"
+    if opts.yjit_stats? && defined?(RubyVM::YJIT) && RubyVM::YJIT.enabled?
+      stats = RubyVM::YJIT.runtime_stats
+      puts
+      puts 'YJIT stats:'.colorize(:white)
+      keys_of_interest = %i[
+        compiled_iseq_count
+        compiled_block_count
+        inline_code_size
+        outlined_code_size
+        side_exit_count
+        invalidation_count
+      ]
+      keys_of_interest.each do |k|
+        puts "  #{k.to_s.ljust(24)} #{stats[k]}" if stats.key?(k)
+      end
+    end
   end
 end
 
