@@ -9,6 +9,7 @@ require_relative '../lib/alexscript/core/core'
 require_relative '../lib/alexscript/ast/ast'
 require_relative '../lib/alexscript/utils/utils'
 require_relative '../lib/alexscript/native/native'
+require_relative '../lib/alexscript/async/async'
 
 RSpec.describe 'Fiber isolation of interpreter state' do
   # Zakładam że masz środowisko ze załadowanymi klasami.

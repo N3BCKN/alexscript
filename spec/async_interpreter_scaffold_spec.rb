@@ -7,6 +7,7 @@ require_relative '../lib/alexscript/core/core'
 require_relative '../lib/alexscript/ast/ast'
 require_relative '../lib/alexscript/utils/utils'
 require_relative '../lib/alexscript/native/native'
+require_relative '../lib/alexscript/async/async'
 
 RSpec.describe AlexScript::Core::AsyncInterpreter do
   let(:interpreter) { AlexScript::Core::Interpreter.new }

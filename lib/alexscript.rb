@@ -18,6 +18,7 @@ require_relative('alexscript/core/core')
 require_relative('alexscript/ast/ast')
 require_relative('alexscript/utils/utils')
 require_relative('alexscript/native/native')
+require_relative('alexscript/async/async')
 
 module AlexScript
   VERSION = '0.8.17'
