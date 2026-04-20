@@ -8,20 +8,25 @@ module AlexScript
 
       def initialize(name, params, body_statement, line)
         validate_types([name], [String])
-        validate_types(params, [Param]) unless params.nil? # TODO: dobule check this
+        validate_types(params, [Param]) unless params.nil?
         validate_types([body_statement], Stmts)
 
         @name = name
         @params = params
         @body_statement = body_statement
         @line = line
-        @private = false 
+        @private = false
+      end
+
+      def evaluate(_interpreter, env)
+        # store entire parsed 'body' of the function with its current env
+        env.set_func(@name, [self, env])
       end
 
       def set_private(is_private)
         @private = is_private
       end
-    
+
       def private?
         @private
       end
@@ -30,7 +35,6 @@ module AlexScript
         function_string = []
         function_string << "#{indent(level)}FunctionDeclaration(#{@private ? 'private ' : ''}"
         function_string << "#{indent(level)} name: #{@name}"
-        # function_string[0] = "#{indent(level)}FunctionDeclaration(#{@private ? 'private ' : ''}"
 
         i = 0
         while i < @params.length
@@ -60,7 +64,7 @@ module AlexScript
       def has_default?
         !@default_value.nil?
       end
-      
+
       def rest?
         @rest
       end
@@ -82,10 +86,14 @@ module AlexScript
 
       def initialize(name, arguments, line)
         validate_types([name], [String])
-        validate_types(arguments, Expr) unless arguments.empty? # TODO: dobule check this
+        validate_types(arguments, Expr) unless arguments.empty?
         @name = name
         @arguments = arguments
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        interpreter.evaluate_func_call(self, env)
       end
 
       def pretty_print(level = 0)
@@ -114,6 +122,10 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        interpreter.interpret!(@expression, env)
+      end
+
       def pretty_print(level = 0)
         ["#{indent(level)}FuncCallStmt(",
          @expression.pretty_print(level + 1)].join("\n")
@@ -130,13 +142,17 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        raise Utils::ReturnError.new(interpreter.interpret!(@value, env))
+      end
+
       def pretty_print(level = 0)
         ["#{indent(level)}Return(",
          @value.pretty_print(level + 1),
          "#{indent(level)})"].join("\n")
       end
     end
-    
+
     class InstanceMethodCall < Expr
       attr_reader :object, :method_name, :arguments, :line
 
@@ -147,6 +163,50 @@ module AlexScript
         @method_name = method_name
         @arguments = arguments || []
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        # evaluate object
+        obj_type, obj_value = interpreter.interpret!(@object, env)
+        Utils.runtime_error("Próba wywołania metody na obiekcie, który nie jest instancją", @line) unless obj_type == :type_instance
+
+        # get class definition
+        class_def = obj_value[:class_def]
+
+        # get method
+        method_def = class_def[:methods][@method_name]
+        Utils.runtime_error("Nieznana metoda #{@method_name}", @line) unless method_def
+
+        # check if method is private
+        if method_def[:private]
+          # check if we're in context of same instance
+          current_instance = env.get_instance
+          unless current_instance && current_instance.equal?(obj_value)
+            Utils.runtime_error("Próba wywołania prywatnej metody #{@method_name}", @line)
+          end
+        end
+
+        # evaluate arguments
+        arg_values = @arguments.map { |arg| interpreter.interpret!(arg, env) }
+
+        # create environment for method
+        method_env = method_def[:env].new_env
+        method_env.set_instance(obj_value)  # set current instance
+
+        # assign arguments to parameters
+        method_def[:declaration].params.zip(arg_values).each do |param, arg|
+          method_env.set_var(param.name, arg[1], arg[0])
+        end
+
+        # execute method body
+        begin
+          Utils::ContextTracker.track_method_call(@method_name) do
+            interpreter.interpret!(method_def[:declaration].body, method_env)
+          end
+          [:type_null, Utils::NULL_VALUE]  # default return value
+        rescue Utils::ReturnError => e
+          e.value
+        end
       end
 
       def pretty_print(level = 0)

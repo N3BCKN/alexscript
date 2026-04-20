@@ -14,6 +14,19 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        buffer = String.new
+        @parts.each do |part|
+          if part.is_a?(String)
+            buffer << part
+          else
+            value_type, value = interpreter.interpret!(part, env)
+            buffer << interpreter.stringify_for_interpolation(value_type, value)
+          end
+        end
+        [:type_string, buffer]
+      end
+
       def pretty_print(level = 0)
         parts_str = @parts.map do |part|
           if part.is_a?(String)

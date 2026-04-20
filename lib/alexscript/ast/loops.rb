@@ -12,6 +12,20 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        loop_env = env.new_env
+        while true
+          # Execute body in the loop's environment
+          begin
+            interpreter.interpret!(@body_statement, loop_env)
+          rescue Utils::ContinueException
+            next
+          rescue Utils::BreakException
+            break
+          end
+        end
+      end
+
       def pretty_print(level = 0)
         [
           "#{indent(level)}Loop(",
@@ -24,6 +38,7 @@ module AlexScript
     # eg dla niech x = 0; 10; 1 {...}
     class ForStmt < Stmt
       attr_accessor :identifier, :start_statement, :end_statement, :step_statement, :body_statement
+      attr_reader :line
 
       def initialize(identifier, start_statement, end_statement, step_statement, body_statement, line)
         validate_types([identifier], [Identifier])
@@ -35,6 +50,49 @@ module AlexScript
         @end_statement = end_statement
         @step_statement = step_statement
         @body_statement = body_statement
+        @line = line
+      end
+
+      def evaluate(interpreter, env)
+        var_name = @identifier.name
+        index_type, index_value = interpreter.interpret!(@start_statement, env)
+        end_type, end_value = interpreter.interpret!(@end_statement, env)
+
+        # Create a new environment for the while loop scope
+        loop_env = env.new_env
+        if index_value < end_value
+          if @step_statement.nil?
+            step = 1
+          else
+            step_type, step = interpreter.interpret!(@step_statement, env)
+          end
+          while interpreter.to_bool_value(index_value < end_value) == Utils::BOOL_TRUE
+            begin
+              loop_env.set_var(var_name, index_value, :type_int)
+              interpreter.interpret!(@body_statement, loop_env)
+            rescue Utils::ContinueException
+            rescue Utils::BreakException
+              break
+            end
+            index_value += step
+          end
+        else
+          if @step_statement.nil?
+            step = -1
+          else
+            step_type, step = interpreter.interpret!(@step_statement, env)
+          end
+          while interpreter.to_bool_value(index_value > end_value) == Utils::BOOL_TRUE
+            begin
+              loop_env.set_var(var_name, index_value, :type_int)
+              interpreter.interpret!(@body_statement, loop_env)
+            rescue Utils::ContinueException
+            rescue Utils::BreakException
+              break
+            end
+            index_value += step
+          end
+        end
       end
 
       def pretty_print(level = 0)
@@ -61,7 +119,32 @@ module AlexScript
         validate_types([body_statement], [Stmts])
         @test = test
         @body_statement = body_statement
-        @line = line # dodajemy przypisanie line!
+        @line = line
+      end
+
+      def evaluate(interpreter, env)
+        # Create a new environment for the while loop scope
+        loop_env = env.new_env
+
+        while true
+          # Evaluate test condition in the parent environment
+          test_type, test_value = interpreter.interpret!(@test, env)
+
+          # Validate the test condition type
+          Utils.runtime_error('Test while nie jest wyrazeniem boolowskim', @line) if test_type != :type_bool
+
+          # Exit loop if condition is false
+          break unless test_value == Utils::BOOL_TRUE
+
+          # Execute body in the loop's environment
+          begin
+            interpreter.interpret!(@body_statement, loop_env)
+          rescue Utils::ContinueException
+            next
+          rescue Utils::BreakException
+            break
+          end
+        end
       end
 
       def pretty_print(level = 0)
@@ -84,10 +167,31 @@ module AlexScript
         validate_types([object], [Expr], 'object')
         validate_types([body_statement], [Stmts], 'body')
         @key_identifier = key_identifier
-        @value_identifier = value_identifier # może być nil
+        @value_identifier = value_identifier
         @object = object
         @body_statement = body_statement
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        object_type, object_value = interpreter.interpret!(@object, env)
+        Utils.runtime_error('Moze iterowac tylko po obiektach', @line) unless object_type == :type_object
+
+        loop_env = env.new_env
+
+        object_value.each do |key, value|
+          # always set key (it's required)
+          loop_env.set_var(@key_identifier.name, key, :type_string)
+
+          # setting value is optional
+          loop_env.set_var(@value_identifier.name, value[:value], value[:type]) if @value_identifier
+
+          interpreter.interpret!(@body_statement, loop_env)
+        rescue Utils::BreakException
+          break
+        rescue Utils::ContinueException
+          next
+        end
       end
 
       def pretty_print(level = 0)
@@ -118,6 +222,28 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        array_type, array_value = interpreter.interpret!(@array, env)
+        Utils.runtime_error('Moze iterowac tylko po tablicach', @line) unless array_type == :type_array
+
+        loop_env = env.new_env
+
+        array_value.each do |element|
+          # set values in env
+          if element.is_a?(Hash)
+            loop_env.set_var(@element_identifier.name, element[:value], element[:type])
+          else
+            loop_env.set_var(@element_identifier.name, element, interpreter.get_type(element)) # TODO: FIX THIS MISSING get_type METHOD ASAP
+          end
+
+          interpreter.interpret!(@body_statement, loop_env)
+        rescue Utils::BreakException
+          break
+        rescue Utils::ContinueException
+          next
+        end
+      end
+
       def pretty_print(level = 0)
         [
           "#{indent(level)}ForInArrayLoop(",
@@ -131,8 +257,14 @@ module AlexScript
 
     # zakoncz (break loop)
     class BreakLoop < Stmt
+      attr_reader :line
+
       def initialize(line)
         @line = line
+      end
+
+      def evaluate(_interpreter, _env)
+        raise Utils::BreakException.new
       end
 
       def pretty_print(level = 0)
@@ -142,8 +274,14 @@ module AlexScript
 
     # nastepny (next/continue loop)
     class ContinueLoop < Stmt
+      attr_reader :line
+
       def initialize(line)
         @line = line
+      end
+
+      def evaluate(_interpreter, _env)
+        raise Utils::ContinueException.new
       end
 
       def pretty_print(level = 0)

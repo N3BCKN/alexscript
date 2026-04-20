@@ -4,12 +4,18 @@ module AlexScript
   module AST
     # print value (pokaz ...)
     class PrintStmt < Stmt
-      attr_reader :value, :ending
+      attr_reader :value, :ending, :line
 
       def initialize(value, line)
         validate_types([value], [Expr], 'expression')
         @value = value
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        expression_type, expression_value = interpreter.interpret!(@value, env)
+        formatted_value = interpreter.format_value(expression_type, expression_value)
+        print("#{formatted_value} ")
       end
 
       def pretty_print(level = 0)
@@ -23,12 +29,25 @@ module AlexScript
 
     # print value with new line (pokazl ...)
     class PrintlnStmt < Stmt
-      attr_reader :value, :ending
+      attr_reader :value, :ending, :line
 
       def initialize(value, line)
         validate_types([value], [Expr], 'expression')
         @value = value
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        expression_type, expression_value = interpreter.interpret!(@value, env)
+        formatted_value = interpreter.format_value(expression_type, expression_value)
+
+        # For special values (bool, null, module), use puts to avoid adding quotes
+        # For other types, use p() which preserves string quotes
+        if expression_type == :type_bool || expression_type == :type_null || expression_type == :type_module
+          puts formatted_value
+        else
+          p(formatted_value)
+        end
       end
 
       def pretty_print(level = 0)
@@ -48,6 +67,14 @@ module AlexScript
         validate_types([code], [Int]) unless code.nil?
         @code = code
         @line = line
+      end
+
+      def evaluate(_interpreter, _env)
+        if @code
+          exit(@code.value)
+        else
+          exit
+        end
       end
 
       def pretty_print(level = 0)
@@ -71,6 +98,18 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        if @prompt
+          prompt_type, prompt_value = interpreter.interpret!(@prompt, env)
+          puts(prompt_value)
+        end
+
+        input = STDIN.gets
+        input = input.chomp if input
+
+        [:type_string, input]
+      end
+
       def pretty_print(level = 0)
         prompt = @prompt.nil? ? '' : @prompt.pretty_print(level + 1)
 
@@ -92,6 +131,10 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        interpreter.interpret!(@expression, env)
+      end
+
       def pretty_print(level = 0)
         [
           "#{indent(level)}InputStmt(",
@@ -109,6 +152,15 @@ module AlexScript
         validate_types([file_path], [String])
         @file_path = file_path
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        begin
+          imported_env = interpreter.import_manager.import_file(@file_path, interpreter.current_file, env)
+          env.merge(imported_env) # merge imported env with parent env (main file which imports file)
+        rescue StandardError => e
+          Utils.runtime_error("Blad importu: #{e.message}", @line)
+        end
       end
 
       def pretty_print(level = 0)

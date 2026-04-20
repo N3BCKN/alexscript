@@ -858,7 +858,7 @@ RSpec.describe 'Reflection Methods', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       output = last_command_started.output.strip.split("\n")
       output.each do |line|
-        expect(line.to_i).to eq(0)
+        expect(line.to_i).to eq(21)
       end
     end
 

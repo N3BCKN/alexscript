@@ -1,9 +1,39 @@
-          klasa Osoba {
-            funkcja konstruktor(imie, wiek) {
-              niech @imie = imie
-              niech @wiek = wiek
-            }
+        klasa Zwierze {
+          funkcja konstruktor(nazwa) {
+            niech @nazwa = nazwa
           }
-          niech osoba = Osoba.nowy("Jan", 25)
-          niech zmienne = osoba.zmienne_instancji()
-          pokazl zmienne.zawiera("imie") i zmienne.zawiera("wiek")
+          
+          funkcja odglos() {
+            zwroc "..."
+          }
+          
+          funkcja przedstaw() {
+            zwroc "Jestem " + @nazwa + " i robię " + odglos()
+          }
+        }
+        
+        klasa Pies < Zwierze {
+          funkcja konstruktor(nazwa){
+             niech @nazwa = nazwa
+          }
+
+          funkcja odglos() {
+            zwroc "Hau hau!"
+          }
+        }
+        
+        klasa Kot < Zwierze {
+          funkcja konstruktor(nazwa){
+             niech @nazwa = nazwa
+          }
+            
+          funkcja odglos() {
+            zwroc "Miau!"
+          }
+        }
+        
+        niech pies = Pies.nowy("Burek")
+        niech kot = Kot.nowy("Mruczek")
+        
+        pokazl pies.przedstaw()
+        pokazl kot.przedstaw()

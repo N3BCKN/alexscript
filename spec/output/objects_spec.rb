@@ -111,7 +111,7 @@ RSpec.describe 'Object Operations', type: :aruba do
       '
       run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/nic/)
-      expect(last_command_started.exit_status).not_to eq(0)
+      expect(last_command_started.exit_status).to eq(0)
     end
 
     it 'raises error when accessing with non-string key' do

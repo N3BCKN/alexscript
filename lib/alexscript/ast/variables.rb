@@ -10,6 +10,26 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(_interpreter, env)
+        # check if it's a variable
+        var_raw = env.get_var(@name)
+
+        if var_raw.nil?
+          # if not a var, check if it's a function call
+          func = env.get_func(@name)
+          return [:type_function, { declaration: func[0], env: func[1] }] if func
+
+          # if not a function, check if it's a module (modules are first-class values)
+          mod = env.get_module(@name)
+          return [:type_module, mod] if mod
+
+          Utils.runtime_error("Niezadeklarowany identyfikator #{@name}", @line)
+        end
+
+        Utils.runtime_error("Niezainicjowany identyfikator #{@name}", @line) if var_raw[:type].nil?
+        [var_raw[:type], var_raw[:value]]
+      end
+
       def pretty_print(level = 0)
         "#{indent(level)}Identifier(#{@name})"
       end
@@ -24,6 +44,20 @@ module AlexScript
         @left = left
         @right = right
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        var = env.get_var(@left.name)
+        if var.nil?
+          Utils.runtime_error("Zmienna #{@left.name} musi byc zadeklarowana z 'niech' przed przypisaniem", @line)
+        elsif var[:constant]
+          Utils.runtime_error("Zmienna #{@left.name} jest stala i nie moze byc zmieniana", @line)
+        end
+
+        # evaluate right side of the expression
+        right_type, right_value = interpreter.interpret!(@right, env)
+        # assign new value or overwrite existing one
+        env.set_var(@left.name, right_value, right_type)
       end
 
       def pretty_print(level = 0)
@@ -47,6 +81,21 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        var = env.get_var(@left.name)
+        if var.nil?
+          Utils.runtime_error("Zmienna #{@left.name} musi byc zadeklarowana z 'niech' przed przypisaniem", @line)
+        elsif var[:constant]
+          Utils.runtime_error("Zmienna #{@left.name} jest stala i nie moze byc zmieniana", @line)
+        end
+
+        # evaluate right side of the expression
+        right_type, right_value = interpreter.interpret!(@right, env)
+        # assign new value and overwrite existing one
+        env.set_var(@left.name, right_value, right_type)
+        [right_type, right_value]
+      end
+
       def pretty_print(level = 0)
         [
           "#{indent(level)}AssignmentExpr(",
@@ -66,6 +115,15 @@ module AlexScript
         @left = left
         @right = right
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        right_type, right_value = interpreter.interpret!(@right, env)
+        # declare new variable
+        var_name = @left.name
+        is_constant = var_name.match?(/^[A-Z_]+$/) # declare as constant if CAPITALIZED
+
+        env.set_local_var(var_name, right_value, right_type, is_constant)
       end
 
       def pretty_print(level = 0)
@@ -89,6 +147,15 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        global_env = env.get_global_env
+
+        right_type, right_value = interpreter.interpret!(@right, env)
+
+        # declare new variable in global scope
+        global_env.set_local_var(@left.name, right_value, right_type)
+      end
+
       def pretty_print(level = 0)
         [
           "#{indent(level)}GlobalVariableDeclaration(",
@@ -109,6 +176,19 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(_interpreter, env)
+        instance = env.get_instance
+        Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", @line) unless instance
+
+        # get instance variable value
+        value = instance[:instance_vars][@name]
+        if value.nil?
+          [:type_null, Utils::NULL_VALUE]  # uninitialized instance variable returns 'nic'
+        else
+          value
+        end
+      end
+
       def pretty_print(level = 0)
         "#{indent(level)}InstanceVariable(@#{@name})"
       end
@@ -123,6 +203,19 @@ module AlexScript
         @name = name
         @value = value
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        instance = env.get_instance
+        Utils.runtime_error("Nie można przypisać zmiennej instancji poza kontekstem instancji", @line) unless instance
+
+        # evaluate value to assign
+        value_type, value_value = interpreter.interpret!(@value, env)
+
+        # assign value to instance variable
+        instance[:instance_vars][@name] = [value_type, value_value]
+
+        [value_type, value_value]
       end
 
       def pretty_print(level = 0)
@@ -144,6 +237,19 @@ module AlexScript
         @name = name
         @value = value
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        instance = env.get_instance
+        Utils.runtime_error("Nie można zadeklarować zmiennej instancji poza kontekstem instancji", @line) unless instance
+
+        # evaluate value
+        value_type, value_value = interpreter.interpret!(@value, env)
+
+        # save instance variable
+        instance[:instance_vars][@name] = [value_type, value_value]
+
+        [value_type, value_value]
       end
 
       def pretty_print(level = 0)

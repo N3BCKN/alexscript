@@ -3,6 +3,16 @@
 module AlexScript
   module AST
     class Node
+      # Default evaluator — raised if a subclass didn't implement its own.
+      # During the migration from the interpret! if-elsif chain to method
+      # dispatch, any AST node whose class doesn't implement evaluate
+      # will land here with a loud, actionable error instead of silent
+      # misbehaviour.
+      def evaluate(_interpreter, _env)
+        raise NotImplementedError,
+              "AST node #{self.class.name} does not implement evaluate(interpreter, env)."
+      end
+
       private
 
       def validate_types(values, expected_types, param_name = 'value')
@@ -11,7 +21,7 @@ module AlexScript
 
         values.each do |value|
           next if expected_types.any? { |type| value.is_a?(type) }
-          
+
           expected = expected_types.map(&:name).join(' or ')
           raise TypeError, "Invalid #{param_name}: Expected #{expected}, got #{value.class}"
         end
@@ -54,6 +64,14 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(interpreter, env)
+        i = 0
+        while i < @stmts.size
+          interpreter.interpret!(@stmts[i], env)
+          i += 1
+        end
+      end
+
       def pretty_print(level = 0)
         statement_strings = []
         statement_strings << "#{indent(level)}Statements("
@@ -74,6 +92,10 @@ module AlexScript
         validate_types([expression], [Expr])
         @expression = expression
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        interpreter.interpret!(@expression, env)
       end
 
       def pretty_print(level = 0)

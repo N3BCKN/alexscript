@@ -12,6 +12,10 @@ module AlexScript
         @line  = line
       end
 
+      def evaluate(_interpreter, _env)
+        [:type_int, @value.to_i]
+      end
+
       def pretty_print(level = 0)
         "#{indent(level)}Int(#{@value})"
       end
@@ -25,6 +29,10 @@ module AlexScript
         validate_types([value], [String])
         @value = value
         @line = line
+      end
+
+      def evaluate(_interpreter, _env)
+        [:type_string, @value.to_s]
       end
 
       def pretty_print(level = 0)
@@ -42,6 +50,10 @@ module AlexScript
         @line  = line
       end
 
+      def evaluate(_interpreter, _env)
+        [:type_float, @value.to_f]
+      end
+
       def pretty_print(level = 0)
         "#{indent(level)}Float(#{@value})"
       end
@@ -57,6 +69,11 @@ module AlexScript
         @line = line
       end
 
+      def evaluate(_interpreter, _env)
+        bool_value = @value == 'prawda' ? Utils::BOOL_TRUE : Utils::BOOL_FALSE
+        [:type_bool, bool_value]
+      end
+
       def pretty_print(level = 0)
         "#{indent(level)}Bool(#{@value})"
       end
@@ -66,6 +83,10 @@ module AlexScript
     class Null < Expr
       def initialize(line)
         @line = line
+      end
+
+      def evaluate(_interpreter, _env)
+        [:type_null, Utils::NULL_VALUE]
       end
 
       def pretty_print(level = 0)

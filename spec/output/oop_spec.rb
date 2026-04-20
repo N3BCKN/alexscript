@@ -442,11 +442,7 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
   describe 'Inheritance' do
     it 'implements simple inheritance' do
       code = '
-        klasa Zwierze {
-          funkcja konstruktor(nazwa) {
-            niech @nazwa = nazwa
-          }
-          
+        klasa Zwierze {          
           funkcja odglos() {
             zwroc "..."
           }
@@ -457,12 +453,20 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
         }
         
         klasa Pies < Zwierze {
+          funkcja konstruktor(nazwa){
+             niech @nazwa = nazwa
+          }
+
           funkcja odglos() {
             zwroc "Hau hau!"
           }
         }
         
         klasa Kot < Zwierze {
+          funkcja konstruktor(nazwa){
+             niech @nazwa = nazwa
+          }
+            
           funkcja odglos() {
             zwroc "Miau!"
           }

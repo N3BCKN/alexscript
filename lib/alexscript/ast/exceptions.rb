@@ -16,6 +16,10 @@ module AlexScript
         @finally_block = finally_block
         @line = line
       end
+
+      def evaluate(interpreter, env)
+        interpreter.handle_try_catch_statement(self, env)
+      end
             
       def pretty_print(level = 0)
       	result = ["#{indent(level)}TryCatchStmt(", 
@@ -75,6 +79,10 @@ module AlexScript
         @expression = expression      # Wyrażenie (wiadomość) lub nil
         @exception_type = exception_type  # Typ wyjątku lub nil
         @line = line
+      end
+
+      def evaluate(interpreter, env)
+        interpreter.handle_throw_statement(self, env)
       end
       
       def pretty_print(level = 0)
