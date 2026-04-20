@@ -711,19 +711,47 @@ module AlexScript
         end
       end
 
-      # entry point of interpreter creating brand new global/parent environment
-      def interpret_ast(node, env = nil)
-        begin
-          environment = env || Environment.new
-          interpret!(node, environment)
-        rescue Utils::AlexScriptError => e
-          raise e
-        rescue StandardError => e
-          # translate and re-raise
-          alex_error = Utils::ExceptionsTranslator.translate(e)
-          raise alex_error
-        end
-      end
+			# ====================================================================
+			# Entry points — sync vs async-aware
+			# ====================================================================
+			#
+			# interpret_ast is the historical public entry point. It runs a program
+			# to completion and raises on unhandled errors — this is what alexscript.rb,
+			# the REPL, and the import manager all call.
+			#
+			# interpret_node_with_translation is the reusable primitive: it executes
+			# a node, translates Ruby-native StandardError into AlexScriptError, and
+			# re-raises. Both sync and (future) async pathways share it; only the
+			# rescue-handling policy differs.
+			#
+			# The separation exists to prepare for async:
+			#   - sync mode  → unhandled exceptions kill the program (current behavior)
+			#   - async mode → unhandled exceptions reject the fiber's Obietnica,
+			#                  leaving other fibers (and the interpreter) alive.
+			#
+			# The async pathway lives in Core::AsyncInterpreter and calls this same
+			# primitive method, just wrapping the raise in promise.odrzuc(e) instead.
+
+			def interpret_ast(node, env = nil)
+				environment = env || Environment.new
+				interpret_node_with_translation(node, environment)
+			end
+
+			# Runs a node and translates any Ruby-native StandardError into an
+			# AlexScriptError before re-raising. AlexScriptError itself passes
+			# through unchanged.
+			#
+			# Public so that AsyncInterpreter (and any future pathway that needs
+			# translated-but-not-caught exceptions) can call it.
+			def interpret_node_with_translation(node, env)
+				interpret!(node, env)
+			rescue Utils::AlexScriptError => e
+				raise e
+			rescue StandardError => e
+				# translate and re-raise
+				alex_error = Utils::ExceptionsTranslator.translate(e)
+				raise alex_error
+			end
     end
   end
 end
