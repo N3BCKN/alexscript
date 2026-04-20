@@ -93,6 +93,20 @@ module AlexScript
             object.key?('instancja') &&
             object.key?('stos')
         end
+
+        def stringify_for_interpolation(type, value)
+          case type
+            when :type_string then value.to_s
+            when :type_null then 'nic'
+            when :type_bool then value == Utils::BOOL_TRUE ? 'prawda' : 'falsz'
+            when :type_int, :type_float then value.to_s
+            when :type_array then format_array_value(value).to_s
+            when :type_object then format_object_value(value)
+            when :type_function then '<funkcja>'
+            when :type_instance then "<#{value[:class_name]} instancja>"
+            else value.to_s
+          end
+        end
       end
     end
   end 
