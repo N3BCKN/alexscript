@@ -9,7 +9,7 @@ module AlexScript
     module Helpers
       module ExceptionHandler
         # ========================================================================
-        # UPDATED: Handle ThrowStmt with class instantiation
+        # Handle ThrowStmt with class instantiation
         # ========================================================================
           
         def handle_throw_statement(node, env)
@@ -62,7 +62,7 @@ module AlexScript
         end
         
         # ========================================================================
-        # NEW: Handle throwing exception via class instantiation
+        # Handle throwing exception via class instantiation
         # ========================================================================
         
         def handle_exception_instantiation_throw(node, env)
@@ -102,7 +102,7 @@ module AlexScript
         end
         
         # ========================================================================
-        # NEW: Convert AlexScript exception instance to Ruby exception
+        # Convert AlexScript exception instance to Ruby exception
         # ========================================================================
         
         def raise_exception_from_instance(instance, env, line)
@@ -135,7 +135,7 @@ module AlexScript
         end
         
         # ========================================================================
-        # UPDATED: Handle TryCatchStmt - match by AlexScript class
+        # Handle TryCatchStmt - match by AlexScript class
         # ========================================================================
         
         # Update existing try-catch handling to check AlexScript class names
@@ -154,7 +154,7 @@ module AlexScript
                 # Get the AlexScript exception type name
                 type_name = catch_block.exception_type.name
                 
-                # NEW: Check if exception has AlexScript class info
+                # Check if exception has AlexScript class info
                 if e.instance_variable_defined?(:@alexscript_class_name)
                   alexscript_class = e.instance_variable_get(:@alexscript_class_name)
                   
@@ -184,7 +184,7 @@ module AlexScript
         end
         
         # ========================================================================
-        # NEW: Execute catch block with exception info
+        # Execute catch block with exception info
         # ========================================================================
         
         def execute_catch_block(catch_block, exception, env)
@@ -204,7 +204,7 @@ module AlexScript
         end
         
         # ========================================================================
-        # NEW: Create exception object for catch variable
+        # Create exception object for catch variable
         # ========================================================================
         
         def create_exception_object(exception)
@@ -226,7 +226,7 @@ module AlexScript
             value: exception.respond_to?(:line) ? exception.line : nil
           }
           
-          # NEW: Add AlexScript class name if available
+          # Add AlexScript class name if available
           if exception.instance_variable_defined?(:@alexscript_class_name)
             obj['klasa'] = {
               type: :type_string,
@@ -234,7 +234,7 @@ module AlexScript
             }
           end
           
-          # NEW: Add instance reference if available
+          # Add instance reference if available
           if exception.instance_variable_defined?(:@alexscript_instance)
             instance = exception.instance_variable_get(:@alexscript_instance)
             obj['instancja'] = {

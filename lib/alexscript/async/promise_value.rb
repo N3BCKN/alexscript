@@ -34,7 +34,7 @@ module AlexScript
 
         [:type_instance, instance]
       end
-
+      
       # Extract the ObietnicaImpl from an AS value.
       # Returns nil if the value is not a promise instance — caller decides
       # whether that's an error. We don't raise here; callers have more
@@ -44,6 +44,24 @@ module AlexScript
         return nil unless value.is_a?(Hash)
         return nil unless value[:class_name] == 'Obietnica'
         value[:__native__]
+      end
+
+      # Wrap a raw ObietnicaImpl into an AS value without an env at hand.
+      # Used from native static method lambdas where only the registry is
+      # accessible. Equivalent to wrap() but reads the class_def from the
+      # registry directly.
+      def wrap_from_registry(promise_impl)
+        class_def = Utils::NativeClassRegistry.get_class_def('Obietnica')
+        raise 'Obietnica class not registered' unless class_def
+
+        instance = {
+          class_name: 'Obietnica',
+          instance_vars: {},
+          class_def: class_def,
+          __native__: promise_impl
+        }
+
+        [:type_instance, instance]
       end
 
       # Convenience predicate.

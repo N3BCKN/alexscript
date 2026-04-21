@@ -105,9 +105,198 @@ module AlexScript
                 __native__: p
               }
               [:type_instance, instance]
-            }
+            },   
+            
+              # ────────────────────────────────────────────────────────────────
+              # Obietnica.wszystkie(tablica) → Obietnica<tablica_wartosci>
+              #
+              # Waits for all input promises to fulfill. Resolves with an array
+              # of their values in original order. Rejects with the first
+              # rejection if any input rejects (fail-fast, JS Promise.all semantics).
+              #
+              # An empty input array resolves immediately with []. Non-promise
+              # values in the array are treated as Obietnica.spelniona(v).
+              # ────────────────────────────────────────────────────────────────
+              'wszystkie' => ->(tablica) {
+                reactor = AlexScript::Async::Reactor.current
+                aggregate = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+
+                # The input from AS-side is a Ruby Array of already-converted
+                # values (NativeTypeConverter.to_ruby unwraps the tagged tuples).
+                # Native instances come through as their :__native__ objects —
+                # meaning an AS array of Obietnica instances arrives here as a
+                # Ruby array of ObietnicaImpl objects. Clean.
+                inputs = Array(tablica)
+
+                if inputs.empty?
+                  aggregate.fulfill([:type_array, []])
+                  next AlexScript::Async::PromiseValue.wrap_from_registry(aggregate)
+                end
+
+                results = Array.new(inputs.size)
+                pending_count = inputs.size
+                already_rejected = false
+
+                inputs.each_with_index do |item, idx|
+                  # Coerce non-promises to fulfilled promises (sugar, matches czekaj).
+                  promise = if item.is_a?(AlexScript::Async::ObietnicaImpl)
+                              item
+                            else
+                              p = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+                              p.fulfill(item)
+                              p
+                            end
+
+                  promise.on_settle do |settled|
+                    next if already_rejected
+
+                    if settled.fulfilled?
+                      # Store in original index. Value may be a tagged tuple (from
+                      # an async fiber) or a raw Ruby value (from Obietnica.spelniona).
+                      # We keep it as-is and unwrap once at the end.
+                      results[idx] = settled.value
+                      pending_count -= 1
+                      if pending_count.zero?
+                        # Build final AS array: elements must be {type:, value:} hashes.
+                        elements = results.map do |v|
+                          t, val = unwrap_tagged_or_infer(v)
+                          { type: t, value: val }
+                        end
+                        aggregate.fulfill([:type_array, elements])
+                      end
+                    else
+                      already_rejected = true
+                      aggregate.reject(settled.reason)
+                    end
+                  end
+                end
+
+                AlexScript::Async::PromiseValue.wrap_from_registry(aggregate)
+              },
+
+              # ────────────────────────────────────────────────────────────────
+              # Obietnica.dowolna(tablica) → Obietnica<wartosc>
+              #
+              # Resolves with the value of the first input to fulfill. If all
+              # inputs reject, the aggregate rejects with the LAST rejection
+              # reason (simplified from JS Promise.any which uses AggregateError).
+              #
+              # Empty input → immediate rejection (no candidate can ever win).
+              # ────────────────────────────────────────────────────────────────
+              'dowolna' => ->(tablica) {
+                reactor = AlexScript::Async::Reactor.current
+                aggregate = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+
+                inputs = Array(tablica)
+
+                if inputs.empty?
+                  aggregate.reject(Utils::AlexScriptError.new('BladWykonania',
+                    'Obietnica.dowolna wymaga niepustej tablicy'))
+                  next AlexScript::Async::PromiseValue.wrap_from_registry(aggregate)
+                end
+
+                already_fulfilled = false
+                rejection_count = 0
+                last_reason = nil
+
+                inputs.each do |item|
+                  promise = if item.is_a?(AlexScript::Async::ObietnicaImpl)
+                              item
+                            else
+                              p = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+                              p.fulfill(item)
+                              p
+                            end
+
+                  promise.on_settle do |settled|
+                    next if already_fulfilled
+
+                    if settled.fulfilled?
+                      already_fulfilled = true
+                      aggregate.fulfill(settled.value)
+                    else
+                      rejection_count += 1
+                      last_reason = settled.reason
+                      if rejection_count == inputs.size
+                        aggregate.reject(last_reason)
+                      end
+                    end
+                  end
+                end
+
+                AlexScript::Async::PromiseValue.wrap_from_registry(aggregate)
+              },
+
+              # ────────────────────────────────────────────────────────────────
+              # Obietnica.limit_czasu(obietnica, ms) → Obietnica
+              #
+              # Races the input promise against a timer. Resolves with the input's
+              # value if it settles before the timeout, otherwise rejects with
+              # BladLimituCzasu. If the input rejects before timeout, that
+              # rejection propagates (timer is cancelled by first-settle logic).
+              # ────────────────────────────────────────────────────────────────
+              'limit_czasu' => ->(obietnica, ms) {
+                reactor = AlexScript::Async::Reactor.current
+                wrapper = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+
+                inner = if obietnica.is_a?(AlexScript::Async::ObietnicaImpl)
+                          obietnica
+                        else
+                          # Non-promise input: treat as already-fulfilled. Timeout
+                          # still applies nominally but will never fire since
+                          # on_settle triggers immediately on already-settled.
+                          p = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+                          p.fulfill(obietnica)
+                          p
+                        end
+
+                settled = false
+
+                inner.on_settle do |s|
+                  next if settled
+                  settled = true
+                  if s.fulfilled?
+                    wrapper.fulfill(s.value)
+                  else
+                    wrapper.reject(s.reason)
+                  end
+                end
+
+                reactor.schedule_timer(ms) do
+                  next if settled
+                  settled = true
+                  wrapper.reject(Utils::AlexScriptError.new('BladLimituCzasu',
+                    "Przekroczono limit czasu #{ms}ms"))
+                end
+
+                AlexScript::Async::PromiseValue.wrap_from_registry(wrapper)
+              }
           }
         )
+      end
+
+      # Given a value that could be either a tagged tuple [type, value]
+      # (from an async fiber) or a raw Ruby value (from Obietnica.spelniona
+      # or non-promise input), return [type, value] suitably tagged.
+      def unwrap_tagged_or_infer(v)
+        if v.is_a?(Array) && v.size == 2 && v[0].is_a?(Symbol) && v[0].to_s.start_with?('type_')
+          v
+        else
+          [infer_as_type(v), v]
+        end
+      end
+
+      def infer_as_type(value)
+        case value
+        when Integer then :type_int
+        when Float then :type_float
+        when String then :type_string
+        when TrueClass, FalseClass then :type_bool
+        when NilClass then :type_null
+        when Array then :type_array
+        when Hash then :type_object
+        else :type_object
+        end
       end
     end
   end

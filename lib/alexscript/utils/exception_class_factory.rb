@@ -39,6 +39,7 @@ module AlexScript
             'BladWykonania'          => 'WyjatekPodstawowy',
             'BladSkladni'            => 'WyjatekPodstawowy',
             'BladImportu'            => 'WyjatekPodstawowy',
+            'BladLimituCzasu'        => 'WyjatekPodstawowy',
             
             # stage 2: detailed execution errors
             'BladTypu'               => 'BladWykonania',

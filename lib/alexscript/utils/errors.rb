@@ -40,6 +40,8 @@ module AlexScript
         'BladArgumentu'
       when /Blad importu/i
         'BladImportu'
+      when /limit czasu/i, /timeout/i
+        'BladLimituCzasu'
       else
         'BladWykonania'
       end

@@ -1,9 +1,15 @@
-funkcja f(n) {
-    niech suma = 0
-    dla niech idx = 1; n + 1; 1 {
-        niech suma = suma + idx
-         pokazl suma
-    }
-    zwroc suma
+asynchroniczna funkcja szybki() {
+    czekaj uspij(10)
+    pokazl "szybki fulfilled"
+    zwroc "gotowe"
 }
-pokazl f(10)
+
+asynchroniczna funkcja main() {
+    pokazl "przed limit_czasu"
+    niech p = szybki()
+    pokazl "po szybki()"
+    niech wynik = czekaj Obietnica.limit_czasu(p, 100)
+    pokazl "po czekaj limit_czasu"
+    zwroc wynik
+}
+pokazl uruchom(main)

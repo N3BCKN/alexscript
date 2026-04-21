@@ -86,6 +86,32 @@ module AlexScript
         end
       end
 
+      # Register a callback to be invoked when this promise settles.
+      # Fires synchronously if the promise is already settled, otherwise
+      # queues the callback for invocation by wake_waiters.
+      #
+      # The callback receives the promise itself as argument, so it can
+      # inspect #fulfilled? / #rejected? / #value / #reason to decide what
+      # to do. This is a lower-level primitive than #await — it doesn't
+      # require being called from a fiber, which makes it usable from
+      # native lambdas (ObietnicaLibrary) that don't have fiber context.
+      #
+      # Used by combinators (wszystkie, dowolna, limit_czasu) and will
+      # also underpin .potem() / .zlap() when chain methods are added.
+      def on_settle(&block)
+        @handled = true
+        case @state
+        when STATE_FULFILLED, STATE_REJECTED
+          # Already settled — fire immediately, synchronously. This is
+          # correct because on_settle callers don't expect async semantics;
+          # they expect "call me when it's done, now if it's already done".
+          block.call(self)
+        when STATE_PENDING
+          @settle_callbacks ||= []
+          @settle_callbacks << block
+        end
+      end
+
       def pending?
         @state == STATE_PENDING
       end
@@ -111,6 +137,11 @@ module AlexScript
       def wake_waiters
         @waiters.each { |fiber| @reactor.schedule_resume(fiber) }
         @waiters.clear
+
+        if @settle_callbacks
+          @settle_callbacks.each { |cb| cb.call(self) }
+          @settle_callbacks.clear
+        end
       end
 
       def raise_reason
