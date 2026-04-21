@@ -4,9 +4,9 @@ module AlexScript
   module AST
     # "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
     class FuncDclr < Dclr
-      attr_reader :name, :params, :body_statement, :line
+      attr_reader :name, :params, :body_statement, :line, :async
 
-      def initialize(name, params, body_statement, line)
+      def initialize(name, params, body_statement, line, async: false)
         validate_types([name], [String])
         validate_types(params, [Param]) unless params.nil?
         validate_types([body_statement], Stmts)
@@ -15,6 +15,7 @@ module AlexScript
         @params = params
         @body_statement = body_statement
         @line = line
+        @async = async
         @private = false
       end
 
@@ -33,7 +34,7 @@ module AlexScript
 
       def pretty_print(level = 0)
         function_string = []
-        function_string << "#{indent(level)}FunctionDeclaration(#{@private ? 'private ' : ''}"
+        function_string << "#{indent(level)}FunctionDeclaration(#{@async ? 'async ' : ''}#{@private ? 'private ' : ''}"
         function_string << "#{indent(level)} name: #{@name}"
 
         i = 0

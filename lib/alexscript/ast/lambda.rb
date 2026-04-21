@@ -5,15 +5,16 @@ module AlexScript
     # fn(params) { body } — anonymous function expression
     # Inherits from Expr (not Dclr) because lambdas are values, not declarations
     class LambdaExpr < Expr
-      attr_reader :params, :body_statement, :line
+      attr_reader :params, :body_statement, :line, :async
 
       # Frozen label for stack traces — single allocation, shared across all instances
       FN_NAME = '<fn>'.freeze
 
-      def initialize(params, body_statement, line)
+      def initialize(params, body_statement, line, async: false)
         @params = params
         @body_statement = body_statement
         @line = line
+        @async = async
         # cache implicit return check at parse time — avoids repeated computation at runtime
         stmt = body_statement.stmts[0]
         @_implicit = body_statement.stmts.size == 1 &&

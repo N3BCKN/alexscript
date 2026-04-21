@@ -10,6 +10,20 @@ module AlexScript
         @current = 0
 				@inside_class_body = false
         @current_module_path = []
+
+        @async_depth = 0  # >0 when parsing inside an async function/lambda body
+      end
+
+      # Nested async (async fn inside async funkcja) works because depth remains > 0 throughout.
+      def with_async_scope
+        @async_depth += 1
+        yield
+      ensure
+        @async_depth -= 1
+      end
+
+      def in_async_scope?
+        @async_depth > 0
       end
 
       # advances the parser position and returns current token
@@ -178,6 +192,26 @@ module AlexScript
         # fn
         if match(:tok_fn)
           return parse_lambda
+        end
+
+        # only matches when the next token is `fn`; `asynchroniczna funkcja`
+        if next?(:tok_async) && peek_next && peek_next.token_type == :tok_fn
+          async_token = advance         # consume `asynchroniczna`
+          expect(:tok_fn)               # consume `fn` — matches parse_lambda's contract
+          lambda_expr = with_async_scope { parse_lambda }
+
+          unless lambda_expr.is_a?(AST::LambdaExpr)
+            Utils.parse_error(
+              "asynchroniczna lambda nie moze byc wywolywana bezposrednio (IIFE); " \
+              "przypisz ja do zmiennej i wywolaj przez 'czekaj' lub 'uruchom'",
+              async_token.line
+            )
+          end
+
+          return AST::LambdaExpr.new(
+            lambda_expr.params, lambda_expr.body_statement, lambda_expr.line,
+            async: true
+          )
         end
 
         identifier = expect(:tok_identifier)
@@ -474,9 +508,22 @@ module AlexScript
 				end
 			end
 
-      # <unary> ::= ('+'|'-'|'~') <unary> | <primary>
-      # Handles unary operations like negation
+      # <unary> ::= 'czekaj' <unary> | ('+'|'-'|'~') <unary> | <primary>
+      # Handles unary operations like negation, and the `czekaj` prefix
+      # operator inside async functions.
       def unary
+        if match(:tok_await)
+          await_token = previous_token
+          unless in_async_scope?
+            Utils.parse_error(
+              "slowo kluczowe 'czekaj' moze byc uzywane tylko wewnatrz funkcji 'asynchroniczna'",
+              await_token.line
+            )
+          end
+          inner = unary # right-associative; also picks up unary minus etc.
+          return AST::AwaitExpr.new(inner, await_token.line)
+        end
+
         if match(:tok_not) || match(:tok_minus) || match(:tok_plus)
           op = previous_token
           operand = unary
@@ -806,6 +853,35 @@ module AlexScript
         AST::FuncDclr.new(name.lexeme, f_params, body_statement, previous_token.line)
       end
 
+      # asynchroniczna funkcja <name>(<params>) { <body> }
+      # asynchroniczna fn(<params>) { <body> }
+      def parse_async_declaration
+        expect(:tok_async)
+        async_line = previous_token.line
+
+        if next?(:tok_func)
+          inner = with_async_scope { func_decl }
+          AST::FuncDclr.new(
+            inner.name, inner.params, inner.body_statement, inner.line,
+            async: true
+          )
+        elsif next?(:tok_fn)
+          # parse_lambda expects tok_fn to be already consumed — match it here
+          # exactly the way primary() does, then call parse_lambda.
+          expect(:tok_fn)
+          inner = with_async_scope { parse_lambda }
+          AST::LambdaExpr.new(
+            inner.params, inner.body_statement, inner.line,
+            async: true
+          )
+        else
+          Utils.parse_error(
+            "Po slowie 'asynchroniczna' oczekiwano 'funkcja' lub 'fn', otrzymano '#{peek.lexeme}'",
+            async_line
+          )
+        end
+      end
+
       # <class_definition> :== "klasa" <name> < <parent_class>? {}
       def class_definition
 				is_abstract = match(:tok_abstract)
@@ -1128,6 +1204,8 @@ module AlexScript
           AST::ContinueLoop.new(previous_token.line)
         elsif token == :tok_func
           func_decl
+        elsif token == :tok_async
+          parse_async_declaration
         elsif token == :tok_return
           return_statement
         elsif token == :tok_exit

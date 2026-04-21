@@ -59,7 +59,9 @@ module AlexScript
           'modul' => :tok_module,
           'dolacz' => :tok_include,
           'debug' => :tok_debug,
-          'fn' => :tok_fn
+          'fn' => :tok_fn,
+          'asynchroniczna' => :tok_async,
+          'czekaj' => :tok_await
         }.freeze
         
         # initialize ASCII character type lookup tables for fast character classification
