@@ -45,6 +45,7 @@ module AlexScript
       # the entry point into the async world.
       # --------------------------------------------------------------
       def call_uruchom(node, env, interpreter)
+        Fiber[:alex_interpreter] = interpreter
         if node.arguments.size != 1
           Utils.runtime_error(
             "uruchom oczekuje 1 argumentu, otrzymalo #{node.arguments.size}",
@@ -158,6 +159,7 @@ module AlexScript
         )
 
         fiber = Fiber.new do
+          Fiber[:alex_interpreter] = interpreter # make interpreter reachable from native lambdas
           begin
             result = interpreter.interpret!(synthetic_call, env)
             promise.fulfill(result)

@@ -45,12 +45,116 @@ module AlexScript
           # odrzuc) { ... })` is post-MVP — require_once explicit and we
           # raise a clear error if called that way.
           constructor: ->(*args) {
+            reactor = AlexScript::Async::Reactor.current
+
             if args.empty?
-              AlexScript::Async::ObietnicaImpl.new(reactor: AlexScript::Async::Reactor.current)
-            else
-              raise 'Konstruktor Obietnica.nowa() z argumentem nie jest wspierany w tej wersji. ' \
-                    'Uzyj Obietnica.spelniona(wartosc) lub Obietnica.odrzucona(powod).'
+              # Bare constructor — pending promise, settle externally.
+              next AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
             end
+
+            # Executor-style: single function argument invoked synchronously
+            # with (spelnij, odrzuc) callbacks. The user's AS code inside the
+            # executor calls spelnij(value) or odrzuc(reason) to settle.
+            #
+            # The executor is an AS function value, so we need the interpreter
+            # to invoke it. We pull the interpreter from the fiber-local
+            # storage populated at the start of every async fiber body.
+            #
+            # Non-async context (calling Obietnica.nowa from top-level sync code)
+            # is also supported: the root process's :alex_interpreter is set by
+            # `uruchom` when it enters run_until. If absent, we raise — calling
+            # Obietnica.nowa(executor) without a live interpreter makes no sense.
+            raise 'Obietnica.nowa oczekuje 1 argumentu (funkcji executor)' if args.size != 1
+
+            executor = args[0]
+            # After NativeTypeConverter.to_ruby, an AS :type_function value
+            # becomes the inner hash (:declaration, :env). We accept either:
+            # - the hash directly (from to_ruby on :type_function)
+            # - or already-extracted form. Check by presence of :declaration.
+            unless executor.is_a?(Hash) && executor[:declaration]
+              raise 'Obietnica.nowa oczekuje funkcji jako argumentu'
+            end
+
+            promise = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+
+            # Build resolve/reject as AS-callable native functions.
+            spelnij = AlexScript::Async::PromiseValue.build_native_function('spelnij', ->(as_value = nil) {
+              # as_value is an AS tuple [type, value]; promise stores it verbatim.
+              # fulfill is a no-op if already settled, which matches JS semantics.
+              promise.fulfill(as_value)
+              [:type_null, AlexScript::Utils::NULL_VALUE]
+            })
+
+            odrzuc = AlexScript::Async::PromiseValue.build_native_function('odrzuc', ->(as_reason = nil) {
+              # Reject reason can be anything — an AS instance (exception), a string, etc.
+              # Convert AS tuple back to something useful for the reject path:
+              # if it's a :type_instance of an exception, unwrap; else wrap string.
+              reason = if as_reason.is_a?(Array) && as_reason.size == 2
+                        type_sym, val = as_reason
+                        if type_sym == :type_instance && val.is_a?(Hash) && val[:instance_vars]
+                          # AS exception instance. Reconstruct AlexScriptError from it.
+                          class_name = val[:class_name]
+                          message = val[:instance_vars]['wiadomosc']&.last || class_name
+                          AlexScript::Utils::AlexScriptError.new(class_name, message)
+                        elsif type_sym == :type_string
+                          AlexScript::Utils::AlexScriptError.new('BladWykonania', val.to_s)
+                        else
+                          AlexScript::Utils::AlexScriptError.new('BladWykonania', val.to_s)
+                        end
+                      else
+                        AlexScript::Utils::AlexScriptError.new('BladWykonania', as_reason.to_s)
+                      end
+              promise.reject(reason)
+              [:type_null, AlexScript::Utils::NULL_VALUE]
+            })
+
+            # Invoke the executor synchronously. We need an interpreter to
+            # dispatch AS function calls — pull it from fiber-local storage.
+            interpreter = Fiber[:alex_interpreter]
+            raise 'Obietnica.nowa wymaga aktywnego interpretera (uzyj wewnatrz asynchronicznej funkcji lub pod uruchom)' unless interpreter
+
+            # Synthesize a LambdaCall that calls the executor with (spelnij, odrzuc).
+            # We stage the arguments in the env as temporaries so LambdaCall can
+            # resolve them via Identifier lookup.
+            executor_env = executor[:env] || interpreter.instance_variable_get(:@_root_env) || AlexScript::Core::Environment.new
+
+            # Actually: simpler — construct synthetic AST with argument *values*
+            # bypassing identifier resolution. We can reuse executor's internal
+            # mechanism by wrapping each arg in a zero-line placeholder node.
+
+            # The cleanest approach: interpret the executor's body directly with
+            # pre-bound parameters. We don't have a clean "call function with
+            # pre-evaluated args" API, so the most reliable path is to synthesize
+            # a FuncCall through the interpreter — but FuncCall needs a name
+            # in scope. Variable binding in a temp env is the least-friction solution.
+
+            call_env = executor_env.new_env
+            call_env.set_local_var('__alex_executor__', executor, :type_function)
+            call_env.set_local_var('__alex_spelnij__', spelnij[1], :type_function)
+            call_env.set_local_var('__alex_odrzuc__',  odrzuc[1],  :type_function)
+
+            synthetic_call = AlexScript::AST::LambdaCall.new(
+              AlexScript::AST::Identifier.new('__alex_executor__', 0),
+              [
+                AlexScript::AST::Identifier.new('__alex_spelnij__', 0),
+                AlexScript::AST::Identifier.new('__alex_odrzuc__',  0)
+              ],
+              0
+            )
+
+            begin
+              interpreter.interpret!(synthetic_call, call_env)
+            rescue AlexScript::Utils::AlexScriptError => e
+              # Executor threw — reject the promise with the exception (unless
+              # it was already settled; fulfill/reject are idempotent).
+              promise.reject(e)
+            rescue StandardError => e
+              promise.reject(AlexScript::Utils::ExceptionsTranslator.translate(e))
+            end
+
+            # Return the ObietnicaImpl — NativeClassRegistry dispatch_constructor
+            # will wrap it in a :type_instance.
+            next promise
           },
 
           methods: {

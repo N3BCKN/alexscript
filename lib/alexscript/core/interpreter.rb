@@ -244,6 +244,16 @@ module AlexScript
               func_env   = func[1] # function env
             end
 
+            # Native lambda shortcut 
+            # Some :type_function values wrap a Ruby proc. Dispatch directly,
+            # bypassing AS body interpretation.
+            if func_declr.respond_to?(:native_lambda) && func_declr.native_lambda
+              arguments = node.arguments.map { |arg| interpret!(arg, env) }
+              result = func_declr.native_lambda.call(*arguments)
+              return result if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+              return [:type_null, Utils::NULL_VALUE]
+            end
+
             # check if there is a rest (*args) param in funct call
             rest_param = func_declr.params.find(&:rest?)
 
@@ -388,6 +398,7 @@ module AlexScript
         end
 
         fiber = Fiber.new do
+          Fiber[:alex_interpreter] = self   # make interpreter reachable from native lambdas
           begin
             # Build the function's execution environment — same way the
             # sync path does. All the param binding / defaults / rest logic

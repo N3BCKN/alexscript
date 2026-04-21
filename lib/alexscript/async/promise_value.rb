@@ -64,6 +64,27 @@ module AlexScript
         [:type_instance, instance]
       end
 
+      # Build an AS :type_function value that wraps a Ruby lambda.
+      # When the user calls this function from AlexScript, LambdaCall#evaluate
+      # detects the :native_lambda flag on the declaration and dispatches
+      # directly to the Ruby proc instead of interpreting an AS body.
+      #
+      # The ruby_proc receives evaluated AS arguments as tagged tuples
+      # ([type, value]) and must return either a tagged tuple or nil
+      # (nil becomes [:type_null, NULL_VALUE]).
+      #
+      # Used primarily for resolve/reject callbacks in Obietnica.nowa.
+      def build_native_function(name, ruby_proc)
+        declaration = AlexScript::AST::FuncDclr.new(
+          name, [], AlexScript::AST::Stmts.new([], 0), 0,
+          native_lambda: ruby_proc
+        )
+
+        # Native lambdas don't have a closure env, but validation helpers
+        # require env to be non-nil. Use a throwaway empty Environment.
+        [:type_function, { declaration: declaration, env: AlexScript::Core::Environment.new }]
+      end
+
       # Convenience predicate.
       def promise?(type, value)
         !unwrap(type, value).nil?

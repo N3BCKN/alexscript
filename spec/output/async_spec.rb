@@ -950,167 +950,167 @@ RSpec.describe 'Async end-to-end', type: :aruba do
     end
 
     it 'async function using try/catch with Obietnica.odrzucona' do
-      code = '
-        asynchroniczna funkcja bezpieczny() {
-            proba {
-                niech x = czekaj Obietnica.odrzucona("problem")
-                zwroc "nie dojdzie"
-            } zlap (e) {
-                zwroc "zlapano: " + e["wiadomosc"]
-            }
-        }
-        pokazl uruchom(bezpieczny)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to match(/zlapano:.*problem/)
-    end
-  end
-
-  describe 'Obietnica combinators' do
-  describe 'Obietnica.wszystkie' do
-    it 'resolves with array of values in original order' do
-      code = '
-        asynchroniczna funkcja pierwszy() {  
-          czekaj uspij(30)
-          zwroc "a" 
-        }
-        asynchroniczna funkcja drugi() { 
-          czekaj uspij(10)
-          zwroc "b" 
-        }
-        asynchroniczna funkcja trzeci() {  
-          czekaj uspij(20)
-          zwroc "c" 
-        }
-
-        asynchroniczna funkcja main() {
-            niech wyniki = czekaj Obietnica.wszystkie([pierwszy(), drugi(), trzeci()])
-            zwroc wyniki
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to eq('[a, b, c]')
+        code = '
+          asynchroniczna funkcja bezpieczny() {
+              proba {
+                  niech x = czekaj Obietnica.odrzucona("problem")
+                  zwroc "nie dojdzie"
+              } zlap (e) {
+                  zwroc "zlapano: " + e["wiadomosc"]
+              }
+          }
+          pokazl uruchom(bezpieczny)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to match(/zlapano:.*problem/)
+      end
     end
 
-    it 'works with an empty array' do
-      code = '
-        asynchroniczna funkcja main() {
-            niech wyniki = czekaj Obietnica.wszystkie([])
-            zwroc wyniki
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to eq('[]')
-    end
-
-    it 'rejects fast when one promise rejects' do
-      code = '
-        asynchroniczna funkcja zle() {
+    describe 'Obietnica combinators' do
+      describe 'Obietnica.wszystkie' do
+      it 'resolves with array of values in original order' do
+        code = '
+          asynchroniczna funkcja pierwszy() {  
+            czekaj uspij(30)
+            zwroc "a" 
+          }
+          asynchroniczna funkcja drugi() { 
             czekaj uspij(10)
-            rzuc BladWykonania.nowy("padam")
-        }
-        asynchroniczna funkcja dobre() {
-            czekaj uspij(100)
-            zwroc "ok"
-        }
-
-        asynchroniczna funkcja main() {
-            proba {
-                czekaj Obietnica.wszystkie([dobre(), zle()])
-                zwroc "nie dojdzie"
-            } zlap (e) {
-                zwroc "zlapano: " + e["wiadomosc"]
-            }
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to match(/zlapano:.*padam/)
-    end
-
-    it 'treats non-promise values as already-fulfilled' do
-      code = '
-        asynchroniczna funkcja a() { 
-          czekaj uspij(10)
-          zwroc "a" 
-        }
-
-        asynchroniczna funkcja main() {
-            niech wyniki = czekaj Obietnica.wszystkie([a(), "surowy", 42])
-            zwroc wyniki
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to eq('[a, surowy, 42]')
-    end
-  end
-
-  describe 'Obietnica.dowolna' do
-    it 'resolves with value of first fulfilled promise' do
-      code = '
-        asynchroniczna funkcja wolny() { 
-          czekaj uspij(100)  
-          zwroc "wolny" 
-        }
-        asynchroniczna funkcja szybki() { 
-          czekaj uspij(20)
-          zwroc "szybki" 
-        }
-
-        asynchroniczna funkcja main() {
-            niech wynik = czekaj Obietnica.dowolna([wolny(), szybki()])
-            zwroc wynik
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to eq('szybki')
-    end
-
-    it 'rejects when all promises reject' do
-      code = '
-        asynchroniczna funkcja zle1() {
-            czekaj uspij(10)
-            rzuc BladWykonania.nowy("pierwszy")
-        }
-        asynchroniczna funkcja zle2() {
+            zwroc "b" 
+          }
+          asynchroniczna funkcja trzeci() {  
             czekaj uspij(20)
-            rzuc BladWykonania.nowy("drugi")
-        }
+            zwroc "c" 
+          }
 
-        asynchroniczna funkcja main() {
-            proba {
-                czekaj Obietnica.dowolna([zle1(), zle2()])
-                zwroc "nie dojdzie"
-            } zlap (e) {
-                zwroc "zlapano: " + e["wiadomosc"]
-            }
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to match(/zlapano:/)
+          asynchroniczna funkcja main() {
+              niech wyniki = czekaj Obietnica.wszystkie([pierwszy(), drugi(), trzeci()])
+              zwroc wyniki
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to eq('[a, b, c]')
+      end
+
+      it 'works with an empty array' do
+        code = '
+          asynchroniczna funkcja main() {
+              niech wyniki = czekaj Obietnica.wszystkie([])
+              zwroc wyniki
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to eq('[]')
+      end
+
+      it 'rejects fast when one promise rejects' do
+        code = '
+          asynchroniczna funkcja zle() {
+              czekaj uspij(10)
+              rzuc BladWykonania.nowy("padam")
+          }
+          asynchroniczna funkcja dobre() {
+              czekaj uspij(100)
+              zwroc "ok"
+          }
+
+          asynchroniczna funkcja main() {
+              proba {
+                  czekaj Obietnica.wszystkie([dobre(), zle()])
+                  zwroc "nie dojdzie"
+              } zlap (e) {
+                  zwroc "zlapano: " + e["wiadomosc"]
+              }
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to match(/zlapano:.*padam/)
+      end
+
+      it 'treats non-promise values as already-fulfilled' do
+        code = '
+          asynchroniczna funkcja a() { 
+            czekaj uspij(10)
+            zwroc "a" 
+          }
+
+          asynchroniczna funkcja main() {
+              niech wyniki = czekaj Obietnica.wszystkie([a(), "surowy", 42])
+              zwroc wyniki
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to eq('[a, surowy, 42]')
+      end
     end
 
-    it 'rejects immediately on empty array' do
-      code = '
-        asynchroniczna funkcja main() {
-            proba {
-                czekaj Obietnica.dowolna([])
-                zwroc "nie dojdzie"
-            } zlap (e) {
-                zwroc "zlapano"
-            }
-        }
-        pokazl uruchom(main)
-      '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(clean_output).to eq('zlapano')
+    describe 'Obietnica.dowolna' do
+      it 'resolves with value of first fulfilled promise' do
+        code = '
+          asynchroniczna funkcja wolny() { 
+            czekaj uspij(100)  
+            zwroc "wolny" 
+          }
+          asynchroniczna funkcja szybki() { 
+            czekaj uspij(20)
+            zwroc "szybki" 
+          }
+
+          asynchroniczna funkcja main() {
+              niech wynik = czekaj Obietnica.dowolna([wolny(), szybki()])
+              zwroc wynik
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to eq('szybki')
+      end
+
+      it 'rejects when all promises reject' do
+        code = '
+          asynchroniczna funkcja zle1() {
+              czekaj uspij(10)
+              rzuc BladWykonania.nowy("pierwszy")
+          }
+          asynchroniczna funkcja zle2() {
+              czekaj uspij(20)
+              rzuc BladWykonania.nowy("drugi")
+          }
+
+          asynchroniczna funkcja main() {
+              proba {
+                  czekaj Obietnica.dowolna([zle1(), zle2()])
+                  zwroc "nie dojdzie"
+              } zlap (e) {
+                  zwroc "zlapano: " + e["wiadomosc"]
+              }
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to match(/zlapano:/)
+      end
+
+      it 'rejects immediately on empty array' do
+        code = '
+          asynchroniczna funkcja main() {
+              proba {
+                  czekaj Obietnica.dowolna([])
+                  zwroc "nie dojdzie"
+              } zlap (e) {
+                  zwroc "zlapano"
+              }
+          }
+          pokazl uruchom(main)
+        '
+        run_command_and_stop "ruby #{main_file_path} '#{code}'"
+        expect(clean_output).to eq('zlapano')
+      end
     end
-  end
 
     describe 'Obietnica.limit_czasu' do
       it 'passes through value when promise settles in time' do
@@ -1171,6 +1171,95 @@ RSpec.describe 'Async end-to-end', type: :aruba do
         run_command_and_stop "ruby #{main_file_path} '#{code}'"
         expect(clean_output).to match(/zlapano:.*oryginalny blad/)
       end
+    end
+  end
+
+
+  describe 'Obietnica.nowy executor-style' do
+    it 'fulfills when executor calls spelnij' do
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.nowy(fn(spelnij, odrzuc) {
+                spelnij(42)
+            })
+            zwroc czekaj p
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(clean_output).to eq('42')
+    end
+
+    it 'rejects when executor calls odrzuc' do
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.nowy(fn(spelnij, odrzuc) {
+                odrzuc("cos poszlo nie tak")
+            })
+            proba {
+                czekaj p
+                zwroc "nie dojdzie"
+            } zlap (e) {
+                zwroc "zlapano: " + e["wiadomosc"]
+            }
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(clean_output).to match(/zlapano:.*cos poszlo nie tak/)
+    end
+
+    it 'supports deferred spelnij via uruchom_rownolegle' do
+      # Executor spawns a parallel task that settles the promise later.
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.nowy(fn(spelnij, odrzuc) {
+                uruchom_rownolegle(fn() {
+                    czekaj uspij(20)
+                    spelnij("po opoznieniu")
+                })
+            })
+            zwroc czekaj p
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(clean_output).to eq('po opoznieniu')
+    end
+
+    it 'executor exception becomes promise rejection' do
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.nowy(fn(spelnij, odrzuc) {
+                rzuc BladWykonania.nowy("wybuch w executorze")
+            })
+            proba {
+                czekaj p
+                zwroc "nie dojdzie"
+            } zlap (e) {
+                zwroc "zlapano: " + e["wiadomosc"]
+            }
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(clean_output).to match(/zlapano:.*wybuch/)
+    end
+
+    it 'second call to spelnij is a no-op' do
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.nowy(fn(spelnij, odrzuc) {
+                spelnij("pierwszy")
+                spelnij("drugi")
+                odrzuc("ignored")
+            })
+            zwroc czekaj p
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(clean_output).to eq('pierwszy')
     end
   end
 end

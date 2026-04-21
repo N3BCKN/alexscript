@@ -56,10 +56,6 @@ module AlexScript
         @line = line
       end
 
-      # def evaluate(interpreter, env)
-      #   interpreter.interpret_lambda_call(self, env)
-      # end
-
       def evaluate(interpreter, env)
         callee_type, callee_value = interpreter.interpret!(@callee, env)
 
@@ -69,6 +65,20 @@ module AlexScript
 
         func_declr = callee_value[:declaration]
         func_env = callee_value[:env]
+
+
+        # Some :type_function values wrap a Ruby proc instead of an AS body.
+        # Used for resolve/reject callbacks passed to Obietnica.nowa executors
+        if func_declr.respond_to?(:native_lambda) && func_declr.native_lambda
+          arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
+          result = func_declr.native_lambda.call(*arguments)
+          # Native lambda returns a tagged tuple [type, value] directly.
+          # If it returned nil (fire-and-forget style), synthesize :type_null.
+          return result if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+          return [:type_null, Utils::NULL_VALUE]
+        end
+
+
         call_name = func_declr.respond_to?(:name) ? func_declr.name : '<fn>'
 
         # Validate argument count

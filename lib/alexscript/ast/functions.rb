@@ -4,9 +4,9 @@ module AlexScript
   module AST
     # "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
     class FuncDclr < Dclr
-      attr_reader :name, :params, :body_statement, :line, :async
+      attr_reader :name, :params, :body_statement, :line, :async, :native_lambda
 
-      def initialize(name, params, body_statement, line, async: false)
+      def initialize(name, params, body_statement, line, async: false, native_lambda: nil)
         validate_types([name], [String])
         validate_types(params, [Param]) unless params.nil?
         validate_types([body_statement], Stmts)
@@ -16,6 +16,7 @@ module AlexScript
         @body_statement = body_statement
         @line = line
         @async = async
+        @native_lambda = native_lambda  # ruby proc: receives evaluated args, returns AS tuple
         @private = false
       end
 
