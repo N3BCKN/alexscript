@@ -17,7 +17,10 @@ module AlexScript
         @functions = {}
         @classes = {}
         @modules = {}
-        bootstrap_exception_classes if parent.nil? 
+        if parent.nil?
+          bootstrap_exception_classes
+          bootstrap_async_classes
+        end
       end
 
       def built_in_methods
@@ -460,6 +463,13 @@ module AlexScript
         module_def = resolve_module_path(module_path)
         return nil unless module_def
         module_def[:constants]&.[](constant_name)
+      end
+
+      def bootstrap_async_classes
+        # Register Obietnica into the root environment so that any AlexScript
+        # program can reference it without `zaimportuj`. Matches how
+        # exception classes are always available
+        Utils::NativeClassRegistry.register_into_env('Obietnica', self)
       end
     end
   end

@@ -36,13 +36,33 @@ module AlexScript
         node.evaluate(self, env)
       end
 
-      # ====================================================================
       # Function call — extracted from the old interpret! elsif chain.
       # Kept as an interpreter method (rather than inlined into AST::FuncCall)
       # because it's 270+ lines and deeply tied to interpreter-owned state.
-      # Called from AST::FuncCall#evaluate.
-      # ====================================================================
+      # Called from AST::FuncCall#evaluate
       def evaluate_func_call(node, env)
+        # ── Built-in async functions ─────────────────────────────────────
+        if AlexScript::Async::Builtins.builtin?(node.name)
+          return AlexScript::Async::Builtins.dispatch(node.name, node, env, self)
+        end
+
+        # ── Async dispatch ────────────────────────────────────────────────
+        # If the called function is marked `asynchroniczna`, spawn a fiber,
+        # return a Promise immediately, and let the reactor run the body.
+        # We resolve the declaration here (same way the sync path does below)
+        # and delegate to evaluate_async_func_call.
+        #
+        # Detection happens BEFORE we increment call_depth — async fibers
+        # manage their own depth inside the fiber body.
+        func_info = resolve_func_for_async_check(node, env)
+        if func_info && func_info[:func_declr].async
+          return evaluate_async_func_call(
+            node, env, func_info[:func_declr], func_info[:func_env],
+            instance: func_info[:instance]
+          )
+        end
+
+        # ── Sync path (existing behavior) ─────────────────────────────────
         env.increment_call_depth(node.line)
         begin
           # new code: first check if we're in a class instance context
@@ -322,14 +342,121 @@ module AlexScript
       end
 
       # ====================================================================
+      # Async function call — spawns a fiber, returns an Obietnica
+      # immediately, fiber body runs cooperatively under the reactor.
+      #
+      # Called from:
+      #   - evaluate_func_call when func_declr.async is true
+      #   - evaluate_method_call when calling an async instance method
+      #   - ModuleFunctionCall#evaluate when calling an async module function
+      #
+      # The function may be a top-level async function, async method, or
+      # async lambda. We accept either AST::FuncCall or AST::MethodCall as
+      # `node` — they differ in whether the identifier is in `name` or
+      # `method_name`, which we normalize via `call_name`.
+      #
+      # Crucial contract: this method must NEVER block. It schedules the
+      # fiber with the reactor and returns an AS-tagged :type_instance
+      # wrapping the promise. The fiber runs when the reactor gets a turn.
+      #
+      # Public because non-FuncCall paths (MethodCall, ModuleFunctionCall)
+      # need to reach it from outside the interpreter class.
+      # ====================================================================
+      def evaluate_async_func_call(node, env, func_declr, func_env, instance: nil)
+        reactor = AlexScript::Async::Reactor.current
+        promise = AlexScript::Async::ObietnicaImpl.new(reactor: reactor)
+
+        # Unify naming: FuncCall has `name`, MethodCall has `method_name`.
+        call_name = node.respond_to?(:name) ? node.name : node.method_name
+
+        # Capture argument values BEFORE spawning the fiber. Arguments are
+        # evaluated eagerly at the call site, in the caller's env, as they
+        # are for sync calls. This matches JS/Python async semantics.
+        arguments = node.arguments.map do |arg|
+          if arg.is_a?(AST::Identifier)
+            var = env.get_var(arg.name)
+            if var
+              [var[:type], var[:value]]
+            else
+              func_value = env.get_func_as_value(arg.name)
+              Utils.runtime_error("Niezdefiniowana zmienna lub funkcja #{arg.name}", arg.line) unless func_value
+              func_value
+            end
+          else
+            interpret!(arg, env)
+          end
+        end
+
+        fiber = Fiber.new do
+          begin
+            # Build the function's execution environment — same way the
+            # sync path does. All the param binding / defaults / rest logic
+            # lives in a helper for reuse.
+            new_func_env = build_func_env(func_declr, func_env, arguments, node, instance: instance)
+
+            # Track context so `czekaj` inside the body gets the right tracker
+            # state. Fiber[:...] isolation means this fiber's tracker state
+            # is independent of other concurrent fibers.
+            result = nil
+            Utils::CallStackTracker.push(:function, call_name, @current_file, node.line)
+            begin
+              Utils::ContextTracker.track_method_call(call_name) do
+                if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
+                  result = interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
+                else
+                  interpret!(func_declr.body_statement, new_func_env)
+                  result = [:type_null, Utils::NULL_VALUE]
+                end
+              end
+            rescue Utils::ReturnError => e
+              result = e.value
+            ensure
+              Utils::CallStackTracker.pop
+            end
+
+            promise.fulfill(result)
+          rescue Utils::AlexScriptError => e
+            promise.reject(e)
+          rescue StandardError => e
+            promise.reject(Utils::ExceptionsTranslator.translate(e))
+          end
+        end
+
+        # Hot promise: schedule the fiber immediately. The caller gets the
+        # promise RIGHT NOW, fiber runs on the next reactor tick.
+        reactor.schedule_resume(fiber)
+
+        AlexScript::Async::PromiseValue.wrap(promise, env)
+      end
+
       # Method call — extracted from the old interpret! elsif chain.
       # Handles :type_class (static methods), :type_instance (instance methods),
       # and fallback to built-in methods for arrays/objects/primitives.
-      # Called from AST::MethodCall#evaluate.
-      # ====================================================================
+      # Called from AST::MethodCall#evaluate
       def evaluate_method_call(node, env)
         # interpret object
         object_type, object_value = interpret!(node.object, env)
+
+        # ── Async dispatch for instance methods ──────────────────────────
+        # If the resolved method is marked `asynchroniczna`, spawn a fiber
+        # and return a Promise immediately. Must run BEFORE sync dispatch
+        # below — otherwise the async body executes on the calling fiber
+        # and `czekaj` tries to yield with no fiber to return to.
+        if object_type == :type_instance
+          method_result = env.find_method_in_hierarchy(object_value, node.method_name)
+          if method_result
+            method_info = method_result[:method_info]
+            if method_info && !method_info[:native_lambda] &&
+               method_info[:declaration].respond_to?(:async) && method_info[:declaration].async
+              return evaluate_async_func_call(
+                node, env,
+                method_info[:declaration],
+                method_info[:env],
+                instance: object_value
+              )
+            end
+          end
+        end
 
         # check if this is a method call on a class value.
         # covers both direct Identifier (rarely reached — see Identifier handler)
@@ -711,47 +838,169 @@ module AlexScript
         end
       end
 
-			# ====================================================================
-			# Entry points — sync vs async-aware
-			# ====================================================================
-			#
-			# interpret_ast is the historical public entry point. It runs a program
-			# to completion and raises on unhandled errors — this is what alexscript.rb,
-			# the REPL, and the import manager all call.
-			#
-			# interpret_node_with_translation is the reusable primitive: it executes
-			# a node, translates Ruby-native StandardError into AlexScriptError, and
-			# re-raises. Both sync and (future) async pathways share it; only the
-			# rescue-handling policy differs.
-			#
-			# The separation exists to prepare for async:
-			#   - sync mode  → unhandled exceptions kill the program (current behavior)
-			#   - async mode → unhandled exceptions reject the fiber's Obietnica,
-			#                  leaving other fibers (and the interpreter) alive.
-			#
-			# The async pathway lives in Core::AsyncInterpreter and calls this same
-			# primitive method, just wrapping the raise in promise.odrzuc(e) instead.
+      # Peek at where a FuncCall resolves, without executing it. Returns
+      # a hash { func_declr:, func_env:, instance: } or nil if nothing
+      # matches (sync path will handle the error).
+      #
+      # Used by evaluate_func_call to detect async-ness before spawning
+      # fibers. Mirrors the lookup logic in the sync path closely — if the
+      # two ever drift, async detection will silently miss cases. TODO:
+      # factor out lookup when refactoring evaluate_func_call proper.
+      def resolve_func_for_async_check(node, env)
+        # Instance method first (if we're in a class instance context).
+        current_instance = env.get_instance
+        if current_instance
+          class_name = current_instance[:class_name]
+          while class_name
+            class_def =
+              if current_instance[:module_path] && !current_instance[:module_path].empty?
+                env.get_module_class(current_instance[:module_path], class_name)
+              else
+                env.get_class(class_name)
+              end
+            break unless class_def
 
-			def interpret_ast(node, env = nil)
-				environment = env || Environment.new
-				interpret_node_with_translation(node, environment)
-			end
+            method = class_def[:methods] && class_def[:methods][node.name]
+            if method && !method[:native_lambda]
+              return {
+                func_declr: method[:declaration],
+                func_env:   method[:env],
+                instance:   current_instance
+              }
+            end
 
-			# Runs a node and translates any Ruby-native StandardError into an
-			# AlexScriptError before re-raising. AlexScriptError itself passes
-			# through unchanged.
-			#
-			# Public so that AsyncInterpreter (and any future pathway that needs
-			# translated-but-not-caught exceptions) can call it.
-			def interpret_node_with_translation(node, env)
-				interpret!(node, env)
-			rescue Utils::AlexScriptError => e
-				raise e
-			rescue StandardError => e
-				# translate and re-raise
-				alex_error = Utils::ExceptionsTranslator.translate(e)
-				raise alex_error
-			end
+            class_name = class_def[:parent]
+          end
+        end
+
+        # Variable holding a function value.
+        var = env.get_var(node.name)
+        if var && var[:type] == :type_function && var[:value][:declaration]
+          return {
+            func_declr: var[:value][:declaration],
+            func_env:   var[:value][:env],
+            instance:   nil
+          }
+        end
+
+        # Regular function.
+        func = env.get_func(node.name)
+        if func
+          return {
+            func_declr: func[0],
+            func_env:   func[1],
+            instance:   nil
+          }
+        end
+
+        nil
+      end
+
+      # ── Entry points — sync vs async-aware ──────────────────────────────
+      #
+      # interpret_ast is the historical public entry point. It runs a program
+      # to completion and raises on unhandled errors — this is what alexscript.rb,
+      # the REPL, and the import manager all call.
+      #
+      # interpret_node_with_translation is the reusable primitive: it executes
+      # a node, translates Ruby-native StandardError into AlexScriptError, and
+      # re-raises. Both sync and (future) async pathways share it; only the
+      # rescue-handling policy differs.
+      #
+      # The separation exists to prepare for async:
+      #   - sync mode  → unhandled exceptions kill the program (current behavior)
+      #   - async mode → unhandled exceptions reject the fiber's Obietnica,
+      #                  leaving other fibers (and the interpreter) alive.
+      #
+      # The async pathway lives in Core::AsyncInterpreter and calls this same
+      # primitive method, just wrapping the raise in promise.odrzuc(e) instead.
+
+      def interpret_ast(node, env = nil)
+        environment = env || Environment.new
+        interpret_node_with_translation(node, environment)
+      end
+
+      # Runs a node and translates any Ruby-native StandardError into an
+      # AlexScriptError before re-raising. AlexScriptError itself passes
+      # through unchanged.
+      #
+      # Public so that AsyncInterpreter (and any future pathway that needs
+      # translated-but-not-caught exceptions) can call it.
+      def interpret_node_with_translation(node, env)
+        interpret!(node, env)
+      rescue Utils::AlexScriptError => e
+        raise e
+      rescue StandardError => e
+        # translate and re-raise
+        alex_error = Utils::ExceptionsTranslator.translate(e)
+        raise alex_error
+      end
+
+      # ════════════════════════════════════════════════════════════════════
+      # PRIVATE helpers
+      # ════════════════════════════════════════════════════════════════════
+      private
+
+      # Helper extracted from evaluate_func_call's sync body — binds
+      # arguments to parameters (including defaults and rest), produces
+      # the inner env ready to execute the function body.
+      #
+      # Shared between async paths only (sync path in evaluate_func_call
+      # still has its own inlined copy — we didn't want to touch it in
+      # this patch). Called from evaluate_async_func_call.
+      #
+      # Handles both FuncCall (has `name`) and MethodCall (has `method_name`)
+      # node types, unified via `call_name`.
+      def build_func_env(func_declr, func_env, arguments, node, instance: nil)
+        call_name = node.respond_to?(:name) ? node.name : node.method_name
+
+        rest_param = func_declr.params.find(&:rest?)
+        min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
+        max_args = rest_param ? Float::INFINITY : func_declr.params.size
+
+        if arguments.size < min_args
+          Utils.runtime_error(
+            "Funkcja #{call_name} oczekiwala minimum #{min_args} argumentow, otrzymala #{arguments.size}",
+            node.line
+          )
+        end
+
+        unless rest_param
+          if arguments.size > max_args
+            Utils.runtime_error(
+              "Funkcja #{call_name} oczekiwala maksymalnie #{max_args} argumentow, otrzymala #{arguments.size}",
+              node.line
+            )
+          end
+        end
+
+        new_func_env = func_env.new_env
+        new_func_env.set_instance(instance) if instance
+
+        rest_idx = func_declr.params.index(&:rest?)
+        rest_position = rest_idx || func_declr.params.size
+
+        normal_params = func_declr.params.reject(&:rest?)
+        normal_params.each_with_index do |param, idx|
+          if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+            arg_val = arguments[idx]
+            new_func_env.set_local_var(param.name, arg_val[1], arg_val[0])
+          elsif param.has_default?
+            default_value = interpret!(param.default_value, func_env)
+            new_func_env.set_local_var(param.name, default_value[1], default_value[0])
+          else
+            Utils.runtime_error("Brakujacy argument #{param.name}", node.line)
+          end
+        end
+
+        if rest_param
+          rest_args = arguments[rest_position..-1] || []
+          rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+          new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+        end
+
+        new_func_env
+      end
     end
   end
 end

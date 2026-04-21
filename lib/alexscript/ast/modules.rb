@@ -475,6 +475,18 @@ module AlexScript
         func_declr = func[0]
         func_env = func[1]
 
+        # Async dispatch: if the resolved function is async, delegate to
+        # interpreter's async path rather than executing its body synchronously.
+        if func_declr.respond_to?(:async) && func_declr.async
+          # Synthesize a FuncCall node so evaluate_async_func_call can use it
+          # uniformly; the interpreter's async helper reads node.name, node.line
+          # and node.arguments.
+          synthetic = AST::FuncCall.new(@function_name, @arguments, @line)
+          return interpreter.evaluate_async_func_call(
+            synthetic, env, func_declr, func_env, instance: nil
+          )
+        end
+
         # evaluate arguments
         arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
 

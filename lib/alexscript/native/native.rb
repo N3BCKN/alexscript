@@ -9,6 +9,7 @@ require_relative './socket'
 require_relative './http'
 require_relative './digest'
 require_relative './secure_random'
+require_relative './obietnica' 
 
 module AlexScript
   module Native
@@ -23,6 +24,11 @@ module AlexScript
       HttpLibrary.register
       DigestLibrary.register
       SecureRandomLibrary.register
+
+      # Obietnica — always available, part of the async core.
+      # Register the class definition once at startup; Environment.new picks
+      # it up via the bootstrap path (see Environment#initialize changes).
+      AlexScript::Native::ObietnicaLibrary.register!
 
       # Register importable library names
       # Maps import("czas") → register Czas class into caller's environment

@@ -32,7 +32,24 @@ module AlexScript
         @running = false
       end
 
-      # --- Public API for promises and built-ins -----------------------
+      # Fiber-local singleton. The root program starts with no reactor; the
+      # first call to `uruchom` creates one and stores it in Fiber[:alex_reactor].
+      # Child fibers inherit the reactor via Fiber's storage inheritance —
+      # that's exactly the semantics we want: spawned async functions share
+      # the reactor with their parent.
+      def self.current
+        Fiber[:alex_reactor] ||= new
+      end
+
+      def self.current?
+        !Fiber[:alex_reactor].nil?
+      end
+
+      def self.reset_current!
+        Fiber[:alex_reactor] = nil
+      end
+
+      # Public API for promises and built-ins 
 
       # Add a fiber to the ready queue. It will be resumed on the next
       # tick of the main loop. Safe to call from inside a fiber body
@@ -61,7 +78,7 @@ module AlexScript
         Fiber.yield(:sleep, ms)
       end
 
-      # --- Main loop ---------------------------------------------------
+      # Main loop
 
       # Drive the reactor until `promise` settles, then return its value
       # (or raise its rejection reason). This is the synchronous entry
@@ -103,7 +120,7 @@ module AlexScript
         end
       end
 
-      # --- Internals ---------------------------------------------------
+      # Internals
 
       private
 

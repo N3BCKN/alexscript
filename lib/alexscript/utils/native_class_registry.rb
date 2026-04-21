@@ -162,16 +162,26 @@ module AlexScript
             ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
             result = native_lambda.call(native_obj, *ruby_args)
           end
+
+          # Tagged tuple → already in AS format, pass through.
+          if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol) && result[0].to_s.start_with?('type_')
+            return result
+          end
+
           convert_return(result)
         end
 
         def dispatch_static_lambda(native_lambda, as_args)
-          if as_args.empty?
-            result = native_lambda.call
-          else
-            ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
-            result = native_lambda.call(*ruby_args)
+          ruby_args = as_args.map { |a| NativeTypeConverter.to_ruby(a[0], a[1]) }
+          result = native_lambda.call(*ruby_args)
+
+          # Tagged tuple → already in AS format, pass through.
+          # This is the escape hatch used by Obietnica.spelniona / .odrzucona
+          # and any native static that builds :type_instance values itself.
+          if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol) && result[0].to_s.start_with?('type_')
+            return result
           end
+
           convert_return(result)
         end
 
