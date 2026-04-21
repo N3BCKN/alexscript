@@ -56,6 +56,8 @@ module AlexScript
         @state  = STATE_REJECTED
         @reason = reason
         wake_waiters
+
+        schedule_unhandled_check
       end
 
       # Block the current fiber until this promise settles, then return
@@ -142,6 +144,29 @@ module AlexScript
           @settle_callbacks.each { |cb| cb.call(self) }
           @settle_callbacks.clear
         end
+      end
+
+      # Schedule a deferred check for unhandled rejection. 100ms gives any
+      # pending `czekaj` or .zlap() callbacks a chance to mark the promise
+      # as handled before we warn.
+      #
+      # Matches browser JS semantics: unhandled rejection isn't fatal,
+      # just a stderr warning. Silent if reactor has already shut down by
+      # the time the check fires.
+      def schedule_unhandled_check
+        @reactor.schedule_timer(100) do
+          next if @handled
+
+          msg = if @reason.is_a?(Utils::AlexScriptError)
+                  @reason.message
+                else
+                  @reason.to_s
+                end
+          STDERR.puts "UWAGA: nieobsluzone odrzucenie obietnicy: #{msg}"
+        end
+      rescue StandardError
+        # If scheduling fails (e.g., reactor already closed), swallow
+        # silently. Unhandled warnings are best-effort.
       end
 
       def raise_reason

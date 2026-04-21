@@ -1261,5 +1261,64 @@ RSpec.describe 'Async end-to-end', type: :aruba do
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(clean_output).to eq('pierwszy')
     end
+  end 
+
+  describe 'unhandled rejection warnings' do
+    it 'warns on stderr when a rejected promise is never awaited' do
+      code = '
+        asynchroniczna funkcja main() {
+            uruchom_rownolegle(fn() {
+                rzuc BladWykonania.nowy("ignored error")
+            })
+            czekaj uspij(200)
+            zwroc "done"
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      # stdout should contain "done"; stderr should contain the warning.
+      # Aruba's `output` merges both streams — that's fine, we just want
+      # to verify the warning text appears somewhere.
+      expect(last_command_started.output).to include('nieobsluzone odrzucenie')
+      expect(last_command_started.output).to include('ignored error')
+    end
+
+    it 'does NOT warn when rejection is awaited' do
+      code = '
+        asynchroniczna funkcja zly() {
+            rzuc BladWykonania.nowy("handled error")
+        }
+
+        asynchroniczna funkcja main() {
+            proba {
+                czekaj zly()
+            } zlap (e) {
+                # handled, no warning expected
+            }
+            czekaj uspij(200)
+            zwroc "done"
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output).not_to include('nieobsluzone odrzucenie')
+    end
+
+    it 'does NOT warn when promise is explicitly checked via stan()' do
+      # Accessing .stan() on a rejected promise doesn't count as handling.
+      # Only await / on_settle (i.e., czekaj / .zlap) counts. This matches
+      # JS semantics — just reading the state doesn't mean you're "done"
+      # with the rejection.
+      code = '
+        asynchroniczna funkcja main() {
+            niech p = Obietnica.odrzucona("nietknięte")
+            czekaj uspij(200)
+            zwroc "done"
+        }
+        pokazl uruchom(main)
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output).to include('nieobsluzone odrzucenie')
+    end
   end
 end
