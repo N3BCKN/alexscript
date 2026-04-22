@@ -71,8 +71,12 @@ module AlexScript
       o.bool '--no-yjit',    'disable YJIT (for profiling interpreter internals)'
       o.bool '--yjit-stats', 'print YJIT runtime statistics after execution'
     end
-
-    Utils::Repl.new if ARGV.empty?
+ 
+    # Switch to REPL when no arguments; exit cleanly when REPL loop ends.
+    if ARGV.empty?
+      Utils::Repl.new
+      return
+    end
 
     filename = ARGV[0]
 

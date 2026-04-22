@@ -512,7 +512,7 @@ RSpec.describe 'AlexScript sam (self-reference)', type: :aruba do
       ALEXSCRIPT
       
       run_command("alexscript '#{code}'")
-      expect(last_command_started).to have_output(/BladSkladni: Nie można przypisać wartości do słowa kluczowego 'sam' w linii 3/)
+      expect(last_command_started).to have_output(/BladSkladni: 'sam' jest slowem kluczowym i nie moze byc uzyte jako nazwa zmiennej w linii 3/)
       expect(last_command_started).to have_exit_status(1)
     end
 

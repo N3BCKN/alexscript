@@ -21,6 +21,7 @@ module AlexScript
         @env = Core::Environment.new
         @line_no = 0
         @last_value = nil  # stores last result, accessible as _
+        @should_exit = false
 
         # Register _ as a variable in the environment
         @env.set_local_var('_', NULL_VALUE, :type_null)
@@ -34,16 +35,16 @@ module AlexScript
           input = read_multiline_input
           break if input.nil? # Ctrl+D
 
-          # Skip empty input
           next if input.strip.empty?
 
-          # Handle REPL commands (not AlexScript code)
-          next if handle_repl_command(input.strip)
+          # handle REPL commands (not AS code)
+          if handle_repl_command(input.strip)
+            break if @should_exit
+            next
+          end
 
           execute(input)
         end
-
-        # puts "\nDo zobaczenia!"
       end
 
       private
@@ -59,7 +60,8 @@ module AlexScript
         case input
         when 'koniec', 'wyjscie', 'wyjscie()'
           puts "Do zobaczenia!"
-          exit(0)
+          @should_exit = true
+          true
         when 'pomoc'
           display_help
           true
@@ -107,9 +109,11 @@ module AlexScript
             display_result(result, ast)
           end
         rescue Utils::AlexScriptError => e
-          puts "\e[31mBłąd\e[0m: #{e.message}"
+          puts "\e[31m#{e.alexscript_class_name}\e[0m: #{e.message}"
         rescue StandardError => e
-          puts "\e[31mBłąd\e[0m: #{e.message}"
+          # Ruby-native exceptions — translate to AlexScript exception for consistency
+          alex_exception = Utils::ExceptionsTranslator.translate(e)
+          puts "\e[31m#{alex_exception.alexscript_class_name}\e[0m: #{alex_exception.message}"
         end
       end
 

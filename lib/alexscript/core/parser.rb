@@ -57,6 +57,13 @@ module AlexScript
           Utils.parse_error("Znaleziono '#{previous_token.lexeme}' na koncu parsowania", previous_token.line)
         elsif peek.token_type == expected_type
           advance
+        elsif expected_type == :tok_identifier && Utils::KEYWORD_TOKENS.include?(peek.token_type)
+          # User tried to use a reserved keyword as an identifier
+          # (e.g. "niech niech = 5", "funkcja klasa() {}", "dla w w tablica {}").
+          Utils.parse_error(
+            "'#{peek.lexeme}' jest slowem kluczowym i nie moze byc uzyte jako nazwa",
+            peek.line
+          )
         else
           Utils.parse_error("Oczekiwano '#{expected_type}', znaleziono '#{peek.lexeme}'", peek.line)
         end
@@ -1077,21 +1084,42 @@ module AlexScript
 						return AST::StaticVariableDeclaration.new(class_name, static_var_name, value, previous_token.line)
 					end
 				end
+
+        # Proactive guard: if the next token is a reserved keyword, fail early with a
+        # clear message. This catches cases the generic expect(:tok_identifier) path
+        # cannot see because the keyword token is consumed by dedicated branches in
+        # primary/statement
+        if @current < @tokens.length && Utils::KEYWORD_TOKENS.include?(peek.token_type)
+          Utils.parse_error(
+            "'#{peek.lexeme}' jest slowem kluczowym i nie moze byc uzyte jako nazwa zmiennej",
+            peek.line
+          )
+        end
 				
+        lhs_line = peek.line
         left = expression
 
         # check if not trying to assing to 'sam' (self)
         if left.is_a?(AST::SelfReference)
           Utils.parse_error("Nie można przypisać wartości do słowa kluczowego 'sam'", left.line)
         end
-        
+
         # check if it's an instance variable (@)
         if left.is_a?(AST::InstanceVariable)
           expect(:tok_assign)
           right = expression
           return AST::InstanceVariableDeclaration.new(left.name, right, previous_token.line)
         end
-        
+
+        # Catch non-identifier LHS (e.g. "niech prawda = 5", "niech 10 = 5", "niech [a, b] = ...").
+        # Regular variable declarations must use a plain identifier on the left side.
+        unless left.is_a?(AST::Identifier)
+          Utils.parse_error(
+            "Nazwa zmiennej musi byc prawidlowym identyfikatorem",
+            lhs_line
+          )
+        end
+
         # for regular variables
         expect(:tok_assign)
         right = expression
@@ -1102,7 +1130,25 @@ module AlexScript
       def global_var_declaration_statement
         expect(:tok_global)
         expect(:tok_let)
+
+        # Proactive keyword guard — same reasoning as in var_declaration_statement.
+        if @current < @tokens.length && Utils::KEYWORD_TOKENS.include?(peek.token_type)
+          Utils.parse_error(
+            "'#{peek.lexeme}' jest slowem kluczowym i nie moze byc uzyte jako nazwa zmiennej",
+            peek.line
+          )
+        end
+
+        lhs_line = peek.line
         left = expression
+
+        unless left.is_a?(AST::Identifier)
+          Utils.parse_error(
+            "Nazwa zmiennej musi byc prawidlowym identyfikatorem",
+            lhs_line
+          )
+        end
+
         expect(:tok_assign)
         right = expression
         AST::GlobalVariableDeclaration.new(left, right, previous_token.line)

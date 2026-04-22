@@ -107,3 +107,4 @@ first fully working version with basic structures:
 
 ### 0.9.17
 * implement async  
+* bitwise operations'
