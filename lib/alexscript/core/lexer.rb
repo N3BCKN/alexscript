@@ -93,6 +93,14 @@ module AlexScript
       end
 
       private
+
+      def is_hex_digit?(char)
+        ord = char.ord
+        return false if ord >= 256
+        @is_digit[ord] ||
+          (ord >= 'a'.ord && ord <= 'f'.ord) ||
+          (ord >= 'A'.ord && ord <= 'F'.ord)
+      end
       
       # initialize tables for fast character classification
       def init_character_tables
@@ -159,6 +167,9 @@ module AlexScript
         @dispatch_table['>'.ord] = :handle_greater
         @dispatch_table['<'.ord] = :handle_less
         @dispatch_table['!'.ord] = :handle_not
+        @dispatch_table['~'.ord] = :handle_tilde
+        @dispatch_table['&'.ord] = :handle_ampersand
+        @dispatch_table['|'.ord] = :handle_pipe
         
         # string literals
         @dispatch_table['"'.ord] = :handle_string
@@ -355,7 +366,9 @@ module AlexScript
       end
       
       def handle_star(char)
-        if next_match('=')
+        if next_match('*')
+          add_token(:tok_power) 
+        elsif next_match('=')
           add_token(:tok_stareq)
         else
           add_token(:tok_star)
@@ -364,6 +377,18 @@ module AlexScript
       
       def handle_caret(char)
         add_token(:tok_caret)
+      end
+
+      def handle_tilde(char)
+        add_token(:tok_tilde)
+      end
+
+      def handle_ampersand(char)
+        add_token(:tok_bit_and)
+      end
+
+      def handle_pipe(char)
+        add_token(:tok_bit_or)
       end
       
       def handle_mod(char)
@@ -391,6 +416,8 @@ module AlexScript
       def handle_greater(char)
         if next_match('=')
           add_token(:tok_greateroreq)
+        elsif next_match('>')
+          add_token(:tok_rshift)          # >> — prawy shift
         else
           add_token(:tok_greater)
         end
@@ -418,23 +445,61 @@ module AlexScript
       
       # optimized numeral handler for faster processing of numbers
       def handle_numeral(char)
-        # current character is already a digit and has been consumed
-        
-        # fast-forward through all consecutive digits
+        # Prefix literals: 0b1010 (binary), 0o777 (octal), 0xFF (hex)
+        # Fast path: trigger only if starting char is '0' AND next is b/o/x
+        if char == '0' && @current < @source_size
+          next_char = @source[@current]
+          if next_char == 'b' || next_char == 'B'
+            @current += 1  # skip 'b'
+            bin_start = @current
+            while @current < @source_size && (@source[@current] == '0' || @source[@current] == '1')
+              @current += 1
+            end
+            if @current == bin_start
+              Utils.lexing_error("Nieprawidlowy literal binarny", @line)
+            end
+            # strip "0b" prefix before converting
+            lexeme = @source[bin_start...@current]
+            @tokens << Utils::Token.new(:tok_int, lexeme.to_i(2).to_s, @line)
+            return
+          elsif next_char == 'x' || next_char == 'X'
+            @current += 1  # skip 'x'
+            hex_start = @current
+            while @current < @source_size && is_hex_digit?(@source[@current])
+              @current += 1
+            end
+            if @current == hex_start
+              Utils.lexing_error("Nieprawidlowy literal szesnastkowy", @line)
+            end
+            lexeme = @source[hex_start...@current]
+            @tokens << Utils::Token.new(:tok_int, lexeme.to_i(16).to_s, @line)
+            return
+          elsif next_char == 'o' || next_char == 'O'
+            @current += 1  # skip 'o'
+            oct_start = @current
+            while @current < @source_size && @source[@current] >= '0' && @source[@current] <= '7'
+              @current += 1
+            end
+            if @current == oct_start
+              Utils.lexing_error("Nieprawidlowy literal osemkowy", @line)
+            end
+            lexeme = @source[oct_start...@current]
+            @tokens << Utils::Token.new(:tok_int, lexeme.to_i(8).to_s, @line)
+            return
+          end
+        end
+
+        #  decimal path
         while @current < @source_size && is_digit?(@source[@current])
           @current += 1
         end
-        
-        # check for float
-        if @current < @source_size && @source[@current] == '.' && 
-           @current + 1 < @source_size && is_digit?(@source[@current + 1])
-          @current += 1  # Skip the dot
-          
-          # fast-forward through all digits after the decimal point
+
+        if @current < @source_size && @source[@current] == '.' &&
+          @current + 1 < @source_size && is_digit?(@source[@current + 1])
+          @current += 1
           while @current < @source_size && is_digit?(@source[@current])
             @current += 1
           end
-          
           add_token(:tok_float)
         else
           add_token(:tok_int)

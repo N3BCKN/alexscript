@@ -235,7 +235,7 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
           }
           
           funkcja odleglosc() {
-            zwroc (@x * @x + @y * @y) ^ 0.5
+            zwroc (@x * @x + @y * @y) ** 0.5
           }
         }
         

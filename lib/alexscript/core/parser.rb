@@ -524,7 +524,7 @@ module AlexScript
           return AST::AwaitExpr.new(inner, await_token.line)
         end
 
-        if match(:tok_not) || match(:tok_minus) || match(:tok_plus)
+        if match(:tok_not) || match(:tok_minus) || match(:tok_plus) || match(:tok_tilde)
           op = previous_token
           operand = unary
           return AST::UnOp.new(op, operand, op.line)
@@ -533,11 +533,12 @@ module AlexScript
         primary
       end
 
-      # ::= <unary> ("^" <unary>)*
+      # <exponent> ::= <unary> ("**" <unary>)*
+      # right-associative: 2 ** 3 ** 2  =>  2 ** (3 ** 2)  =>  512
       def exponent
         expr = unary
 
-        while match(:tok_caret)
+        while match(:tok_power)
           op = previous_token
           right = exponent
           expr = AST::BinOp.new(op, expr, right, op.line)
@@ -578,7 +579,7 @@ module AlexScript
       def addition
         expr = multiplication
 
-        while match(:tok_plus) || match(:tok_minus) || match(:tok_append) # <<
+        while match(:tok_plus) || match(:tok_minus)
           op = previous_token
           right = multiplication
           expr = AST::BinOp.new(op, expr, right, op.line)
@@ -587,12 +588,65 @@ module AlexScript
         expr
       end
 
-      # <comparsion> ::= <addition> ((">" | ">=" | "<" | "<="))*
-      def comparison
+      # <shift> ::= <addition> ( ('<<' | '>>') <addition> )*
+      # '<<' is dispatched at runtime: append on arrays, left-shift on integers.
+      def shift
         expr = addition
-        while match(:tok_greater) || match(:tok_greateroreq) || match(:tok_smalleroreq) || match(:tok_smaller)
+
+        while match(:tok_append) || match(:tok_rshift)
           op = previous_token
           right = addition
+          expr = AST::BinOp.new(op, expr, right, op.line)
+        end
+
+        expr
+      end
+
+      # <bit_and> ::= <shift> ( "&" <shift> )*
+      def bit_and
+        expr = shift
+
+        while match(:tok_bit_and)
+          op = previous_token
+          right = shift
+          expr = AST::BinOp.new(op, expr, right, op.line)
+        end
+
+        expr
+      end
+
+      # <bit_xor> ::= <bit_and> ( "^" <bit_and> )*
+      def bit_xor
+        expr = bit_and
+
+        while match(:tok_caret)
+          op = previous_token
+          right = bit_and
+          expr = AST::BinOp.new(op, expr, right, op.line)
+        end
+
+        expr
+      end
+
+      # <bit_or> ::= <bit_xor> ( "|" <bit_xor> )*
+      def bit_or
+        expr = bit_xor
+
+        while match(:tok_bit_or)
+          op = previous_token
+          right = bit_xor
+          expr = AST::BinOp.new(op, expr, right, op.line)
+        end
+
+        expr
+      end
+
+      # <comparsion> ::= <addition> ((">" | ">=" | "<" | "<="))*
+      def comparison
+        expr = bit_or
+        while match(:tok_greater) || match(:tok_greateroreq) || match(:tok_smalleroreq) || match(:tok_smaller)
+          op = previous_token
+          right = bit_or
           expr = AST::BinOp.new(op, expr, right, op.line)
         end
 

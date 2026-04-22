@@ -148,7 +148,7 @@ RSpec.describe 'Arithmetic Operations', type: :aruba do
     end
 
     it 'performs exponentiation correctly' do
-      code = 'niech x = 2 ^ 3 pokazl x'
+      code = 'niech x = 2 ** 3 pokazl x'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('8')
     end

@@ -96,13 +96,19 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_caret # exponentiation ^
+        elsif @op.token_type == :tok_power # exponentiation **
           case [left_type, right_type]
           when %i[type_int type_int]
             result = left_value**right_value
             result == result.to_i ? [:type_int, result.to_i] : [:type_float, result.to_f]
           when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_float, left_value.to_f**right_value.to_f]
+          else
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
+          end
+        elsif @op.token_type == :tok_caret # bitwise XOR ^
+          if left_type == :type_int && right_type == :type_int
+            [:type_int, left_value ^ right_value]
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
@@ -133,16 +139,41 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_append # 
+        elsif @op.token_type == :tok_append # << : append on arrays, left shift on integers
           if left_type == :type_array
             left_value << { type: right_type, value: right_value }
-            # Only update variable in env if left side is an identifier (a variable)
             if @left.is_a?(AST::Identifier)
               env.set_var(@left.name, left_value, left_type)
             end
             [:type_array, left_value]
+          elsif left_type == :type_int && right_type == :type_int
+            if right_value < 0
+              Utils.runtime_error('Przesuniecie bitowe o wartosc ujemna', @op.line)
+            end
+            [:type_int, left_value << right_value]
           else
-            Utils.runtime_error('Operator << moze byc uzyty tylko z tablicami', @line)
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
+          end
+        elsif @op.token_type == :tok_rshift # >>
+          if left_type == :type_int && right_type == :type_int
+            if right_value < 0
+              Utils.runtime_error('Przesuniecie bitowe o wartosc ujemna', @op.line)
+            end
+            [:type_int, left_value >> right_value]
+          else
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
+          end
+        elsif @op.token_type == :tok_bit_and # & bitwise AND
+          if left_type == :type_int && right_type == :type_int
+            [:type_int, left_value & right_value]
+          else
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
+          end
+        elsif @op.token_type == :tok_bit_or # | bitwise OR
+          if left_type == :type_int && right_type == :type_int
+            [:type_int, left_value | right_value]
+          else
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
         elsif @op.token_type == :tok_smalleroreq # <=
           case [left_type, right_type]
@@ -207,6 +238,12 @@ module AlexScript
             [:type_bool, interpreter.to_bool_value(!interpreter.from_bool_value(operand_value))]
           elsif operand_type == :type_null
             [:type_bool, Utils::BOOL_TRUE] # !nic returns true
+          else
+            interpreter.runtime_error_unop(operand_type, operand_value, self)
+          end
+        elsif @op.token_type == :tok_tilde
+          if operand_type == :type_int
+            [:type_int, ~operand_value]
           else
             interpreter.runtime_error_unop(operand_type, operand_value, self)
           end

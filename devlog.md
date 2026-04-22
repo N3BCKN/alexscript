@@ -104,3 +104,6 @@ first fully working version with basic structures:
 * add built-in methods for modules
 * fix static methods within modules
 * allow modules to be reopen multiple times 
+
+### 0.9.17
+* implement async  

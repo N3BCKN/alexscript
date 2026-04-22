@@ -543,7 +543,7 @@ RSpec.describe 'Custom Higher-Order Functions', type: :aruba do
         }
         zwroc wynik
       }
-      pokazl moja_mapa([1, 2, 3], fn(x) { x ^ 2 })'
+      pokazl moja_mapa([1, 2, 3], fn(x) { x ** 2 })'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
       expect(last_command_started.output.strip).to eq('[1, 4, 9]')
     end
