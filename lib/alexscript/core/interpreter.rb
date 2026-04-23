@@ -928,6 +928,7 @@ module AlexScript
 
       def interpret_ast(node, env = nil)
         environment = env || Environment.new
+        Fiber[:alex_interpreter] ||= self
         interpret_node_with_translation(node, environment)
       end
 

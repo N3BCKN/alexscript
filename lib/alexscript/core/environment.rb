@@ -20,6 +20,7 @@ module AlexScript
         if parent.nil?
           bootstrap_exception_classes
           bootstrap_async_classes
+          bootstrap_regex_classes
         end
       end
 
@@ -470,6 +471,12 @@ module AlexScript
         # program can reference it without `zaimportuj`. Matches how
         # exception classes are always available
         Utils::NativeClassRegistry.register_into_env('Obietnica', self)
+      end
+
+      def bootstrap_regex_classes
+        # Wyrazenie + Dopasowanie — always available with no need of import
+        Utils::NativeClassRegistry.register_into_env('Wyrazenie', self)
+        Utils::NativeClassRegistry.register_into_env('Dopasowanie', self)
       end
     end
   end
