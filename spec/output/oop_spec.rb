@@ -727,4 +727,49 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
         expect(last_command_started).to have_exit_status(1)
     end 
   end
+
+  describe 'Instance methods arithmetic operations' do
+    it 'allows reassigning an instance variable using itself in the expression' do
+      code = <<~AS
+        klasa Licznik {
+          funkcja konstruktor() {
+            niech @n = 0
+          }
+
+          funkcja dodaj(x) {
+            @n = @n + x
+            pokazl @n
+          }
+        }
+
+        niech c = Licznik.nowy()
+        c.dodaj(5)
+        c.dodaj(3)
+      AS
+
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq("5\n8")
+    end
+
+    it 'allows overwriting an instance variable with a plain value' do
+      code = <<~AS
+        klasa Box {
+          funkcja konstruktor() {
+            niech @v = "a"
+          }
+
+          funkcja ustaw(nowy) {
+            @v = nowy
+            pokazl @v
+          }
+        }
+
+        niech b = Box.nowy()
+        b.ustaw("b")
+      AS
+
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("b")
+    end
+  end 
 end

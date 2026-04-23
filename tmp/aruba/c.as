@@ -1,1 +1,0 @@
-pokazl nieznana_zmienna

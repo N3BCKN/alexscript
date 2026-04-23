@@ -1343,12 +1343,20 @@ module AlexScript
             end
 
             right = expression
-            AST::Assignment.new(left, right, previous_token.line)
+            if left.is_a?(AST::InstanceVariable)
+              AST::InstanceVariableAssignment.new(left.name, right, previous_token.line)
+            else
+              AST::Assignment.new(left, right, previous_token.line)
+            end
           elsif match(:tok_pluseq) || match(:tok_minuseq) ||
                 match(:tok_stareq) || match(:tok_slasheq)
             operator = previous_token
             right = expression
-            AST::CompoundAssignment.new(left, operator, right, previous_token.line)
+            if left.is_a?(AST::InstanceVariable)
+              AST::InstanceVariableCompoundAssignment.new(left.name, operator, right, previous_token.line)
+            else
+              AST::CompoundAssignment.new(left, operator, right, previous_token.line)
+            end
           elsif left.is_a?(AST::FuncCall)
             # handle function calls and array access statements
             AST::FuncCallStmt.new(left, previous_token.line)
@@ -1360,9 +1368,6 @@ module AlexScript
             AST::InputStmt.new(left, previous_token.line)
           elsif left.is_a?(AST::Expr)
             AST::ExpressionStmt.new(left, previous_token.line)
-          elsif left.is_a?(AST::InstanceVariable)
-            right = expression
-            return AST::InstanceVariableAssignment.new(left.name, right, previous_token.line)
           else
             AST::Utils.parse_error('Niespodziewane wyrazenie', previous_token.line)
           end

@@ -1,10 +1,16 @@
-        modul Zubr {
-          klasa Narzedzia {
-            statyczna funkcja powitaj() {
-              pokazl "czesc"
-            }
-          }
-        }
+klasa Test{
+  funkcja konstruktor(){
+    niech @gowno = 0
+  }
 
-  Zubr::Narzedzia::powitaj()
-  Zubr::Narzedzia.powitaj()
+  funkcja dodaj_gowno(n){
+    @gowno = @gowno + n
+    pokazl @gowno
+  }
+}
+
+
+niech x = Test.nowy()
+
+
+x.dodaj_gowno(5)

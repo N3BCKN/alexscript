@@ -260,5 +260,51 @@ module AlexScript
         ].join("\n")
       end
     end
+
+    class InstanceVariableCompoundAssignment < Stmt
+      attr_reader :name, :operator, :right, :line
+
+      def initialize(name, operator, right, line)
+        validate_types([name], [String])
+        validate_types([operator], [Utils::Token], 'operator')
+        validate_types([right], [Expr], 'right')
+        @name = name
+        @operator = operator
+        @right = right
+        @line = line
+      end
+
+      def evaluate(interpreter, env)
+        instance = env.get_instance
+        Utils.runtime_error("Nie można użyć zmiennej instancji poza kontekstem instancji", @line) unless instance
+
+        current = instance[:instance_vars][@name]
+        Utils.runtime_error("Niezdefiniowana zmienna instancji @#{@name}", @line) unless current
+        current_type, current_value = current
+
+        _, right_value = interpreter.interpret!(@right, env)
+
+        new_value = case @operator.token_type
+                    when :tok_pluseq
+                      current_value + right_value
+                    when :tok_minuseq
+                      current_value - right_value
+                    when :tok_stareq
+                      current_value * right_value
+                    when :tok_slasheq
+                      Utils.runtime_error('Dzielenie przez zero', @line) if right_value == 0
+                      current_value / right_value
+                    end
+
+        instance[:instance_vars][@name] = [current_type, new_value]
+      end
+
+      def pretty_print(level = 0)
+        ["#{indent(level)}InstanceVariableCompoundAssignment(@#{@name}",
+         "#{indent(level + 1)}operator: #{@operator.lexeme}",
+         @right.pretty_print(level + 1),
+         "#{indent(level)})"].join("\n")
+      end
+    end
   end
 end
