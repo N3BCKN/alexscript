@@ -84,6 +84,9 @@ module AlexScript
           when :static_method
             location = format_location(frame[:file], frame[:line])
             "  #{index}: #{frame[:class_name]}.#{frame[:name]} #{location}"
+          when :import
+            location = format_location(frame[:file], frame[:line])
+            "  #{index}: import '#{frame[:name]}' #{location}"
           else
             "  #{index}: <unknown>"
           end

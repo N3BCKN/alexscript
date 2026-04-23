@@ -155,11 +155,17 @@ module AlexScript
       end
 
       def evaluate(interpreter, env)
+        display_path = interpreter.import_manager.canonical_display_name(@file_path)
+        Utils::CallStackTracker.push(:import, display_path, interpreter.current_file, @line)
         begin
           imported_env = interpreter.import_manager.import_file(@file_path, interpreter.current_file, env)
           env.merge(imported_env) # merge imported env with parent env (main file which imports file)
+        rescue Utils::AlexScriptError
+          raise  # let the original error through — class, line and captured stack stay intact
         rescue StandardError => e
           Utils.runtime_error("Blad importu: #{e.message}", @line)
+        ensure
+          Utils::CallStackTracker.pop
         end
       end
 

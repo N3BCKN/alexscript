@@ -54,14 +54,22 @@ module AlexScript
         end
       end
 
+      # canonical form shown to users in traces/errors; mirrors what resolve_path
+      # would actually load without exposing the absolute filesystem path
+      def canonical_display_name(file_path)
+        return file_path if NativeClassRegistry.native_library?(file_path)
+        file_path.end_with?('.as') ? file_path : "#{file_path}.as"
+      end
+
       private
 
       def resolve_path(file_path, current_file)
+        normalized = file_path.end_with?('.as') ? file_path : "#{file_path}.as"
         if current_file
           current_dir = File.dirname(File.expand_path(current_file))
-          File.expand_path(file_path, current_dir)
+          File.expand_path(normalized, current_dir)
         else
-          File.expand_path(file_path)
+          File.expand_path(normalized)
         end
       end
 

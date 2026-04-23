@@ -5,7 +5,7 @@ module AlexScript
     class Environment
       include ExceptionSupport
 
-      attr_reader :variables, :functions, :parent, :classes, :built_in_methods
+      attr_reader :variables, :functions, :parent, :classes, :modules, :built_in_methods
 
       MAX_CALL_DEPTH = 600
 
@@ -364,10 +364,8 @@ module AlexScript
       def merge(other_env)
         other_env.variables.each { |name, value| @variables[name] = value }
         other_env.functions.each { |name, func| @functions[name] = func }
-        
-        if other_env.instance_variable_defined?(:@classes)
-          other_env.instance_variable_get(:@classes).each { |name, class_def| @classes[name] = class_def }
-        end
+        other_env.classes.each   { |name, class_def| @classes[name] = class_def }
+        other_env.modules.each   { |name, mod_def| @modules[name] = mod_def }
       end
 
       def call_method(obj_type, method_name, receiver, args = [])

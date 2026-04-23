@@ -73,12 +73,14 @@ module AlexScript
     # Will be converted to actual AlexScript exception instance by interpreter
     
     class AlexScriptError < StandardError
-      attr_reader :alexscript_class_name, :message, :line
+      attr_reader :alexscript_class_name, :message, :line, :call_stack
       
       def initialize(class_name, message, line = nil)
         @alexscript_class_name = class_name
         @message = message
         @line = line
+        # snapshot the live stack so importers show up in the trace later
+        @call_stack = defined?(Utils::CallStackTracker) ? Utils::CallStackTracker.current_stack : []
         
         # Build full message with line number
         full_message = if line

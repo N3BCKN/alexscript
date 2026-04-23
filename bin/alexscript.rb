@@ -54,15 +54,35 @@ module AlexScript
   end
 
   def self.display_error(exception, critical = false)
-    error_message = if exception.is_a?(Utils::AlexScriptError)
-                      "#{exception.alexscript_class_name}: #{exception.to_s}"
-                    else
-                      exception.to_s
-                    end
-    
-    puts "#{error_message}".colorize(critical ? :red : :light_red)
-    exit(1)
-  end
+      error_message = if exception.is_a?(Utils::AlexScriptError)
+                        "#{exception.alexscript_class_name}: #{exception.to_s}"
+                      else
+                        exception.to_s
+                      end
+      
+      puts "#{error_message}".colorize(critical ? :red : :light_red)
+
+      stack = extract_call_stack(exception)
+      # only surface the stack when an import frame is present — keeps existing
+      # error output unchanged for non-import code paths
+      if stack.any? { |frame| frame[:type] == :import }
+        Utils::CallStackTracker.format_stack(stack).each do |line|
+          puts line.colorize(:light_black)
+        end
+      end
+
+      exit(1)
+    end
+
+    def self.extract_call_stack(exception)
+      if exception.respond_to?(:call_stack) && exception.call_stack
+        exception.call_stack
+      elsif exception.instance_variable_defined?(:@call_stack)
+        exception.instance_variable_get(:@call_stack) || []
+      else
+        []
+      end
+    end
 
   def self.start_execution
     opts = Slop.parse do |o|
