@@ -1,16 +1,8 @@
-klasa Test{
-  funkcja konstruktor(){
-    niech @gowno = 0
-  }
-
-  funkcja dodaj_gowno(n){
-    @gowno = @gowno + n
-    pokazl @gowno
+abstrakcyjna klasa NazwaKlasy {
+  funkcja metoda() {
+    rzuc "Metoda abstrakcyjna musi być zaimplementowana"
   }
 }
 
 
-niech x = Test.nowy()
-
-
-x.dodaj_gowno(5)
+niech x = NazwaKlasy.nowy()

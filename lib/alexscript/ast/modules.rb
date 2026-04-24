@@ -96,6 +96,9 @@ module AlexScript
                 is_abstract: stmt.is_abstract
               }
               module_def[:classes][stmt.name] = class_def
+              # expose the class to code inside the module so `Klasa.nowy()`
+              # works without the full Modul::Klasa prefix
+              module_env.define_class(stmt.name, class_def)
             else
               # Reopen: disallow changing the superclass mid-flight.
               # Empty re-declaration (no parent) is OK and means "just add members".
@@ -188,6 +191,9 @@ module AlexScript
             nested_module_def = interpreter.interpret!(stmt, module_env)
             # Overwriting with the same object on reopen is a no-op (identity).
             module_def[:nested_modules][stmt.name] = nested_module_def
+            # expose nested modules to siblings: inside Parser you can write
+            # Codes::... instead of the fully qualified Zubr::Codes::...
+            module_env.define_module(stmt.name, nested_module_def)
           end
         end
 
