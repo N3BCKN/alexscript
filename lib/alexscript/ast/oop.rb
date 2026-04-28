@@ -699,12 +699,9 @@ module AlexScript
         Utils.runtime_error("Nieznana metoda statyczna '#{@method_name}' w klasie #{@class_name}", @line) unless method_info
 
         # evaluate arguments
-        arguments = @arguments.map do |arg|
-          interpreter.interpret!(arg, env)
-        end
+        arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
 
         if method_info[:native_lambda]
-          arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
           begin
             result = Utils::NativeClassRegistry.dispatch_static_lambda(
               method_info[:native_lambda], arguments

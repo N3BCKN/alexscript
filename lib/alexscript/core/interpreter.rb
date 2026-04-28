@@ -491,20 +491,14 @@ module AlexScript
             node.object.is_a?(AST::ModuleAccess) ? node.object.module_path : nil
 
           # first check if this is a built-in info method for class
-          begin
-            # prepare arguments
+          if env.built_in_methods.get_method(:type_class, node.method_name)
             evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
 
-            # add class name info to definition (idempotent)
             class_def[:name] ||= class_name
-
-            # add environment access for methods that need it
             evaluated_args.unshift(env) if [:przodkowie, :czy_dziedziczy_po].include?(node.method_name.to_sym)
 
-            # try to call built-in class method
             result = env.call_method(:type_class, node.method_name, class_def, evaluated_args)
 
-            # determine result type
             result_type = case result
                           when Integer then :type_int
                           when Float then :type_float
@@ -513,13 +507,10 @@ module AlexScript
                           when Array then :type_array
                           when NilClass then :type_null
                           when Hash then :type_object
-                          else
-                            :type_object # default treat as object
+                          else :type_object
                           end
 
             return [result_type, result]
-          rescue StandardError => e
-            # if no built-in method, continue with normal static methods
           end
 
           # look for static method in class hierarchy

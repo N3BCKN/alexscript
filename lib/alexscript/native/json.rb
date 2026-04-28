@@ -40,6 +40,15 @@ module AlexScript
             convert_from_ruby(JSON.parse(tekst.to_s))
           },
 
+          # returns nic (nil) instead of errro
+          'parsuj_bezpiecznie' => ->(tekst) {
+            begin
+              convert_from_ruby(JSON.parse(tekst.to_s))
+            rescue JSON::ParserError
+              nil
+            end
+          },
+
           # Json.parsuj_plik("dane.json")  → AS object/array
           'parsuj_plik' => ->(sciezka) {
             content = File.read(sciezka.to_s)
