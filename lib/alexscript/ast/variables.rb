@@ -23,6 +23,14 @@ module AlexScript
           mod = env.get_module(@name)
           return [:type_module, mod] if mod
 
+          # if not a module, check if it's a class (classes are first-class values too)
+          klass = env.get_class(@name)
+          if klass
+            # add :name for introspection (mirrors what evaluate_method_call does)
+            klass[:name] ||= @name
+            return [:type_class, klass]
+          end
+
           Utils.runtime_error("Niezadeklarowany identyfikator #{@name}", @line)
         end
 

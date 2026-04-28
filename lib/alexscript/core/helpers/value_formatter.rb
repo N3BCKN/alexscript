@@ -24,6 +24,15 @@ module AlexScript
             format_object_value(value)
           when :type_module
             "modul #{value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value}"
+          when :type_class
+            name = value.is_a?(Hash) ? (value[:name] || 'UnnamedClass') : value
+            if value.is_a?(Hash) && value[:is_abstract]
+              "klasa abstrakcyjna #{name}"
+            elsif value.is_a?(Hash) && value[:parent]
+              "klasa #{name} < #{value[:parent]}"
+            else
+              "klasa #{name}"
+            end
           else
             value
           end
@@ -104,6 +113,7 @@ module AlexScript
             when :type_object then format_object_value(value)
             when :type_function then '<funkcja>'
             when :type_instance then "<#{value[:class_name]} instancja>"
+            when :type_class then "klasa #{value.is_a?(Hash) ? (value[:name] || 'UnnamedClass') : value}"
             else value.to_s
           end
         end

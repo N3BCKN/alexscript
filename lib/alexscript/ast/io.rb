@@ -43,7 +43,7 @@ module AlexScript
 
         # For special values (bool, null, module), use puts to avoid adding quotes
         # For other types, use p() which preserves string quotes
-        if expression_type == :type_bool || expression_type == :type_null || expression_type == :type_module
+        if expression_type == :type_bool || expression_type == :type_null || expression_type == :type_module || expression_type == :type_class
           puts formatted_value
         else
           p(formatted_value)

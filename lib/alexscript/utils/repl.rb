@@ -202,6 +202,15 @@ module AlexScript
           # dump the whole global scope. show a compact, Ruby-ish summary.
           name = value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value.to_s
           "\e[35mmodul #{name}\e[0m"
+        when :type_class
+          name = value.is_a?(Hash) ? (value[:name] || 'UnnamedClass') : value.to_s
+          if value.is_a?(Hash) && value[:is_abstract]
+            "\e[35mklasa abstrakcyjna #{name}\e[0m"
+          elsif value.is_a?(Hash) && value[:parent]
+            "\e[35mklasa #{name} < #{value[:parent]}\e[0m"
+          else
+            "\e[35mklasa #{name}\e[0m"
+          end
         else
           value.inspect
         end
