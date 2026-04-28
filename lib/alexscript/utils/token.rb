@@ -63,7 +63,8 @@ module AlexScript
       'debug' => :tok_debug,
       'fn' => :tok_fn,
       'asynchroniczna' => :tok_async,
-      'czekaj' => :tok_await
+      'czekaj' => :tok_await,
+      'istnieje' => :tok_exists
     }.freeze
 
     # Set of keyword tokens for O(1) membership checks in the parser.

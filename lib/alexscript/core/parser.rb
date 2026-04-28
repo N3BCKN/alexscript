@@ -93,6 +93,7 @@ module AlexScript
         return AST::Null.new(previous_token.line) if match(:tok_null)
         return array_statement if match(:tok_lsquare)
         return input_statement if match(:tok_input)
+        return exists_check if match(:tok_exists) 
 
         if match(:tok_instance_var)
           expr = AST::InstanceVariable.new(previous_token.lexeme, previous_token.line)
@@ -999,6 +1000,14 @@ module AlexScript
         prompt = expression unless next?(:tok_rparen)
         expect(:tok_rparen) # (
         Input.new(prompt, previous_token.line)
+      end
+
+      def exists_check
+        exists_line = previous_token.line
+        expect(:tok_lparen)
+        ident = expect(:tok_identifier)
+        expect(:tok_rparen)
+        AST::ExistsCheck.new(ident.lexeme, exists_line)
       end
 
       # <arguments> :== <expr> (',' <expr>)*

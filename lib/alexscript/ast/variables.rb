@@ -314,5 +314,30 @@ module AlexScript
          "#{indent(level)})"].join("\n")
       end
     end
+
+    # istnieje(x) check if identifier exists in current scope
+    # returns bool
+    class ExistsCheck < Expr
+      attr_reader :name, :line
+
+      def initialize(name, line)
+        validate_types([name], [String])
+        @name = name
+        @line = line
+      end
+
+      def evaluate(_interpreter, env)
+        exists = !env.get_var(@name).nil? ||
+                !env.get_func(@name).nil? ||
+                !env.get_module(@name).nil? ||
+                !env.get_class(@name).nil?
+
+        [:type_bool, exists ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+      end
+
+      def pretty_print(level = 0)
+        "#{indent(level)}ExistsCheck(#{@name})"
+      end
+end
   end
 end
