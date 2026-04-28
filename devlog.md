@@ -109,3 +109,9 @@ first fully working version with basic structures:
 * implement async  
 * bitwise operations
 * regular expressions 
+
+### 0.9.18
+* add istnieje() keyword 
+* fix error with printing class indentifiers
+* fix error with methods passing as arguments evaluation  
+* set priority of custom methods over built in ones 

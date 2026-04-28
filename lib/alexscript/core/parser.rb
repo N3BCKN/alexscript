@@ -69,6 +69,25 @@ module AlexScript
         end
       end
 
+      # similar to expect(:tok_identifier), but also accepts SOFT_KEYWORDS
+      # tokens that are keywords in expression position but valid as names in declaration/access positions
+      def expect_name
+        if peek.token_type == :tok_identifier ||
+          Utils::SOFT_KEYWORDS.include?(peek.token_type)
+          advance
+        elsif Utils::KEYWORD_TOKENS.include?(peek.token_type)
+          Utils.parse_error(
+            "'#{peek.lexeme}' jest slowem kluczowym i nie moze byc uzyte jako nazwa",
+            peek.line
+          )
+        else
+          Utils.parse_error(
+            "Oczekiwano nazwy, znaleziono '#{peek.lexeme}'",
+            peek.line
+          )
+        end
+      end
+
       # returns the previously consumed token
       def previous_token
         @tokens[@current - 1]
@@ -230,7 +249,7 @@ module AlexScript
           module_path = [-identifier.lexeme]
 
           while match(:tok_double_colon)
-            next_id = expect(:tok_identifier)
+            next_id = expect_name
             module_path << -next_id.lexeme
           end
 
@@ -897,7 +916,11 @@ module AlexScript
       # <func_decl> :== "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
       def func_decl
         expect(:tok_func)
-        name = expect(:tok_identifier)
+        name = if @inside_class_body || !@current_module_path.empty?
+                expect_name   # method or module function — soft keywords OK
+              else
+                expect(:tok_identifier)   # top-level function — strict
+              end
         expect(:tok_lparen) # (
         f_params = params
         expect(:tok_rparen) # )
@@ -1266,12 +1289,9 @@ module AlexScript
       AST::ModuleDefinition.new(module_name, module_body, previous_token.line, parent_module)
     end
 
-      # metoda pomocnicza do parsowania nazw metod - pozwala na niektóre keywords
+      # metoda pomocnicza do parsowania nazw metod, pozwala na niektóre keywords
       def parse_method_name
-        # lista keywords które mogą być nazwami metod
-        allowed_method_keywords = [:tok_class, :tok_null, :tok_true, :tok_false, :tok_for, :tok_in]
-        
-        if allowed_method_keywords.include?(peek.token_type)
+        if Utils::SOFT_KEYWORDS.include?(peek.token_type)
           token = advance
           return token.lexeme
         else

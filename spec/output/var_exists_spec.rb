@@ -148,4 +148,45 @@ RSpec.describe 'istnieje() keyword', type: :aruba do
       expect(last_command_started.exit_status).not_to eq(0)
     end
   end
+
+  describe 'soft keyword behavior' do
+    it 'allows istnieje as a method name' do
+      code = 'klasa Plik {
+        funkcja istnieje(sciezka) {
+          zwroc prawda
+        }
+      }
+      niech p = Plik.nowy()
+      pokazl p.istnieje("/tmp/x")'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('prawda')
+    end
+
+    it 'still rejects istnieje as a top-level function name' do
+      # Top-level function named istnieje would conflict with the keyword in 
+      # expression position — there's no way to call it. Rejected at parse time.
+      code = 'funkcja istnieje(x) { zwroc x }'
+      run_command "ruby #{main_file_path} '#{code}'"
+      last_command_started.stop
+      expect(last_command_started.exit_status).not_to eq(0)
+    end
+
+    it 'allows istnieje as a module member' do
+      code = 'modul Pliki {
+        funkcja istnieje(sciezka) {
+          zwroc prawda
+        }
+      }
+      pokazl Pliki::istnieje("/tmp/x")'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('prawda')
+    end
+
+    it 'still rejects istnieje as a variable name' do
+      code = 'niech istnieje = 5'
+      run_command "ruby #{main_file_path} '#{code}'"
+      last_command_started.stop
+      expect(last_command_started.exit_status).not_to eq(0)
+    end
+  end
 end

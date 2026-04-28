@@ -458,7 +458,7 @@ module AlexScript
           if method_result
             method_info = method_result[:method_info]
             if method_info && !method_info[:native_lambda] &&
-               method_info[:declaration].respond_to?(:async) && method_info[:declaration].async
+              method_info[:declaration].respond_to?(:async) && method_info[:declaration].async
               return evaluate_async_func_call(
                 node, env,
                 method_info[:declaration],
@@ -651,18 +651,154 @@ module AlexScript
 
         # handle class instance methods
         if object_type == :type_instance
-          # first check if this is a built-in info method for instance
+          # ──────────────────────────────────────────────────────────────────
+          # METHOD RESOLUTION ORDER for instance methods:
+          #   1. User-defined methods in class hierarchy   (highest priority)
+          #   2. Built-in introspection methods            (fallback)
+          #
+          # Rationale: this matches Ruby/Python/JS semantics — a method defined
+          # in a user class always wins over a system-provided one. Built-ins
+          # remain accessible only when there is no user-defined method with
+          # the same name. This means a class declaring `funkcja id() { ... }`
+          # gets its own id, while a class without one falls back to built-in
+          # object_id-style id().
+          # ──────────────────────────────────────────────────────────────────
+
+          # ── 1. User-defined method lookup (class hierarchy) ──
+          method_result = env.find_method_in_hierarchy(object_value, node.method_name)
+
+          if method_result
+            method_info = method_result[:method_info]
+
+            # native method dispatch (inherited or direct)
+            if method_info[:native_lambda]
+              # Check privacy
+              if method_info[:private]
+                current_instance = env.get_instance
+                same_instance = current_instance == object_value
+                from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
+                from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
+                unless same_instance || from_inside_class || from_subclass
+                  Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
+                end
+              end
+
+              arguments = node.arguments.map { |arg| interpret!(arg, env) }
+              native_obj = object_value[:__native__]
+
+              unless native_obj
+                Utils.runtime_error("Brak obiektu natywnego — upewnij się, że konstruktor wywołuje super()", node.line)
+              end
+
+              begin
+                result = Utils::NativeClassRegistry.dispatch_native_lambda(
+                  method_info[:native_lambda], native_obj, arguments
+                )
+              rescue => e
+                Utils.runtime_error(
+                  "Błąd metody #{node.method_name}: #{e.message}",
+                  node.line
+                )
+              end
+              return result
+            end
+
+            # check if method is private (AS-defined)
+            if method_info[:private]
+              current_instance = env.get_instance
+              same_instance = current_instance == object_value
+              from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
+              from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
+
+              unless same_instance || from_inside_class || from_subclass
+                Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
+              end
+            end
+
+            # evaluate arguments
+            arguments = node.arguments.map { |arg| interpret!(arg, env) }
+
+            # check argument count
+            params = method_info[:declaration].params
+
+            rest_param = params.find(&:rest?)
+            min_args = params.count { |p| !p.has_default? && !p.rest? }
+            max_args = rest_param ? Float::INFINITY : params.size
+
+            if arguments.size < min_args
+              Utils.runtime_error(
+                "Metoda #{node.method_name} oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
+                node.line
+              )
+            end
+
+            unless rest_param
+              if arguments.size > max_args
+                Utils.runtime_error(
+                  "Metoda #{node.method_name} oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
+                  node.line
+                )
+              end
+            end
+
+            # create new environment for method
+            method_env = method_info[:env].new_env
+            method_env.set_instance(object_value)
+
+            # assign arguments to parameters
+            rest_idx = params.index(&:rest?)
+            rest_position = rest_idx || params.size
+
+            normal_params = params.reject(&:rest?)
+            normal_params.each_with_index do |param, idx|
+              if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
+                method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
+              elsif param.has_default?
+                default_value = interpret!(param.default_value, method_info[:env])
+                method_env.set_local_var(param.name, default_value[1], default_value[0])
+              else
+                Utils.runtime_error("Brakujący argument #{param.name}", node.line)
+              end
+            end
+
+            # handle rest parameter
+            if rest_param
+              rest_args = arguments[rest_position..-1] || []
+              rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
+              method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
+            end
+
+            # execute method body
+            Utils::ContextTracker.current_class_name = object_value[:class_name]
+            Utils::CallStackTracker.push(:method, node.method_name, @current_file, node.line)
+            begin
+              Utils::ContextTracker.track_method_call(node.method_name) do
+                interpret!(method_info[:declaration].body_statement, method_env)
+              end
+              result = [:type_null, Utils::NULL_VALUE]
+            rescue Utils::ReturnError => e
+              result = e.value
+            ensure
+              Utils::CallStackTracker.pop
+            end
+
+            return result
+          end
+
+          # ── 2. Built-in introspection method fallback ──
+          # Reached only when no user-defined method matches. This keeps backward
+          # compatibility for code that uses obj.id / obj.typ / etc. on classes
+          # that don't define their own — but never shadows user methods.
           if env.built_in_methods.get_method(:type_instance, node.method_name)
             evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
-
             result = env.call_method(:type_instance, node.method_name, object_value, evaluated_args)
 
-            # Sprawdz czy juz zwrocone jako tuple
+            # Built-in already returned a tagged tuple — pass through
             if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
               return result
             end
 
-            # conver Ruby vals to AlexScript
+            # Convert raw Ruby value to AS-tagged tuple
             result_type = case result
                           when Integer then :type_int
                           when Float then :type_float
@@ -677,133 +813,17 @@ module AlexScript
             return [result_type, result]
           end
 
+          # Neither user-defined nor built-in — genuine missing method.
+          Utils.runtime_error(
+            "Nieznana metoda #{node.method_name} dla instancji klasy #{object_value[:class_name]}",
+            node.line
+          )
 
-          # find method in class hierarchy
-          method_result = env.find_method_in_hierarchy(object_value, node.method_name)
-          Utils.runtime_error("Nieznana metoda #{node.method_name} dla instancji klasy #{object_value[:class_name]}", node.line) unless method_result
-
-          method_info = method_result[:method_info]
-
-          # native method dispatch (inherited or direct)
-          if method_info[:native_lambda]
-            # Check privacy
-            if method_info[:private]
-              current_instance = env.get_instance
-              same_instance = current_instance == object_value
-              from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
-              from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
-              unless same_instance || from_inside_class || from_subclass
-                Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
-              end
-            end
-
-            arguments = node.arguments.map { |arg| interpret!(arg, env) }
-            native_obj = object_value[:__native__]
-
-            unless native_obj
-              Utils.runtime_error("Brak obiektu natywnego — upewnij się, że konstruktor wywołuje super()", node.line)
-            end
-
-            begin
-              result = Utils::NativeClassRegistry.dispatch_native_lambda(
-                method_info[:native_lambda], native_obj, arguments
-              )
-            rescue => e
-              Utils.runtime_error(
-                "Błąd metody #{node.method_name}: #{e.message}",
-                node.line
-              )
-            end
-            return result
-          end
-
-          # check if method is private
-          if method_info[:private]
-            current_instance = env.get_instance
-            # private method can be called:
-            # 1. from same instance
-            # 2. from methods of same class (or subclass if inherited)
-
-            same_instance = current_instance == object_value
-            from_inside_class = current_instance && current_instance[:class_name] == object_value[:class_name]
-            from_subclass = current_instance && env.is_subclass_of(current_instance[:class_name], object_value[:class_name])
-
-            unless same_instance || from_inside_class || from_subclass
-              Utils.runtime_error("Próba wywołania prywatnej metody #{node.method_name}", node.line)
-            end
-          end
-
-          # evaluate arguments
-          arguments = node.arguments.map { |arg| interpret!(arg, env) }
-
-          # check argument count
-          params = method_info[:declaration].params
-
-          # handle rest type parameters
-          rest_param = params.find(&:rest?)
-          min_args = params.count { |p| !p.has_default? && !p.rest? }
-          max_args = rest_param ? Float::INFINITY : params.size
-
-          if arguments.size < min_args
-            Utils.runtime_error(
-              "Metoda #{node.method_name} oczekiwała, a minimum #{min_args} argumentów, otrzymała #{arguments.size}",
-              node.line
-            )
-          end
-
-          unless rest_param
-            if arguments.size > max_args
-              Utils.runtime_error(
-                "Metoda #{node.method_name} oczekiwała, a maksymalnie #{max_args} argumentów, otrzymała #{arguments.size}",
-                node.line
-              )
-            end
-          end
-
-          # create new environment for method
-          method_env = method_info[:env].new_env
-          method_env.set_instance(object_value)
-
-          # assign arguments to parameters
-          rest_idx = params.index(&:rest?)
-          rest_position = rest_idx || params.size
-
-          normal_params = params.reject(&:rest?)
-          normal_params.each_with_index do |param, idx|
-            if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
-              method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
-            elsif param.has_default?
-              default_value = interpret!(param.default_value, method_info[:env])
-              method_env.set_local_var(param.name, default_value[1], default_value[0])
-            else
-              Utils.runtime_error("Brakujący argument #{param.name}", node.line)
-            end
-          end
-
-          # handle rest parameter
-          if rest_param
-            rest_args = arguments[rest_position..-1] || []
-            rest_array_elements = rest_args.map { |arg| { type: arg[0], value: arg[1] } }
-            method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
-          end
-
-          # execute method body
-          Utils::ContextTracker.current_class_name = object_value[:class_name]
-          Utils::CallStackTracker.push(:method, node.method_name, @current_file, node.line)
-          begin
-            Utils::ContextTracker.track_method_call(node.method_name) do
-              interpret!(method_info[:declaration].body_statement, method_env)
-            end
-            result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
-          rescue Utils::ReturnError => e
-            result = e.value  # or specific value returned by method
-          ensure
-            Utils::CallStackTracker.pop
-          end
-
-          result
         else
-          # keep existing handling for regular object methods
+          # ── Non-instance types: arrays, floats, ints, strings, objects, bools, null ──
+          # Reached when object_type is :type_array, :type_int, :type_float,
+          # :type_string, :type_bool, :type_object, :type_null. These types
+          # have built-in methods registered globally and don't have user-defined classes.
           Utils.runtime_error('Nie można wywolac metody na niezdefiniowanym obiekcie', node.line) unless object_value
 
           # Higher-order array methods — intercept before call_method

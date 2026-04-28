@@ -67,6 +67,22 @@ module AlexScript
       'istnieje' => :tok_exists
     }.freeze
 
+    # Tokens that are keywords in expression position but valid as names
+    # (method names, function/class names, module member names, etc.).
+    # Adding a token here means it can be used as: obj.NAME, NAME.foo,
+    # Modul::NAME, funkcja NAME() {}, klasa Foo { funkcja NAME() {} }.
+    # It does NOT make the token valid as a variable name (niech NAME = ...);
+    # variables and the keyword's expression-position meaning would conflict.
+    SOFT_KEYWORDS = Set[
+      :tok_exists,
+      :tok_class,   
+      :tok_null,    
+      :tok_true,    
+      :tok_false,   
+      :tok_for,     
+      :tok_in       
+    ].freeze
+
     # Set of keyword tokens for O(1) membership checks in the parser.
     # Materialized once from KEYWORDS.values.
     KEYWORD_TOKENS = KEYWORDS.values.to_set.freeze
