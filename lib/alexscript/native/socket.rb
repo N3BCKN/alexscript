@@ -42,6 +42,12 @@ module AlexScript
               s.write(dane.to_s)
             },
 
+            'zamknij_odlozone' => ->(s) {
+              reactor = AlexScript::Async::Reactor.current
+              reactor.odloz_zamkniecie(s)
+              true
+            },
+
             'wyslij_linie' => ->(s, dane) {
               s.puts(dane.to_s)
               dane.to_s.length + 1
@@ -149,6 +155,59 @@ module AlexScript
           methods: {
             'akceptuj' => ->(s) {
               s.accept  # returns TCPSocket → auto-wrapped to SocketTcp
+            },
+
+            # TODO update docs with this metod
+            'uruchom_petle' => ->(s, callback) {
+              interpreter = Fiber[:alex_interpreter]
+              unless interpreter
+                raise 'SerwerTcp#uruchom_petle wymaga aktywnego interpretera'
+              end
+
+              # Extract AS function declaration for synthesizing calls from Ruby.
+              # callback arrives as { declaration:, env: } after NativeTypeConverter.
+              unless callback.is_a?(Hash) && callback[:declaration]
+                raise 'uruchom_petle wymaga funkcji jako argumentu'
+              end
+
+              loop do
+                begin
+                  klient = s.accept
+                rescue IOError, Errno::EBADF
+                  # Server socket closed — exit loop gracefully.
+                  break
+                end
+
+                Thread.new(klient) do |sock|
+                  # Per-connection thread — isolated from the main reactor.
+                  # Synthesize an AS call to the callback with the socket instance.
+                  begin
+                    call_env = callback[:env].new_env
+                    socket_as_value = Utils::NativeClassRegistry.wrap_native_object('SocketTcp', sock)
+                    call_env.set_local_var('__alex_cb__',  callback, :type_function)
+                    call_env.set_local_var('__alex_sock__', socket_as_value[1], socket_as_value[0])
+
+                    synthetic_call = AlexScript::AST::LambdaCall.new(
+                      AlexScript::AST::Identifier.new('__alex_cb__', 0),
+                      [AlexScript::AST::Identifier.new('__alex_sock__', 0)],
+                      0
+                    )
+
+                    interpreter.interpret!(synthetic_call, call_env)
+                  rescue Utils::AlexScriptError => e
+                    warn "[SerwerTcp] handler error: #{e.message}"
+                  rescue StandardError => e
+                    warn "[SerwerTcp] handler ruby error: #{e.class}: #{e.message}"
+                  ensure
+                    begin
+                      sock.close unless sock.closed?
+                    rescue IOError, Errno::EBADF
+                    end
+                  end
+                end
+              end
+
+              true
             },
 
             'zamknij' => ->(s) {

@@ -31,6 +31,7 @@ module AlexScript
         @timers   = []    # sorted by deadline: [[deadline, block], ...]
         @io_read  = {}    # io => fiber
         @io_write = {}    # io => fiber
+        @do_zamkniecia = []
         @running  = false
       end
 
@@ -99,6 +100,7 @@ module AlexScript
 
         begin
           loop do
+            zamknij_odlozone
             fire_ready_timers
             drain_ready_queue
 
@@ -129,9 +131,23 @@ module AlexScript
         end
       end
 
-      # Internals
+      def odloz_zamkniecie(io)
+        @do_zamkniecia << io unless io.closed?
+      end
 
       private
+
+      def zamknij_odlozone
+        while (io = @do_zamkniecia.shift)
+          next if io.closed?
+          @io_read.delete(io)
+          @io_write.delete(io)
+          begin
+            io.close
+          rescue IOError
+          end
+        end
+      end
 
       # Fire every timer whose deadline has passed. Each timer's block
       # typically schedule_resume's a fiber, so this method populates
@@ -191,6 +207,9 @@ module AlexScript
       # there are fibers waiting on readable/writable IOs, IO.select
       # multiplexes all of them and wakes whichever is ready first.
       def do_io_select(timeout)
+        @io_read.delete_if  { |io, _| io.closed? }
+        @io_write.delete_if { |io, _| io.closed? }
+
         readable = @io_read.keys
         writable = @io_write.keys
 
@@ -262,14 +281,11 @@ module AlexScript
         @io_read[io]  = fiber if wants_read
         @io_write[io] = fiber if wants_write
 
-        # Timeout support: schedule a timer that wakes us with :timeout.
-        # Simplified — we don't strictly need timeouts for basic TCP work,
-        # but Net::HTTP sets them and will fail hard without this.
         if timeout
           schedule_timer(timeout * 1000) do
             if @io_read[io] == fiber
               @io_read.delete(io)
-              schedule_resume(fiber, 0)  # 0 means "timed out, no events"
+              schedule_resume(fiber, 0)
             end
             if @io_write[io] == fiber
               @io_write.delete(io)
@@ -278,11 +294,16 @@ module AlexScript
           end
         end
 
-        Fiber.yield(:io_wait, io, events)
+        begin
+          Fiber.yield(:io_wait, io, events)
+        ensure
+          # No matter how we were resumed (I/O ready, timer, exception, close),
+          # remove stale references so IO.select doesn't see closed descriptors.
+          @io_read.delete(io)  if wants_read  && @io_read[io]  == fiber
+          @io_write.delete(io) if wants_write && @io_write[io] == fiber
+        end
 
-        # When we're resumed, the event bitmask of what actually happened
-        # could be tracked. For MVP we return the requested events — the
-        # caller just needs to know I/O is ready, specifics don't usually matter.
+        return 0 if io.closed?
         events
       end
 

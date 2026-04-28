@@ -100,13 +100,19 @@ module AlexScript
 
     filename = ARGV[0]
 
-    if filename&.end_with?('.as', '.ldz')
+
+    # Restore user's working directory after our startup chdir to ALEXSCRIPT_ROOT.
+    # All native file operations (Plik.czytaj, Plik.biezacy_katalog, etc.) and
+    # user-script relative paths now resolve against the directory the user ran us from
+    Dir.chdir(USER_PWD)
+
+    if filename&.end_with?('.as')
       begin
         source_file = File.expand_path(filename, USER_PWD)
         source = File.read(source_file)
         puts "File '#{filename}' has been read successfully."
       rescue Errno::ENOENT
-        raise Utils::BladZakresu.new("Plik '#{filename}' nie istnieje")
+        raise Utils::AlexScriptError.new('BladImportu', "Plik '#{filename}' nie istnieje")
       end
     else
       source = ARGV[0]
