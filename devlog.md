@@ -38,7 +38,7 @@ first fully working version with basic structures:
 
 ## 0.4.4
 * add objects 
-* add build in methods for objects 
+* add builtin methods for objects 
 * add for loop to iterate over objects
 * add for loop to iterate over arrays
 
@@ -57,11 +57,11 @@ first fully working version with basic structures:
 * add "<<" operator to add elements to arrays
 
 ### 0.4.9
-* add build in methods for arrays
-* add build in methods for objects
-* add build in methods for floats
-* add build in methods for ints 
-* add build in methods for strings
+* add built in methods for arrays
+* add built in methods for objects
+* add built in methods for floats
+* add built in methods for ints 
+* add built in methods for strings
 
 ### 0.4.10
 * allow for concatenation of strings with arrays and objects
@@ -111,7 +111,7 @@ first fully working version with basic structures:
 * regular expressions 
 
 ### 0.9.18
-* add istnieje() keyword 
+* add istnieje() (exist/defined) keyword 
 * fix error with printing class indentifiers
 * fix error with methods passing as arguments evaluation  
 * set priority of custom methods over built in ones 

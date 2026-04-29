@@ -12,7 +12,7 @@ end
 
 require 'colorize'
 require 'slop'
-require 'byebug'
+# require 'byebug'
 
 require_relative('alexscript/core/core')
 require_relative('alexscript/ast/ast')
