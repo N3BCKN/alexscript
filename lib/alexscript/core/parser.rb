@@ -1016,13 +1016,13 @@ module AlexScript
         AST::DebugBreak.new(previous_token.line)
       end
 
-      # <exit_statement> ::= "wczytaj"  "(" <expression>? ")"
+      # <input_statement> ::= "wczytaj"  "(" <expression>? ")"
       def input_statement
         prompt = nil
         expect(:tok_lparen) # (
         prompt = expression unless next?(:tok_rparen)
         expect(:tok_rparen) # (
-        Input.new(prompt, previous_token.line)
+        AST::Input.new(prompt, previous_token.line)
       end
 
       def exists_check

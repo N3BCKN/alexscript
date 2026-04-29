@@ -80,7 +80,8 @@ module AlexScript
       :tok_true,    
       :tok_false,   
       :tok_for,     
-      :tok_in       
+      :tok_in,
+      :tok_continue       
     ].freeze
 
     # Set of keyword tokens for O(1) membership checks in the parser.
