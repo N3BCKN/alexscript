@@ -819,6 +819,42 @@ module AlexScript
             node.line
           )
 
+        elsif object_type == :type_module
+          # Dot-on-module dispatch — for cases like `niech m = Mojmodul; m.funkcja()`.
+          # Mirrors StaticMethodCall's module fallback: user-defined function first,
+          # then built-in reflection.
+          module_def = object_value
+          module_name = module_def[:name]
+
+          module_func = env.get_module_function([module_name], node.method_name)
+          if module_func
+            synthetic = AST::ModuleFunctionCall.new(
+              [module_name], node.method_name, node.arguments, node.line
+            )
+            return interpret!(synthetic, env)
+          end
+
+          if env.built_in_methods.get_method(:type_module, node.method_name)
+            evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
+            result = env.call_method(:type_module, node.method_name, module_def, evaluated_args)
+
+            return result if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+
+            result_type = case result
+                          when Integer then :type_int
+                          when Float then :type_float
+                          when String then :type_string
+                          when TrueClass, FalseClass then :type_bool
+                          when Array then :type_array
+                          when NilClass then :type_null
+                          when Hash then :type_object
+                          else :type_object
+                          end
+            return [result_type, result]
+          end
+
+          Utils.runtime_error("Nieznana metoda '#{node.method_name}' dla modułu #{module_name}",node.line)
+
         else
           # ── Non-instance types: arrays, floats, ints, strings, objects, bools, null ──
           # Reached when object_type is :type_array, :type_int, :type_float,

@@ -620,6 +620,16 @@ module AlexScript
         # Modules are first-class values — support built-in reflection methods on them.
         unless class_def
           module_def = env.get_module(@class_name)
+          # User-defined module function — try first, before built-in module methods.
+          # This mirrors `Modul::funkcja()` semantics: dot is now an alias for ::.
+          module_func = env.get_module_function([@class_name], @method_name)
+          if module_func
+            synthetic = AST::ModuleFunctionCall.new(
+              [@class_name], @method_name, @arguments, @line
+            )
+            return interpreter.interpret!(synthetic, env)
+          end
+          
           if module_def
             if env.built_in_methods.get_method(:type_module, @method_name)
               evaluated_args = @arguments.map { |arg| interpreter.interpret!(arg, env)[1] }
