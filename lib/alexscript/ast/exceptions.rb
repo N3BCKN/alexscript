@@ -50,7 +50,7 @@ module AlexScript
       def initialize(exception_var, body, exception_type, line)
         validate_types([exception_var], String)
         validate_types([body], Stmts)
-        validate_types([exception_type], Identifier) if exception_type
+        validate_types([exception_type], [Identifier, ModuleAccess]) if exception_type
 
         @exception_var = exception_var
         @body = body

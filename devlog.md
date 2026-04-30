@@ -119,3 +119,4 @@ first fully working version with basic structures:
 ### 0.9.19
 * quickfix: wrap object collection-returning methods in typed AS arrays
 * allow dot operator for module function calls
+* support qualified module paths in zlap exception types

@@ -152,7 +152,8 @@ module AlexScript
             node.catch_blocks.each do |catch_block|
               if catch_block.exception_type
                 # Get the AlexScript exception type name
-                type_name = catch_block.exception_type.name
+                type_name = catch_block.exception_type.is_a?(AST::ModuleAccess) ?
+                catch_block.exception_type.member_name : catch_block.exception_type.name
                 
                 # Check if exception has AlexScript class info
                 if e.instance_variable_defined?(:@alexscript_class_name)

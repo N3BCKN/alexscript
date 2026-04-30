@@ -1212,23 +1212,34 @@ module AlexScript
         AST::TryCatchStmt.new(try_block, catch_blocks, finally_block, previous_token.line)
       end
 
-      # <catch_clause> ::= "zlap" "(" <identifier> (":" <identifier>)? ")" "{" <statements> "}"
+      # <catch_clause> ::= "zlap" "(" <identifier> (":" <qualified_identifier>)? ")" "{" <statements> "}"
+      # <qualified_identifier> ::= <identifier> ("::" <identifier>)*
       def catch_clause
         expect(:tok_catch)
         expect(:tok_lparen)
         exception_var = expect(:tok_identifier).lexeme
-        
-        # Opcjonalny typ wyjątku
+
         exception_type = nil
         if match(:tok_colon)
-          exception_type = AST::Identifier.new(expect(:tok_identifier).lexeme, previous_token.line)
+          parts = [expect(:tok_identifier).lexeme]
+          line = previous_token.line
+          while match(:tok_double_colon)
+            parts << expect(:tok_identifier).lexeme
+          end
+
+          exception_type =
+            if parts.size == 1
+              AST::Identifier.new(parts[0], line)
+            else
+              AST::ModuleAccess.new(parts[0...-1], parts[-1], line)
+            end
         end
-        
+
         expect(:tok_rparen)
         expect(:tok_lcurly)
         body = statements
         expect(:tok_rcurly)
-        
+
         AST::CatchBlock.new(exception_var, body, exception_type, previous_token.line)
       end
 

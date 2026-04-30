@@ -1,6 +1,14 @@
-modul Dupa {
-    klasa NowyBlad < WyjatekPodstawowy {}
+# modul Dupa {
+#     klasa NowyBlad < WyjatekPodstawowy {}
+# }
+
+
+# pokazl Dupa::NowyBlad.metody()
+modul Test {
+  klasa Bazowa { funkcja konstruktor(k) { niech @k = k } }
+  klasa Srodek < Bazowa { funkcja konstruktor(k) { super(k) } }
+  klasa Pochodna < Srodek { funkcja konstruktor(k) { super(k) } }
 }
 
-
-pokazl Dupa::NowyBlad.metody()
+niech p = Test::Pochodna.nowy("hej")
+pokazl p
