@@ -115,3 +115,6 @@ first fully working version with basic structures:
 * fix error with printing class indentifiers
 * fix error with methods passing as arguments evaluation  
 * set priority of custom methods over built in ones 
+
+### 0.9.19
+* quickfix: wrap object collection-returning methods in typed AS arrays

@@ -262,4 +262,72 @@ RSpec.describe 'Object Operations', type: :aruba do
     #   expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("falsz\nprawda")
     # end
   end
+
+  describe 'iteration over collection-returning methods' do
+    # Regression tests for a bug where obj.klucze() returned a raw Ruby array
+    # instead of an AS-typed array, causing "BladTypu: brak konwersji of Symbol
+    # into Integer" on indexing.
+
+    it 'allows indexing into klucze() result' do
+      code = 'niech obj = {"a": 1, "b": 2, "c": 3}
+      pokazl obj.klucze()[0]
+      pokazl obj.klucze()[1]
+      pokazl obj.klucze()[2]'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("a\nb\nc")
+    end
+
+    it 'returns proper string type from klucze() elements' do
+      code = 'niech obj = {"a": 1}
+      niech k = obj.klucze()
+      pokazl k[0].typ()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('napis')
+    end
+
+    it 'allows calling string methods on klucze() elements' do
+      code = 'niech obj = {"HELLO": 1}
+      pokazl obj.klucze()[0].malymi()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('hello')
+    end
+
+    it 'allows iterating over klucze() in a while loop' do
+      code = 'niech obj = {"x": 10, "y": 20}
+      niech k = obj.klucze()
+      niech idx = 0
+      dopoki idx < k.dlg() {
+        pokazl k[idx]
+        idx = idx + 1
+      }'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("x\ny")
+    end
+
+    it 'allows iterating over klucze() with dla...w loop' do
+      code = 'niech obj = {"x": 10, "y": 20}
+      dla k w obj.klucze() {
+        pokazl k
+      }'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("x\ny")
+    end
+
+    it 'allows indexing into wartosci() result' do
+      code = 'niech obj = {"a": 1, "b": "tekst", "c": prawda}
+      pokazl obj.wartosci()[0]
+      pokazl obj.wartosci()[1]
+      pokazl obj.wartosci()[2]'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("1\ntekst\nprawda")
+    end
+
+    it 'allows indexing into na_tablice() result' do
+      code = 'niech obj = {"a": 1, "b": 2}
+      pokazl obj.na_tablice()[0]
+      pokazl obj.na_tablice()[1]'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("[a, 1]\n[b, 2]")
+    end
+  end
 end

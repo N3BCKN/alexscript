@@ -91,7 +91,7 @@ module AlexScript
       begin
         source_file = File.expand_path(ARGV[0])
         source = File.read(filename)
-        puts "File '#{filename}' has been read successfully."
+        # puts "File '#{filename}' has been read successfully." # TODO: delete this
       rescue Errno::ENOENT
         raise Utils::AlexScriptError.new('BladImportu', "Plik '#{filename}' nie istnieje")
       end

@@ -26,7 +26,7 @@ FROM ruby:3.4.7-slim AS runtime
 
 # OCI metadata (visible in Docker Hub and `docker inspect`)
 LABEL org.opencontainers.image.title="AlexScript"
-LABEL org.opencontainers.image.description="Programming language interpreter with Polish syntax"
+LABEL org.opencontainers.image.description="Programming language with Polish syntax"
 LABEL org.opencontainers.image.version="0.9.18"
 LABEL org.opencontainers.image.source="https://github.com/N3BCKN/alexscript"
 LABEL org.opencontainers.image.licenses="MIT"
@@ -66,6 +66,7 @@ USER alex
 WORKDIR /workspace
 
 # ENTRYPOINT bundle exec 
+ENV BUNDLE_GEMFILE=/opt/alexscript/Gemfile
 ENTRYPOINT ["bundle", "exec", "ruby", "/opt/alexscript/bin/alexscript.rb"]
 
 # for REPL 
