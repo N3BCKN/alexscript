@@ -37,15 +37,31 @@ module AlexScript
           else
             # Evaluate expression and handle
             expr_type, expr_value = interpret!(node.expression, env)
-            
-            if expr_type == :type_string
+
+            if expr_type == :type_instance
+              # rzuc <expression returning an exception instance>
+              # Covers ModuleClassInstantiation, ClassInstantiation through variables,
+              # functions returning exceptions, etc.
+              instance_class_def = expr_value[:class_def]
+              instance_class_name = expr_value[:class_name]
+
+              is_exc = instance_class_def && instance_class_def[:is_exception] == true
+              unless is_exc
+                Utils.runtime_error(
+                  "Klasa #{instance_class_name} nie jest wyjątkiem",
+                  node.line
+                )
+              end
+              raise_exception_from_instance(expr_value, env, node.line)
+
+            elsif expr_type == :type_string
               # Simple string throw - use BladWykonania
               exception_class_def = env.get_class('BladWykonania')
-              
+
               unless exception_class_def
                 Utils.runtime_error("Nie znaleziono klasy wyjątku BladWykonania", node.line)
               end
-              
+
               instance = {
                 class_name: 'BladWykonania',
                 instance_vars: {
@@ -53,7 +69,7 @@ module AlexScript
                 },
                 class_def: exception_class_def
               }
-              
+
               raise_exception_from_instance(instance, env, node.line)
             else
               Utils.runtime_error("Nieprawidłowy typ dla rzuc: oczekiwano string lub instancję wyjątku", node.line)
@@ -149,32 +165,41 @@ module AlexScript
           rescue StandardError => e
             caught = false
             
-            node.catch_blocks.each do |catch_block|
-              if catch_block.exception_type
-                # Get the AlexScript exception type name
-                type_name = catch_block.exception_type.is_a?(AST::ModuleAccess) ?
-                catch_block.exception_type.member_name : catch_block.exception_type.name
+          node.catch_blocks.each do |catch_block|
+            if catch_block.exception_type
+              # Get the AlexScript exception type name
+              type_name = catch_block.exception_type.is_a?(AST::ModuleAccess) ?
+                catch_block.exception_type.member_name :
+                catch_block.exception_type.name
+
+              # Check if exception has AlexScript class info
+              if e.instance_variable_defined?(:@alexscript_class_name)
+                alexscript_class = e.instance_variable_get(:@alexscript_class_name)
                 
-                # Check if exception has AlexScript class info
-                if e.instance_variable_defined?(:@alexscript_class_name)
-                  alexscript_class = e.instance_variable_get(:@alexscript_class_name)
-                  
-                  # Check if caught exception matches or inherits from catch type
-                  if alexscript_class == type_name || 
-                    env.is_subclass_of(alexscript_class, type_name)
-                    caught = true
-                    execute_catch_block(catch_block, e, env)
-                    break
-                  end
+                # Recover module_path of the thrown class so subclass walk can find
+                # parents that live inside a module (e.g. M::Konkretny < M::Bazowy).
+                module_path = nil
+                if e.instance_variable_defined?(:@alexscript_instance)
+                  thrown_instance = e.instance_variable_get(:@alexscript_instance)
+                  module_path = thrown_instance[:module_path] if thrown_instance.is_a?(Hash)
                 end
                 
-              else
-                # Catch all - no type specified
-                caught = true
-                execute_catch_block(catch_block, e, env)
-                break
+                # Check if caught exception matches or inherits from catch type
+                if alexscript_class == type_name || 
+                  env.is_subclass_of(alexscript_class, type_name, module_path)
+                  caught = true
+                  execute_catch_block(catch_block, e, env)
+                  break
+                end
               end
+              
+            else
+              # Catch all - no type specified
+              caught = true
+              execute_catch_block(catch_block, e, env)
+              break
             end
+          end
             
             # Re-raise if not caught
             raise e unless caught

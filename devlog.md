@@ -120,3 +120,5 @@ first fully working version with basic structures:
 * quickfix: wrap object collection-returning methods in typed AS arrays
 * allow dot operator for module function calls
 * support qualified module paths in zlap exception types
+* quickfix: rzuc accepts instances from ModuleClassInstantiation
+* quickfix: properly display raw class instances without rendering content of env

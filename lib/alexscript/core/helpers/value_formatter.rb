@@ -24,6 +24,8 @@ module AlexScript
             format_object_value(value)
           when :type_module
             "modul #{value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value}"
+            when :type_instance
+            format_instance_value(value)
           when :type_class
             name = value.is_a?(Hash) ? (value[:name] || 'UnnamedClass') : value
             if value.is_a?(Hash) && value[:is_abstract]
@@ -56,6 +58,13 @@ module AlexScript
           else
             value
           end
+        end
+
+        def format_instance_value(instance)
+          return instance.to_s unless instance.is_a?(Hash)
+          class_name = instance[:class_name] || 'UnknownClass'
+          hex_id = instance.object_id.to_s(16)
+          "#<#{class_name}:0x#{hex_id}>"
         end
 
         def format_object_value(object)

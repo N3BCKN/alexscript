@@ -396,11 +396,12 @@ module AlexScript
           end
 
           # execute constructor
-          Utils::ContextTracker.current_class_name = class_name
           Utils::CallStackTracker.push(:constructor, class_name, interpreter.current_file, @line)
           begin
-            Utils::ContextTracker.track_method_call("konstruktor") do
-              interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+            Utils::ContextTracker.track_class_context(class_name) do
+              Utils::ContextTracker.track_method_call("konstruktor") do
+                interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+              end
             end
           rescue Utils::ReturnError
             # ignore

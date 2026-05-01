@@ -97,10 +97,13 @@ module AlexScript
 
       # finds method in parent class
       def find_parent_method(instance, method_name)
-        class_name = instance[:class_name]
-        return nil unless class_name
+        # Use the class context from which `super` was called, not the instance's
+        # actual class. This is critical for multi-level inheritance: when
+        # B.method calls super, we look for parent of B, not of the instance class.
+        starting_class_name = Utils::ContextTracker.current_class_name || instance[:class_name]
+        return nil unless starting_class_name
         
-        class_def = get_class(class_name)
+        class_def = get_class(starting_class_name)
         return nil unless class_def
         
         parent_name = class_def[:parent]
@@ -123,7 +126,7 @@ module AlexScript
           current_class_name = class_def[:parent]
         end
         
-        nil  # method not found in parent class
+        nil
       end
 
       # method to get current function/method context
@@ -227,13 +230,19 @@ module AlexScript
         class_def[:static_vars][var_name]
       end
 
-      def is_subclass_of(child_class_name, parent_class_name)
+      def is_subclass_of(child_class_name, parent_class_name, module_path = nil)
         return false unless child_class_name && parent_class_name
         return true if child_class_name == parent_class_name
         
         current_class = child_class_name
         while current_class
-          class_def = get_class(current_class)
+          # Module-aware lookup: try in module first, fall back to global.
+          class_def =
+            if module_path && !module_path.empty?
+              get_module_class(module_path, current_class) || get_class(current_class)
+            else
+              get_class(current_class)
+            end
           return false unless class_def
           return true if class_def[:parent] == parent_class_name
           current_class = class_def[:parent]

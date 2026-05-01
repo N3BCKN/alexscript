@@ -772,4 +772,200 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("b")
     end
   end 
+
+  describe 'super in deep inheritance chains' do
+    # Regression tests for an infinite-recursion bug in find_parent_method:
+    # super() always restarted lookup from the instance's class, so in a chain
+    # B -> A -> Root, calling super from A.method would re-find A.method.
+
+    it 'allows three-level inheritance with super in each constructor' do
+      code = '
+        klasa Bazowa {
+          funkcja konstruktor(k) { niech @k = k }
+          funkcja k() { zwroc @k }
+        }
+        klasa Srodek < Bazowa {
+          funkcja konstruktor(k) { super(k) }
+        }
+        klasa Pochodna < Srodek {
+          funkcja konstruktor(k) { super(k) }
+        }
+        niech p = Pochodna.nowy("hej")
+        pokazl p.k()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('hej')
+    end
+
+    it 'allows four-level inheritance with super at every level' do
+      code = '
+        klasa A {
+          funkcja konstruktor(v) { niech @v = v }
+          funkcja v() { zwroc @v }
+        }
+        klasa B < A { funkcja konstruktor(v) { super(v) } }
+        klasa C < B { funkcja konstruktor(v) { super(v) } }
+        klasa D < C { funkcja konstruktor(v) { super(v) } }
+        niech d = D.nowy(42)
+        pokazl d.v()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('42')
+    end
+
+    it 'allows three-level inheritance inside a module' do
+      code = '
+        modul Test {
+          klasa Bazowa {
+            funkcja konstruktor(k) { niech @k = k }
+            funkcja k() { zwroc @k }
+          }
+          klasa Srodek < Bazowa {
+            funkcja konstruktor(k) { super(k) }
+          }
+          klasa Pochodna < Srodek {
+            funkcja konstruktor(k) { super(k) }
+          }
+        }
+        niech p = Test::Pochodna.nowy("hej")
+        pokazl p.k()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('hej')
+    end
+
+    it 'allows three-level exception hierarchy in a module crossing module boundary at root' do
+      code = '
+        modul Posel {
+          klasa BladPosla < WyjatekPodstawowy {
+            funkcja konstruktor(k) { super(k) }
+          }
+          klasa BladHttp < BladPosla {
+            funkcja konstruktor(k) { super(k) }
+          }
+          klasa BladNieZnaleziono < BladHttp {
+            funkcja konstruktor(k) { super(k) }
+          }
+        }
+        proba {
+          rzuc Posel::BladNieZnaleziono.nowy("404!")
+        } zlap (e : Posel::BladNieZnaleziono) {
+          pokazl "OK: " + e["wiadomosc"]
+        }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: 404!')
+    end
+
+    it 'super correctly walks past intermediate class to grandparent' do
+      code = '
+        klasa A {
+          funkcja konstruktor() { niech @z = "from_A" }
+        }
+        klasa B < A {
+          funkcja konstruktor() { super() }
+        }
+        klasa C < B {
+          funkcja konstruktor() { super() }
+          funkcja z() { zwroc @z }
+        }
+        niech c = C.nowy()
+        pokazl c.z()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('from_A')
+    end
+
+    it 'each level can pass through transformed args to super' do
+      code = '
+        klasa A {
+          funkcja konstruktor(s) { niech @s = s }
+          funkcja s() { zwroc @s }
+        }
+        klasa B < A {
+          funkcja konstruktor(s) { super(s + "-B") }
+        }
+        klasa C < B {
+          funkcja konstruktor(s) { super(s + "-C") }
+        }
+        niech c = C.nowy("X")
+        pokazl c.s()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('X-C-B')
+    end
+  end
+
+  describe 'qualified module paths in zlap' do
+    # Exception types in zlap can now be Modul::Klasa, not just Klasa.
+
+    it 'catches exception thrown from a module by qualified name' do
+      code = '
+        modul M {
+          klasa MojBlad < WyjatekPodstawowy {
+            funkcja konstruktor(k) { super(k) }
+          }
+        }
+        proba {
+          rzuc M::MojBlad.nowy("test")
+        } zlap (e : M::MojBlad) {
+          pokazl "OK: " + e["wiadomosc"]
+        }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: test')
+    end
+
+    it 'catches subclass exception by qualified parent type' do
+      code = '
+        modul M {
+          klasa Bazowy < WyjatekPodstawowy {
+            funkcja konstruktor(k) { super(k) }
+          }
+          klasa Konkretny < Bazowy {
+            funkcja konstruktor(k) { super(k) }
+          }
+        }
+        proba {
+          rzuc M::Konkretny.nowy("z konkretu")
+        } zlap (e : M::Bazowy) {
+          pokazl "OK: " + e["wiadomosc"]
+        }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: z konkretu')
+    end
+
+    it 'unqualified zlap still works (regression)' do
+      code = '
+        klasa MojBlad < WyjatekPodstawowy {
+          funkcja konstruktor(k) { super(k) }
+        }
+        proba {
+          rzuc MojBlad.nowy("test")
+        } zlap (e : MojBlad) {
+          pokazl "OK: " + e["wiadomosc"]
+        }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: test')
+    end
+
+    it 'catches module exception by global parent type' do
+      code = '
+        modul M {
+          klasa MojBlad < WyjatekPodstawowy {
+            funkcja konstruktor(k) { super(k) }
+          }
+        }
+        proba {
+          rzuc M::MojBlad.nowy("test")
+        } zlap (e : WyjatekPodstawowy) {
+          pokazl "OK: " + e["wiadomosc"]
+        }
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: test')
+    end
+  end
 end

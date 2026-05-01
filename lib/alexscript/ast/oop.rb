@@ -284,13 +284,14 @@ module AlexScript
 
         # execute method body
         begin
-          # keep current method context so nested super calls work correctly
           Utils::ContextTracker.track_method_call(current_method_name) do
-            interpreter.interpret!(method_info[:declaration].body_statement, method_env)
+            Utils::ContextTracker.track_class_context(method_result[:class_name]) do
+              interpreter.interpret!(method_info[:declaration].body_statement, method_env)
+            end
           end
-          result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
+          result = [:type_null, Utils::NULL_VALUE]
         rescue Utils::ReturnError => e
-          result = e.value  # or specific value returned by method
+          result = e.value
         end
 
         result
@@ -413,11 +414,12 @@ module AlexScript
           end
 
           # execute constructor
-          Utils::ContextTracker.current_class_name = @class_name
           Utils::CallStackTracker.push(:constructor, @class_name, interpreter.current_file, @line)
           begin
-            Utils::ContextTracker.track_method_call("konstruktor") do
-              interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+            Utils::ContextTracker.track_class_context(@class_name) do
+              Utils::ContextTracker.track_method_call("konstruktor") do
+                interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+              end
             end
           rescue Utils::ReturnError
             # ignore return value from constructor
