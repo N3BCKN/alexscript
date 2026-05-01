@@ -513,8 +513,22 @@ module AlexScript
       end
 
       def evaluate(_interpreter, env)
-        # get class definition
+        # Try class first
         class_def = env.get_class(@class_name)
+
+        # Fallback: maybe @class_name is a module and @name is its constant.
+        # Treats `.` as alias for `::` — Modul.STALA equivalent to Modul::STALA.
+        unless class_def
+          module_def = env.get_module(@class_name)
+          if module_def
+            constant = module_def[:constants] && module_def[:constants][@name]
+            if constant
+              return [constant[:type], constant[:value]]
+            end
+            Utils.runtime_error("Nie znaleziono '#{@name}' w module #{@class_name}", @line)
+          end
+        end
+
         Utils.runtime_error("Nieznana klasa #{@class_name}", @line) unless class_def
 
         # look for static variable in whole class hierarchy

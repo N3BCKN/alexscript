@@ -499,6 +499,10 @@ module AlexScript
 
             result = env.call_method(:type_class, node.method_name, class_def, evaluated_args)
 
+            if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
+              return result
+            end
+
             result_type = case result
                           when Integer then :type_int
                           when Float then :type_float
@@ -820,12 +824,10 @@ module AlexScript
           )
 
         elsif object_type == :type_module
-          # Dot-on-module dispatch — for cases like `niech m = Mojmodul; m.funkcja()`.
-          # Mirrors StaticMethodCall's module fallback: user-defined function first,
-          # then built-in reflection.
           module_def = object_value
           module_name = module_def[:name]
 
+          # 1. User-defined function — delegate via ModuleFunctionCall
           module_func = env.get_module_function([module_name], node.method_name)
           if module_func
             synthetic = AST::ModuleFunctionCall.new(
@@ -834,6 +836,23 @@ module AlexScript
             return interpret!(synthetic, env)
           end
 
+          # 2. Class in module — return class_def. Only for parameterless access (no args),
+          #    because Mojmodul.Klasa(args) is not a valid construct (use Mojmodul::Klasa.nowy()).
+          if node.arguments.empty?
+            class_in_module = env.get_module_class([module_name], node.method_name)
+            if class_in_module
+              class_in_module[:name] ||= node.method_name
+              return [:type_class, class_in_module]
+            end
+
+            # 3. Constant in module
+            constant = module_def[:constants] && module_def[:constants][node.method_name]
+            if constant
+              return [constant[:type], constant[:value]]
+            end
+          end
+
+          # 4. Built-in module reflection method
           if env.built_in_methods.get_method(:type_module, node.method_name)
             evaluated_args = node.arguments.map { |arg| interpret!(arg, env)[1] }
             result = env.call_method(:type_module, node.method_name, module_def, evaluated_args)
@@ -854,7 +873,6 @@ module AlexScript
           end
 
           Utils.runtime_error("Nieznana metoda '#{node.method_name}' dla modułu #{module_name}",node.line)
-
         else
           # ── Non-instance types: arrays, floats, ints, strings, objects, bools, null ──
           # Reached when object_type is :type_array, :type_int, :type_float,
