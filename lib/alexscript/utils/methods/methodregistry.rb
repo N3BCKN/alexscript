@@ -19,7 +19,8 @@ module AlexScript
             type_instance: InstanceMethods.instance,
             type_bool: BoolMethods.instance,
             type_null: NullMethods.instance,
-            type_module: ModuleMethods.instance
+            type_module: ModuleMethods.instance,
+            type_function: FunctionMethods.instance
           }.freeze
         end
 
@@ -97,6 +98,10 @@ module AlexScript
           when Hash
             if value.key?(:class_name) && value.key?(:instance_vars)
               :type_instance
+            elsif value.key?(:declaration) && value.key?(:env)
+              :type_function
+            elsif value.key?(:methods) && value.key?(:static_methods)
+              :type_class
             else
               :type_object
             end

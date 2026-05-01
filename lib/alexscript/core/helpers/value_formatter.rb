@@ -13,10 +13,8 @@ module AlexScript
         def format_value(type, value)
           case type
           when :type_bool, :type_null
-            # PrimivieValue objects display without quotes
             value.to_s
           when :type_string
-            # Strings are displayed with quotes
             value.to_s
           when :type_array
             format_array_value(value)
@@ -24,37 +22,12 @@ module AlexScript
             format_object_value(value)
           when :type_module
             "modul #{value.is_a?(Hash) ? (value[:name] || 'UnnamedModule') : value}"
-            when :type_instance
+          when :type_instance
             format_instance_value(value)
+          when :type_function
+            "<funkcja>"
           when :type_class
-            name = value.is_a?(Hash) ? (value[:name] || 'UnnamedClass') : value
-            if value.is_a?(Hash) && value[:is_abstract]
-              "klasa abstrakcyjna #{name}"
-            elsif value.is_a?(Hash) && value[:parent]
-              "klasa #{name} < #{value[:parent]}"
-            else
-              "klasa #{name}"
-            end
-          else
-            value
-          end
-        end
-
-        def format_array_value(value)
-          if value.is_a?(Array)
-            value.map do |elem|
-              if elem.is_a?(Hash)
-                if elem[:type] == :type_array
-                  format_array_value(elem[:value])
-                elsif elem[:type] == :type_object
-                  format_object_value(elem[:value])
-                else
-                  elem[:value]
-                end
-              else
-                elem
-              end
-            end
+            format_class_value(value)
           else
             value
           end
@@ -65,6 +38,34 @@ module AlexScript
           class_name = instance[:class_name] || 'UnknownClass'
           hex_id = instance.object_id.to_s(16)
           "#<#{class_name}:0x#{hex_id}>"
+        end
+
+        def format_class_value(klass)
+          return "<klasa>" unless klass.is_a?(Hash)
+          name = klass[:name] || 'UnnamedClass'
+          parent = klass[:parent]
+          parent ? "klasa #{name} < #{parent}" : "klasa #{name}"
+        end
+
+        def format_array_value(value)
+          if value.is_a?(Array)
+            value.map do |elem|
+              if elem.is_a?(Hash) && elem.key?(:type)
+                # Element is a typed AS value tuple — dispatch to format_value
+                # so :type_function, :type_class, :type_instance, etc. get
+                # readable representations instead of raw Ruby dumps.
+                format_value(elem[:type], elem[:value])
+              else
+                elem
+              end
+            end
+          else
+            value
+          end
+        end
+
+        def format_function_value(_fn)
+          "<funkcja>"
         end
 
         def format_object_value(object)

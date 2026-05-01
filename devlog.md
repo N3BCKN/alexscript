@@ -122,3 +122,4 @@ first fully working version with basic structures:
 * support qualified module paths in zlap exception types
 * quickfix: rzuc accepts instances from ModuleClassInstantiation
 * quickfix: properly display raw class instances without rendering content of env
+* pokazl shows readable repr for functions and classes

@@ -161,8 +161,7 @@ module AlexScript
     interpreter = Core::Interpreter.new
     interpreter.set_current_file(source_file) if source_file
     wynik = interpreter.interpret_ast(ast)
-    puts wynik if wynik
-
+  
     if opts.time?
       end_time = Time.now
       puts "Execution time: #{end_time - start_time}s"
