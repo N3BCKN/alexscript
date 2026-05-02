@@ -320,6 +320,25 @@ module AlexScript
         end
       end
 
+      # Required by Ruby 4.0+ Fiber::Scheduler interface.
+      # Called when a fiber needs to be interrupted (e.g. timeout, cancellation).
+      # We don't currently support cancellation, so we just unblock the fiber
+      # with the given exception, letting it propagate naturally.
+      #
+      # @param fiber [Fiber] the fiber to interrupt
+      # @param exception_class [Class] exception class to raise
+      # @param message [String] optional message
+      def fiber_interrupt(fiber, exception_class, *arguments)
+        # Unblock the fiber if it's currently blocked
+        if @blocked_fibers&.include?(fiber)
+          @blocked_fibers.delete(fiber)
+        end
+        
+        # Mark for resumption with the exception
+        @ready_fibers ||= []
+        @ready_fibers << [fiber, exception_class, arguments]
+      end
+
       # Called by low-level blocking primitives (Mutex#lock, Queue#pop).
       # `blocker` identifies what we're waiting on. `timeout` optional.
       #

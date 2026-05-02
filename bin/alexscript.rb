@@ -10,6 +10,9 @@ unless ARGV.include?('--no-yjit')
   end
 end
 
+# Suppress experimental warnings - we knowingly use IO::Buffer.
+# These warnings break test output comparisons and serve no end-user purpose.
+Warning[:experimental] = false if Warning.respond_to?(:[]=)
 
 USER_PWD = ENV['ALEXSCRIPT_USER_PWD'] || Dir.pwd
 
