@@ -82,8 +82,7 @@ module AlexScript
           # find parent class definition
           # first try module path if instance has one
           if instance[:module_path]
-            parent_class_def = get_module_class(instance[:module_path], parent_name)
-            current_class_def = parent_class_def
+            current_class_def = get_module_class(instance[:module_path], parent_name) || get_class(parent_name)
           else
             # fallback to global classes
             current_class_def = get_class(parent_name)

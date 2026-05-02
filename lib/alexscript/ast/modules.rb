@@ -350,8 +350,8 @@ module AlexScript
           class_def: class_def
         }
 
-        # call constructor
-        constructor = class_def[:methods]["konstruktor"]
+        constructor = resolve_constructor(class_def, env)
+
         if constructor
           arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
 
@@ -411,6 +411,36 @@ module AlexScript
         end
 
         [:type_instance, instance]
+      end
+
+      private
+
+      # Looks up konstruktor in the class itself, then walks up the inheritance
+      # chain to find the nearest ancestor's konstruktor. Returns nil if no
+      # constructor is found anywhere in the chain (in which case the instance
+      # is created with empty instance_vars). Native ancestors halt the walk —
+      # they are handled separately at the call site.
+      def resolve_constructor(class_def, env)
+        return class_def[:methods]["konstruktor"] if class_def[:methods]["konstruktor"]
+
+        ancestor = class_def
+        while ancestor[:parent]
+          parent_def = lookup_parent_class(ancestor[:parent], env)
+          return nil unless parent_def
+          return nil if parent_def[:native]
+          return parent_def[:methods]["konstruktor"] if parent_def[:methods] && parent_def[:methods]["konstruktor"]
+          ancestor = parent_def
+        end
+
+        nil
+      end
+
+      # Looks up a parent class by name — first in the same module as the
+      # instantiated class, then falls back to the global scope. Mirrors the
+      # lookup pattern used by find_method_in_hierarchy and is_subclass_of for
+      # correct cross-module inheritance.
+      def lookup_parent_class(name, env)
+        env.get_module_class(@module_path, name) || env.get_class(name)
       end
 
       def pretty_print(level = 0)

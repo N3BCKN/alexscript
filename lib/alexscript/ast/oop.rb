@@ -359,8 +359,29 @@ module AlexScript
           interpreter.interpret!(arg, env)
         end
 
-        # call constructor if exists
+        # Find constructor — first in current class, then walk up the chain.
+        # This implements implicit constructor inheritance: a subclass without
+        # its own konstruktor uses the nearest ancestor's konstruktor (Ruby/
+        # Python/Java/C#/JS semantics).
         constructor = class_def[:methods]["konstruktor"]
+        unless constructor
+          ancestor = class_def
+          while ancestor[:parent]
+            parent_name = ancestor[:parent]
+            parent_def = if class_def[:module_path]
+                           env.get_module_class(class_def[:module_path], parent_name) || env.get_class(parent_name)
+                         else
+                           env.get_class(parent_name)
+                         end
+            break unless parent_def
+            break if parent_def[:native]   # native parent handled by elsif branch below
+            if parent_def[:methods] && parent_def[:methods]["konstruktor"]
+              constructor = parent_def[:methods]["konstruktor"]
+              break
+            end
+            ancestor = parent_def
+          end
+        end
         if constructor
           # create environment for constructor
           constructor_env = constructor[:env].new_env
