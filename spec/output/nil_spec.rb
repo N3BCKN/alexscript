@@ -48,8 +48,9 @@ RSpec.describe 'Null value (nic) operations', type: :aruba do
         pokazl y + x
         pokazl x * y
       '
-      run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("nic\nnic\nnic")
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Niewspierany operator \+ pomiedzy/)
+      expect(last_command_started).to have_exit_status(1)
     end
 
     # it 'handles string concatenation with nil' do
@@ -188,6 +189,42 @@ RSpec.describe 'Null value (nic) operations', type: :aruba do
       '
       run_command "ruby #{main_file_path} '#{code}'"
       expect(last_command_started).to have_output(/Indeks tablicy musi byc liczbą całkowitą/)
+      expect(last_command_started).to have_exit_status(1)
+    end
+  end
+
+  describe 'strict null handling in binary operators' do
+    # Ruby/Python-style: nic + cokolwiek (poza == i !=) raises a clear error
+    # instead of silently propagating null and masking bugs.
+
+    it 'still allows == and != with nic' do
+      code = '
+        pokazl nic == nic
+        pokazl nic == 5
+        pokazl nic != "x"
+        pokazl 5 != nic
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq("prawda\nfalsz\nprawda\nprawda")
+    end
+
+    it 'raises type error for string + nic' do
+      code = '
+        niech wynik = "Witaj, " + nic
+        pokazl wynik
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Niewspierany operator \+ pomiedzy/)
+      expect(last_command_started).to have_exit_status(1)
+    end
+
+    it 'raises type error for arithmetic with nic' do
+      code = '
+        niech wynik = 5 + nic
+        pokazl wynik
+      '
+      run_command "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started).to have_output(/Niewspierany operator \+ pomiedzy/)
       expect(last_command_started).to have_exit_status(1)
     end
   end

@@ -707,4 +707,58 @@ RSpec.describe 'Modules', type: :aruba do
     #   expect(last_command_started).to have_output(/3/)
     # end
   end
+
+  describe 'implicit constructor inheritance in modules' do
+    # Same as above but for ModuleClassInstantiation. Plus tests cross-module
+    # inheritance: a module-defined class inheriting from a global parent.
+
+    it 'inherits parent constructor for module-defined class' do
+      code = '
+        modul Hodowla {
+          klasa Zwierze {
+            funkcja konstruktor(imie) { niech @imie = imie }
+            funkcja imie() { zwroc @imie }
+          }
+          klasa Pies < Zwierze {}
+        }
+        niech reksio = Hodowla::Pies.nowy("Reksio")
+        pokazl reksio.imie()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('Reksio')
+    end
+
+    it 'inherits constructor from a global parent into a module-defined class' do
+      code = '
+        klasa GlobalnyRodzic {
+          funkcja konstruktor(v) { niech @v = v }
+          funkcja v() { zwroc @v }
+        }
+        modul M {
+          klasa Pochodna < GlobalnyRodzic {}
+        }
+        niech p = M::Pochodna.nowy(42)
+        pokazl p.v()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip).to eq('42')
+    end
+
+    it 'walks deep chain in module to find ancestor constructor' do
+      code = '
+        modul Test {
+          klasa A {
+            funkcja konstruktor(x) { niech @x = x }
+            funkcja x() { zwroc @x }
+          }
+          klasa B < A {}
+          klasa C < B {}
+        }
+        niech c = Test::C.nowy("z dziadka")
+        pokazl c.x()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('z dziadka')
+    end
+  end
 end

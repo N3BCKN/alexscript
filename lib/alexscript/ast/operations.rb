@@ -20,16 +20,18 @@ module AlexScript
         left_type, left_value = interpreter.interpret!(@left, env)
         right_type, right_value = interpreter.interpret!(@right, env)
 
-        # handle operations with null values
+        # Equality with nic is identity-checked here. All other operators with nic
+        # fall through to normal dispatch below, which raises a clear "unsupported
+        # operator" error — Ruby/Python-style strict null handling, no silent
+        # propagation that masks bugs.
         if left_type == :type_null || right_type == :type_null
           case @op.token_type
-          when :tok_eq # ==
+          when :tok_eq
             return [:type_bool, interpreter.to_bool_value(left_type == right_type)]
-          when :tok_noteq # !=
+          when :tok_noteq
             return [:type_bool, interpreter.to_bool_value(left_type != right_type)]
-          else
-            return [:type_null, Utils::NULL_VALUE] # all logical operations with null returns null
           end
+          # else: fall through to operator dispatch below
         end
 
         if @op.token_type == :tok_plus # addition +

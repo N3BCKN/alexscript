@@ -968,4 +968,67 @@ RSpec.describe 'Object-Oriented Programming', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('OK: test')
     end
   end
+
+  describe 'implicit constructor inheritance' do
+    # Subclass without its own konstruktor inherits parent's konstruktor with
+    # arguments — same semantics as Ruby, Python, Java, C#, JavaScript.
+    # Before this fix, Pies.nowy("Reksio") for Pies < Zwierze (with Zwierze
+    # having konstruktor(imie)) would skip the constructor entirely, leaving
+    # @imie unset and silently producing wrong output.
+
+    it 'inherits parent constructor when subclass defines none' do
+      code = '
+        klasa Zwierze {
+          funkcja konstruktor(imie) {
+            niech @imie = imie
+          }
+          funkcja przedstaw() {
+            zwroc "Jestem " + @imie
+          }
+        }
+        klasa Pies < Zwierze {
+          funkcja szczekaj() {
+            zwroc @imie + ": hau hau!"
+          }
+        }
+        niech reksio = Pies.nowy("Reksio")
+        pokazl reksio.przedstaw()
+        pokazl reksio.szczekaj()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq("Jestem Reksio\nReksio: hau hau!")
+    end
+
+    it 'walks up the chain to find the nearest ancestor with a constructor' do
+      code = '
+        klasa A {
+          funkcja konstruktor(x) { niech @x = x }
+          funkcja x() { zwroc @x }
+        }
+        klasa B < A {}
+        klasa C < B {}
+        niech c = C.nowy("z dziadka")
+        pokazl c.x()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('z dziadka')
+    end
+
+    it 'picks the nearest ancestor constructor, not the deepest' do
+      code = '
+        klasa P1 {
+          funkcja konstruktor() { niech @znacznik = "P1" }
+          funkcja znacznik() { zwroc @znacznik }
+        }
+        klasa P2 < P1 {
+          funkcja konstruktor() { niech @znacznik = "P2" }
+        }
+        klasa P3 < P2 {}
+        niech p = P3.nowy()
+        pokazl p.znacznik()
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('P2')
+    end
+  end
 end
