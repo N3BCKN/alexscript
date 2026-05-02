@@ -1,4 +1,5 @@
-# functionmethods.rb
+# frozen_string_literal: true
+
 module AlexScript
   module Utils
     module Methods

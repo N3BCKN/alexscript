@@ -34,22 +34,22 @@ klasa BudowniczySamochodu {
     
     funkcja ustaw_marke(marka) {
         @samochod.ustaw_marke(marka)
-        zwroc @
+        zwroc sam
     }
     
     funkcja ustaw_silnik(silnik) {
         @samochod.ustaw_silnik(silnik)
-        zwroc @
+        zwroc sam
     }
     
     funkcja ustaw_kolor(kolor) {
         @samochod.ustaw_kolor(kolor)
-        zwroc @
+        zwroc sam
     }
     
     funkcja ustaw_miejsca(miejsca) {
         @samochod.ustaw_miejsca(miejsca)
-        zwroc @
+        zwroc sam
     }
     
     funkcja zbuduj() {
@@ -58,7 +58,7 @@ klasa BudowniczySamochodu {
     
     funkcja reset() {
         niech @samochod = Samochod.nowy()
-        zwroc @
+        zwroc sam
     }
 }
 
