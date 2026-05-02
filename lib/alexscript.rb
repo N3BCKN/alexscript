@@ -25,7 +25,7 @@ require_relative('alexscript/native/native')
 require_relative('alexscript/async/async')
 
 module AlexScript
-  VERSION = '0.9.19'
+  VERSION = '0.9.20'
 
   #load standard libraries
   Native.setup!
@@ -77,10 +77,22 @@ module AlexScript
 
   def self.start_execution
     opts = Slop.parse do |o|
+      o.bool '-v', '--version', 'print version and exit'
+      o.bool '-h', '--help',    'print this help and exit'
       o.bool '-f', '--full', 'run in full mode'
       o.bool '-t', '--time', 'measure time of execution'
       o.bool '--no-yjit',    'disable YJIT (for profiling interpreter internals)'
       o.bool '--yjit-stats', 'print YJIT runtime statistics after execution'
+    end
+
+    if opts.version?
+      puts "AlexScript #{AlexScript::VERSION}"
+      return
+    end
+
+    if opts.help?
+      puts opts
+      return
     end
 
     # Switch to REPL when no arguments; exit cleanly when REPL loop ends.

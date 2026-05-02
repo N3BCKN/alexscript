@@ -125,3 +125,6 @@ first fully working version with basic structures:
 * pokazl shows readable repr for functions and classes
 * implicit constructors for 'bare' classes and in-module classes 
 * strict null, return exceptions 
+
+### 0.9.20
+* migrate to ruby 4.0.3
