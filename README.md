@@ -85,6 +85,14 @@ bundle install
 ruby lib/alexscript.rb
 ```
 
+### Editor support
+
+A [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=N3BCKN.alexscript) provides syntax highlighting, snippets, and a custom dark theme tuned for AlexScript code. Search for **AlexScript** in the VS Code marketplace, or install from the command line:
+
+```bash
+code --install-extension N3BCKN.alexscript
+```
+
 ---
 
 ## Quick start
