@@ -446,7 +446,7 @@ AlexScript is **production-ready for hobby and educational use**. The language s
 ### On the horizon
 
 - **Pattern matching** — destructuring assignment and match expressions
-- **Null-coalescing and optional chaining** — `?.` and `??` operators
+- **asm** - npm-alike package manager
 - **Property getters/setters** — auto-generated accessors for instance variables
 - **Pipeline operator** — natural function-composition syntax
 - **Optional actor-model concurrency** — beyond the current cooperative scheduler

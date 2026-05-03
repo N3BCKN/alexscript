@@ -1,6 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+
+# A niechaj narodowie wżdy postronni znają,
+# Iż Polacy nie Gęsi, iż swój język mają.
+#                                — Mikołaj Rej, 1562
+
 # YJIT activation 
 unless ARGV.include?('--no-yjit')
   begin
@@ -10,8 +15,7 @@ unless ARGV.include?('--no-yjit')
   end
 end
 
-# Suppress experimental warnings - we knowingly use IO::Buffer.
-# These warnings break test output comparisons and serve no end-user purpose.
+# Suppress experimental warnings - knowingly use IO::Buffer.
 Warning[:experimental] = false if Warning.respond_to?(:[]=)
 
 USER_PWD = ENV['ALEXSCRIPT_USER_PWD'] || Dir.pwd
