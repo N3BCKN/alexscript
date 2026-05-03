@@ -126,5 +126,5 @@ first fully working version with basic structures:
 * implicit constructors for 'bare' classes and in-module classes 
 * strict null, return exceptions 
 
-### 0.9.22
+### 0.9.23
 * migrate to ruby 4.0.3
