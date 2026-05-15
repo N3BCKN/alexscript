@@ -268,7 +268,8 @@ module AlexScript
       def get_instance
         current = self
         while current
-          return current.instance_variable_get(:@current_instance) if current.instance_variable_defined?(:@current_instance)
+          inst = current.instance_variable_get(:@current_instance)
+          return inst if inst
           current = current.parent
         end
         nil
@@ -302,9 +303,9 @@ module AlexScript
       def get_class(name)
         current = self
         while current
-          if current.instance_variable_defined?(:@classes) && current.instance_variable_get(:@classes)&.key?(name)
-            return current.instance_variable_get(:@classes)[name]
-          end
+          c = current.classes
+          v = c[name] if c
+          return v if v
           current = current.parent
         end
         nil
@@ -414,10 +415,9 @@ module AlexScript
       def get_module(name)
         current = self
         while current
-          if current.instance_variable_defined?(:@modules) && 
-            current.instance_variable_get(:@modules)&.key?(name)
-            return current.instance_variable_get(:@modules)[name]
-          end
+          m = current.modules
+          v = m[name] if m
+          return v if v
           current = current.parent
         end
         nil

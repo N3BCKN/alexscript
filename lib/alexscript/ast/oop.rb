@@ -231,13 +231,13 @@ module AlexScript
         # evaluate arguments
         arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
 
-        # check argument count
-        params = method_info[:declaration].params
-
-        # handle rest type parameters
-        rest_param = params.find(&:rest?)
-        min_args = params.count { |p| !p.has_default? && !p.rest? }
-        max_args = rest_param ? Float::INFINITY : params.size
+        # precomputed param metadata (see FuncDclr#initialize)
+        decl          = method_info[:declaration]
+        rest_param    = decl.rest_param
+        min_args      = decl.min_args
+        max_args      = decl.max_args
+        rest_idx      = decl.rest_idx
+        normal_params = decl.normal_params
 
         if arguments.size < min_args
           Utils.runtime_error(
@@ -260,10 +260,8 @@ module AlexScript
         method_env.set_instance(instance)  # use current instance
 
         # assign arguments to parameters
-        rest_idx = params.index(&:rest?)
-        rest_position = rest_idx || params.size
+        rest_position = rest_idx || decl.params.size
 
-        normal_params = params.reject(&:rest?)
         normal_params.each_with_index do |param, idx|
           if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
             method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
@@ -387,13 +385,13 @@ module AlexScript
           constructor_env = constructor[:env].new_env
           constructor_env.set_instance(instance)
 
-          # check argument count
-          params = constructor[:declaration].params
-
-          # handle rest type parameters
-          rest_param = params.find(&:rest?)
-          min_args = params.count { |p| !p.has_default? && !p.rest? }
-          max_args = rest_param ? Float::INFINITY : params.size
+          # precomputed param metadata (see FuncDclr#initialize)
+          decl          = constructor[:declaration]
+          rest_param    = decl.rest_param
+          min_args      = decl.min_args
+          max_args      = decl.max_args
+          rest_idx      = decl.rest_idx
+          normal_params = decl.normal_params
 
           if arguments.size < min_args
             Utils.runtime_error(
@@ -412,10 +410,9 @@ module AlexScript
           end
 
           # assign arguments to parameters
-          rest_idx = params.index(&:rest?)
-          rest_position = rest_idx || params.size
+          rest_position = rest_idx || decl.params.size
 
-          normal_params = params.reject(&:rest?)
+
           normal_params.each_with_index do |param, idx|
             if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
               constructor_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
@@ -759,13 +756,13 @@ module AlexScript
           return result
         end
 
-        # check argument count
-        params = method_info[:declaration].params
-
-        # handle rest type parameters
-        rest_param = params.find(&:rest?)
-        min_args = params.count { |p| !p.has_default? && !p.rest? }
-        max_args = rest_param ? Float::INFINITY : params.size
+        # precomputed param metadata (see FuncDclr#initialize)
+        decl          = method_info[:declaration]
+        rest_param    = decl.rest_param
+        min_args      = decl.min_args
+        max_args      = decl.max_args
+        rest_idx      = decl.rest_idx
+        normal_params = decl.normal_params
 
         if arguments.size < min_args
           Utils.runtime_error(
@@ -787,10 +784,8 @@ module AlexScript
         method_env = method_info[:env].new_env
 
         # assign arguments to parameters
-        rest_idx = params.index(&:rest?)
-        rest_position = rest_idx || params.size
+        rest_position = rest_idx || decl.params.size
 
-        normal_params = params.reject(&:rest?)
         normal_params.each_with_index do |param, idx|
           if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
             method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])

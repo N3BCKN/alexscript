@@ -60,15 +60,19 @@ module AlexScript
 
         # Create a new environment for the while loop scope
         loop_env = env.new_env
-        if index_value < end_value
-          if @step_statement.nil?
-            step = 1
-          else
-            step_type, step = interpreter.interpret!(@step_statement, env)
-          end
-          while interpreter.to_bool_value(index_value < end_value) == Utils::BOOL_TRUE
+
+        # Resolve step once. Default is +1 going up, -1 going down (matches
+        # original behaviour where each branch had its own default).
+        if @step_statement
+          _step_type, step = interpreter.interpret!(@step_statement, env)
+        else
+          step = index_value < end_value ? 1 : -1
+        end
+
+        if step > 0
+          while index_value < end_value
             begin
-              loop_env.set_var(var_name, index_value, :type_int)
+              loop_env.set_local_var(var_name, index_value, :type_int)
               interpreter.interpret!(@body_statement, loop_env)
             rescue Utils::ContinueException
             rescue Utils::BreakException
@@ -77,14 +81,9 @@ module AlexScript
             index_value += step
           end
         else
-          if @step_statement.nil?
-            step = -1
-          else
-            step_type, step = interpreter.interpret!(@step_statement, env)
-          end
-          while interpreter.to_bool_value(index_value > end_value) == Utils::BOOL_TRUE
+          while index_value > end_value
             begin
-              loop_env.set_var(var_name, index_value, :type_int)
+              loop_env.set_local_var(var_name, index_value, :type_int)
               interpreter.interpret!(@body_statement, loop_env)
             rescue Utils::ContinueException
             rescue Utils::BreakException

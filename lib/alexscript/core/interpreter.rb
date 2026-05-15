@@ -156,10 +156,10 @@ module AlexScript
                 func_declr = method_info[:declaration]
                 func_env = method_info[:env]
 
-                # rest type parameters
-                rest_param = func_declr.params.find(&:rest?)
-                min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
-                max_args = rest_param ? Float::INFINITY : func_declr.params.size
+                # rest type parameters — read precomputed metadata from declaration
+                rest_param = func_declr.rest_param
+                min_args = func_declr.min_args
+                max_args = func_declr.max_args
 
                 # validate argument count
                 if node.arguments.size < min_args
@@ -183,10 +183,10 @@ module AlexScript
                 new_func_env.set_instance(current_instance)
 
                 # handle regular parameters
-                rest_idx = func_declr.params.index(&:rest?)
+                rest_idx = func_declr.rest_idx
                 rest_position = rest_idx || func_declr.params.size
 
-                normal_params = func_declr.params.reject(&:rest?)
+                normal_params = func_declr.normal_params
                 normal_params.each_with_index do |param, idx|
                   if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
                     arg_val = arguments[idx]
@@ -247,7 +247,7 @@ module AlexScript
             # Native lambda shortcut 
             # Some :type_function values wrap a Ruby proc. Dispatch directly,
             # bypassing AS body interpretation.
-            if func_declr.respond_to?(:native_lambda) && func_declr.native_lambda
+            if func_declr.native_lambda
               arguments = node.arguments.map { |arg| interpret!(arg, env) }
               result = func_declr.native_lambda.call(*arguments)
               return result if result.is_a?(Array) && result.size == 2 && result[0].is_a?(Symbol)
@@ -255,10 +255,10 @@ module AlexScript
             end
 
             # check if there is a rest (*args) param in funct call
-            rest_param = func_declr.params.find(&:rest?)
+            rest_param = func_declr.rest_param
 
-            min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
-            max_args = rest_param ? Float::INFINITY : func_declr.params.size
+            min_args = func_declr.min_args
+            max_args = func_declr.max_args
 
             if node.arguments.size < min_args
               Utils.runtime_error(
@@ -299,11 +299,11 @@ module AlexScript
             new_func_env = func_env.new_env
 
             # index of the rest param
-            rest_idx = func_declr.params.index(&:rest?)
+            rest_idx = func_declr.rest_idx
             rest_position = rest_idx || func_declr.params.size
 
             # assign values to regular parameters (before rest parameter)
-            normal_params = func_declr.params.reject(&:rest?)
+            normal_params = func_declr.normal_params
             normal_params.each_with_index do |param, idx|
               if idx < node.arguments.size && (rest_idx.nil? || idx < rest_idx)
                 # use passed argument
@@ -332,7 +332,7 @@ module AlexScript
             Utils::CallStackTracker.push(:function, node.name, @current_file, node.line) # for exception handler
             begin
               Utils::ContextTracker.track_method_call(node.name) do
-                if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
+                if func_declr.implicit_return?
                   result = interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
                 else
                   interpret!(func_declr.body_statement, new_func_env)
@@ -412,7 +412,7 @@ module AlexScript
             Utils::CallStackTracker.push(:function, call_name, @current_file, node.line)
             begin
               Utils::ContextTracker.track_method_call(call_name) do
-                if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
+                if func_declr.implicit_return?
                   result = interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
                 else
                   interpret!(func_declr.body_statement, new_func_env)
@@ -559,13 +559,11 @@ module AlexScript
             # evaluate arguments
             arguments = node.arguments.map { |arg| interpret!(arg, env) }
 
-            # check argument count
-            params = method_info[:declaration].params
-
-            # handle rest type parameters
-            rest_param = params.find(&:rest?)
-            min_args = params.count { |p| !p.has_default? && !p.rest? }
-            max_args = rest_param ? Float::INFINITY : params.size
+            # check argument count — use precomputed metadata
+            func_declr = method_info[:declaration]
+            rest_param = func_declr.rest_param
+            min_args = func_declr.min_args
+            max_args = func_declr.max_args
 
             if arguments.size < min_args
               Utils.runtime_error(
@@ -587,10 +585,10 @@ module AlexScript
             method_env = method_info[:env].new_env
 
             # assign arguments to parameters
-            rest_idx = params.index(&:rest?)
-            rest_position = rest_idx || params.size
+            rest_idx = func_declr.rest_idx
+            rest_position = rest_idx || func_declr.params.size
 
-            normal_params = params.reject(&:rest?)
+            normal_params = func_declr.normal_params
             normal_params.each_with_index do |param, idx|
               if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
                 method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
@@ -722,12 +720,11 @@ module AlexScript
             # evaluate arguments
             arguments = node.arguments.map { |arg| interpret!(arg, env) }
 
-            # check argument count
-            params = method_info[:declaration].params
-
-            rest_param = params.find(&:rest?)
-            min_args = params.count { |p| !p.has_default? && !p.rest? }
-            max_args = rest_param ? Float::INFINITY : params.size
+            # check argument count — use precomputed metadata
+            func_declr = method_info[:declaration]
+            rest_param = func_declr.rest_param
+            min_args = func_declr.min_args
+            max_args = func_declr.max_args
 
             if arguments.size < min_args
               Utils.runtime_error(
@@ -750,10 +747,10 @@ module AlexScript
             method_env.set_instance(object_value)
 
             # assign arguments to parameters
-            rest_idx = params.index(&:rest?)
-            rest_position = rest_idx || params.size
+            rest_idx = func_declr.rest_idx
+            rest_position = rest_idx || func_declr.params.size
 
-            normal_params = params.reject(&:rest?)
+            normal_params = func_declr.normal_params
             normal_params.each_with_index do |param, idx|
               if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
                 method_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
@@ -1031,9 +1028,9 @@ module AlexScript
       def build_func_env(func_declr, func_env, arguments, node, instance: nil)
         call_name = node.respond_to?(:name) ? node.name : node.method_name
 
-        rest_param = func_declr.params.find(&:rest?)
-        min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
-        max_args = rest_param ? Float::INFINITY : func_declr.params.size
+        rest_param = func_declr.rest_param
+        min_args = func_declr.min_args
+        max_args = func_declr.max_args
 
         if arguments.size < min_args
           Utils.runtime_error(
@@ -1054,10 +1051,10 @@ module AlexScript
         new_func_env = func_env.new_env
         new_func_env.set_instance(instance) if instance
 
-        rest_idx = func_declr.params.index(&:rest?)
+        rest_idx = func_declr.rest_idx
         rest_position = rest_idx || func_declr.params.size
 
-        normal_params = func_declr.params.reject(&:rest?)
+        normal_params = func_declr.normal_params
         normal_params.each_with_index do |param, idx|
           if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
             arg_val = arguments[idx]

@@ -10,22 +10,47 @@ module AlexScript
         validate_types([op], [Utils::Token], 'operator')
         validate_types([left], [Expr], 'left operand')
         validate_types([right], [Expr], 'right operand')
-        @op    = op
-        @left  = left
-        @right = right
-        @line  = line
+        @op      = op
+        @op_type = op.token_type   # cache once — used millions of times at runtime
+        @left    = left
+        @right   = right
+        @line    = line
       end
 
       def evaluate(interpreter, env)
         left_type, left_value = interpreter.interpret!(@left, env)
         right_type, right_value = interpreter.interpret!(@right, env)
 
+        # ── FAST PATH: int+int with common operators ──────────────────────
+        # Hot in fib, sort_bubble, math_heavy, all numeric loops. Bypasses
+        # array allocation from `case [left_type, right_type]` and the long
+        # elsif chain below. Operators with mixed-type or special semantics
+        # (division, exponentiation that may convert int→float, string
+        # operations, comparisons on non-numeric types) fall through.
+        if left_type == :type_int && right_type == :type_int
+          case @op_type
+          when :tok_plus     then return [:type_int, left_value + right_value]
+          when :tok_minus    then return [:type_int, left_value - right_value]
+          when :tok_star     then return [:type_int, left_value * right_value]
+          when :tok_mod      then return [:type_int, left_value % right_value]
+          when :tok_less         then return [:type_bool, left_value <  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_lessoreq     then return [:type_bool, left_value <= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_greater      then return [:type_bool, left_value >  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_greateroreq  then return [:type_bool, left_value >= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_eq           then return [:type_bool, left_value == right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_noteq        then return [:type_bool, left_value != right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+          when :tok_caret        then return [:type_int, left_value ^ right_value]
+          # tok_slash and tok_power fall through — int/int division may yield float
+          # (e.g. 5/2 → 2.5), and exponentiation may yield negative exponents.
+          end
+        end
+
         # Equality with nic is identity-checked here. All other operators with nic
         # fall through to normal dispatch below, which raises a clear "unsupported
         # operator" error — Ruby/Python-style strict null handling, no silent
         # propagation that masks bugs.
         if left_type == :type_null || right_type == :type_null
-          case @op.token_type
+          case @op_type
           when :tok_eq
             return [:type_bool, interpreter.to_bool_value(left_type == right_type)]
           when :tok_noteq
@@ -34,7 +59,7 @@ module AlexScript
           # else: fall through to operator dispatch below
         end
 
-        if @op.token_type == :tok_plus # addition +
+        if @op_type == :tok_plus # addition +
           case [left_type, right_type]
           when %i[type_int type_int]
             [:type_int, left_value + right_value]
@@ -58,7 +83,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_minus # subtraction -
+        elsif @op_type == :tok_minus # subtraction -
           case [left_type, right_type]
           when %i[type_int type_int]
             [:type_int, left_value - right_value]
@@ -67,7 +92,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_star # multiplication *
+        elsif @op_type == :tok_star # multiplication *
           case [left_type, right_type]
           when %i[type_int type_int]
             [:type_int, left_value * right_value]
@@ -76,7 +101,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_slash # division /
+        elsif @op_type == :tok_slash # division /
           Utils.runtime_error('Dzielenie przez zero', @op.line) if right_value == 0
 
           case [left_type, right_type]
@@ -89,7 +114,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_mod # modulo %
+        elsif @op_type == :tok_mod # modulo %
           case [left_type, right_type]
           when %i[type_int type_int]
             [:type_int, left_value % right_value]
@@ -98,7 +123,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_power # exponentiation **
+        elsif @op_type == :tok_power # exponentiation **
           case [left_type, right_type]
           when %i[type_int type_int]
             result = left_value**right_value
@@ -108,13 +133,13 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_caret # bitwise XOR ^
+        elsif @op_type == :tok_caret # bitwise XOR ^
           if left_type == :type_int && right_type == :type_int
             [:type_int, left_value ^ right_value]
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_greater # >
+        elsif @op_type == :tok_greater # >
           case [left_type, right_type]
           when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_bool, interpreter.to_bool_value(left_value > right_value)]
@@ -123,7 +148,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_greateroreq # >=
+        elsif @op_type == :tok_greateroreq # >=
           case [left_type, right_type]
           when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_bool, interpreter.to_bool_value(left_value >= right_value)]
@@ -132,7 +157,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_smaller # 
+        elsif @op_type == :tok_smaller # 
           case [left_type, right_type]
           when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_bool, interpreter.to_bool_value(left_value < right_value)]
@@ -141,7 +166,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_append # << : append on arrays, left shift on integers
+        elsif @op_type == :tok_append # << : append on arrays, left shift on integers
           if left_type == :type_array
             left_value << { type: right_type, value: right_value }
             if @left.is_a?(AST::Identifier)
@@ -156,7 +181,7 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_rshift # >>
+        elsif @op_type == :tok_rshift # >>
           if left_type == :type_int && right_type == :type_int
             if right_value < 0
               Utils.runtime_error('Przesuniecie bitowe o wartosc ujemna', @op.line)
@@ -165,19 +190,19 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_bit_and # & bitwise AND
+        elsif @op_type == :tok_bit_and # & bitwise AND
           if left_type == :type_int && right_type == :type_int
             [:type_int, left_value & right_value]
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_bit_or # | bitwise OR
+        elsif @op_type == :tok_bit_or # | bitwise OR
           if left_type == :type_int && right_type == :type_int
             [:type_int, left_value | right_value]
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_smalleroreq # <=
+        elsif @op_type == :tok_smalleroreq # <=
           case [left_type, right_type]
           when %i[type_int type_int], %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_bool, interpreter.to_bool_value(left_value <= right_value)]
@@ -186,9 +211,9 @@ module AlexScript
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
-        elsif @op.token_type == :tok_eq # ==
+        elsif @op_type == :tok_eq # ==
           [:type_bool, interpreter.to_bool_value(interpreter.deep_equal?(left_type, left_value, right_type, right_value))]
-        elsif @op.token_type == :tok_noteq # !=
+        elsif @op_type == :tok_noteq # !=
           [:type_bool, interpreter.to_bool_value(!interpreter.deep_equal?(left_type, left_value, right_type, right_value))]
         end
       end
@@ -210,6 +235,7 @@ module AlexScript
         validate_types([op], [Utils::Token], 'operator')
         validate_types([operand], [Expr], 'operand')
         @op      = op
+        @op_type = op.token_type   # cache once — mirrors BinOp
         @operand = operand
         @line    = line
       end
@@ -217,7 +243,7 @@ module AlexScript
       def evaluate(interpreter, env)
         operand_type, operand_value = interpreter.interpret!(@operand, env)
 
-        if @op.token_type == :tok_plus
+        if @op_type == :tok_plus
           case operand_type
           when :type_int
             [:type_int, +operand_value]
@@ -226,7 +252,7 @@ module AlexScript
           else
             interpreter.runtime_error_unop(operand_type, operand_value, self)
           end
-        elsif @op.token_type == :tok_minus
+        elsif @op_type == :tok_minus
           case operand_type
           when :type_int
             [:type_int, -operand_value]
@@ -235,7 +261,7 @@ module AlexScript
           else
             interpreter.runtime_error_unop(operand_type, operand_value, self)
           end
-        elsif @op.token_type == :tok_not
+        elsif @op_type == :tok_not
           if operand_type == :type_bool
             [:type_bool, interpreter.to_bool_value(!interpreter.from_bool_value(operand_value))]
           elsif operand_type == :type_null
@@ -243,7 +269,7 @@ module AlexScript
           else
             interpreter.runtime_error_unop(operand_type, operand_value, self)
           end
-        elsif @op.token_type == :tok_tilde
+        elsif @op_type == :tok_tilde
           if operand_type == :type_int
             [:type_int, ~operand_value]
           else
@@ -268,6 +294,7 @@ module AlexScript
         validate_types([left, right], [Expr])
 
         @op = op
+        @op_type = op.token_type 
         @left = left
         @right = right
         @line = line
@@ -278,9 +305,9 @@ module AlexScript
       def evaluate(interpreter, env)
         left_type, left_value = interpreter.interpret!(@left, env)
 
-        if @op.token_type == :tok_or
+        if @op_type == :tok_or
           return [left_type, left_value] if left_value == Utils::BOOL_TRUE
-        elsif @op.token_type == :tok_and
+        elsif @op_type == :tok_and
           return [left_type, left_value] if left_value == Utils::BOOL_FALSE || left_type == :type_null
         end
 

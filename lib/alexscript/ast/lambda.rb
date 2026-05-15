@@ -6,6 +6,9 @@ module AlexScript
     # Inherits from Expr (not Dclr) because lambdas are values, not declarations
     class LambdaExpr < Expr
       attr_reader :params, :body_statement, :line, :async
+      # Same precomputed param metadata as FuncDclr — see FuncDclr#initialize
+      # for rationale.
+      attr_reader :rest_param, :rest_idx, :normal_params, :min_args, :max_args
 
       # Frozen label for stack traces — single allocation, shared across all instances
       FN_NAME = '<fn>'.freeze
@@ -21,6 +24,14 @@ module AlexScript
                     (stmt.is_a?(ExpressionStmt) || 
                       stmt.is_a?(FuncCallStmt) || 
                       stmt.is_a?(MethodCallStmt))
+
+        # Precompute param metadata; mirrors FuncDclr.
+        params_arr = @params || []
+        @rest_param    = params_arr.find(&:rest?)
+        @rest_idx      = @rest_param ? params_arr.index(&:rest?) : nil
+        @normal_params = @rest_param ? params_arr.reject(&:rest?) : params_arr
+        @min_args      = params_arr.count { |p| !p.has_default? && !p.rest? }
+        @max_args      = @rest_param ? Float::INFINITY : params_arr.size
       end
 
       def name
@@ -29,6 +40,13 @@ module AlexScript
 
       def implicit_return?
         @_implicit
+      end
+
+      # LambdaExpr is always a user-defined fn; it never wraps a native Ruby
+      # proc. Provide the accessor anyway so dispatch sites can call it
+      # uniformly with FuncDclr instead of using respond_to?.
+      def native_lambda
+        nil
       end
 
       def evaluate(_interpreter, env)
@@ -69,7 +87,7 @@ module AlexScript
 
         # Some :type_function values wrap a Ruby proc instead of an AS body.
         # Used for resolve/reject callbacks passed to Obietnica.nowa executors
-        if func_declr.respond_to?(:native_lambda) && func_declr.native_lambda
+        if func_declr.native_lambda
           arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
           result = func_declr.native_lambda.call(*arguments)
           # Native lambda returns a tagged tuple [type, value] directly.
@@ -81,9 +99,9 @@ module AlexScript
 
         call_name = func_declr.respond_to?(:name) ? func_declr.name : '<fn>'
 
-        # Validate argument count
-        rest_param = func_declr.params.find(&:rest?)
-        min_args = func_declr.params.count { |p| !p.has_default? && !p.rest? }
+        # Validate argument count — read precomputed metadata from declaration
+        rest_param = func_declr.rest_param
+        min_args = func_declr.min_args
 
         if @arguments.size < min_args
           Utils.runtime_error(
@@ -93,7 +111,7 @@ module AlexScript
         end
 
         unless rest_param
-          max_args = func_declr.params.size
+          max_args = func_declr.max_args
           if @arguments.size > max_args
             Utils.runtime_error(
               "Funkcja #{call_name} oczekiwała maksymalnie #{max_args} argumentów, otrzymała #{@arguments.size}",
@@ -126,10 +144,10 @@ module AlexScript
         new_func_env.set_instance(current_instance) if current_instance
 
         # Assign parameters
-        rest_idx = func_declr.params.index(&:rest?)
+        rest_idx = func_declr.rest_idx
         rest_position = rest_idx || func_declr.params.size
 
-        normal_params = func_declr.params.reject(&:rest?)
+        normal_params = func_declr.normal_params
         normal_params.each_with_index do |param, idx|
           if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
             new_func_env.set_local_var(param.name, arguments[idx][1], arguments[idx][0])
@@ -153,7 +171,7 @@ module AlexScript
         begin
           result = nil
           Utils::ContextTracker.track_method_call(call_name) do
-            if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
+            if func_declr.implicit_return?
               result = interpreter.interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
             else
               interpreter.interpret!(func_declr.body_statement, new_func_env)

@@ -358,10 +358,13 @@ module AlexScript
           constructor_env = constructor[:env].new_env
           constructor_env.set_instance(instance)
 
-          params = constructor[:declaration].params
-          rest_param = params.find(&:rest?)
-          min_args = params.count { |p| !p.has_default? && !p.rest? }
-          max_args = rest_param ? Float::INFINITY : params.size
+          # precomputed param metadata (see FuncDclr#initialize)
+          decl          = constructor[:declaration]
+          rest_param    = decl.rest_param
+          min_args      = decl.min_args
+          max_args      = decl.max_args
+          rest_idx      = decl.rest_idx
+          normal_params = decl.normal_params
 
           if arguments.size < min_args
             Utils.runtime_error("Konstruktor oczekiwał minimum #{min_args} argumentów, otrzymał #{arguments.size}", @line)
@@ -374,9 +377,8 @@ module AlexScript
           end
 
           # assign params
-          rest_idx = params.index(&:rest?)
-          rest_position = rest_idx || params.size
-          normal_params = params.reject(&:rest?)
+          rest_position = rest_idx || decl.params.size
+
 
           normal_params.each_with_index do |param, idx|
             if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)
@@ -527,11 +529,12 @@ module AlexScript
         # evaluate arguments
         arguments = @arguments.map { |arg| interpreter.interpret!(arg, env) }
 
-        # validate argument count
-        params = func_declr.params
-        rest_param = params.find(&:rest?)
-        min_args = params.count { |p| !p.has_default? && !p.rest? }
-        max_args = rest_param ? Float::INFINITY : params.size
+        # validate argument count — precomputed param metadata (see FuncDclr#initialize)
+        rest_param    = func_declr.rest_param
+        min_args      = func_declr.min_args
+        max_args      = func_declr.max_args
+        rest_idx      = func_declr.rest_idx
+        normal_params = func_declr.normal_params
 
         if arguments.size < min_args
           Utils.runtime_error(
@@ -553,9 +556,8 @@ module AlexScript
         new_func_env = func_env.new_env
 
         # assign parameters
-        rest_idx = params.index(&:rest?)
-        rest_position = rest_idx || params.size
-        normal_params = params.reject(&:rest?)
+        rest_position = rest_idx || func_declr.params.size
+
 
         normal_params.each_with_index do |param, idx|
           if idx < arguments.size && (rest_idx.nil? || idx < rest_idx)

@@ -5,6 +5,7 @@ module AlexScript
     # "funkcja" <name> "(" <params>? ")" "{" <body_stmts> "}"
     class FuncDclr < Dclr
       attr_reader :name, :params, :body_statement, :line, :async, :native_lambda
+      attr_reader :rest_param, :rest_idx, :normal_params, :min_args, :max_args
 
       def initialize(name, params, body_statement, line, async: false, native_lambda: nil)
         validate_types([name], [String])
@@ -18,6 +19,13 @@ module AlexScript
         @async = async
         @native_lambda = native_lambda  # ruby proc: receives evaluated args, returns AS tuple
         @private = false
+
+        params_arr = @params || []
+        @rest_param   = params_arr.find(&:rest?)
+        @rest_idx     = @rest_param ? params_arr.index(&:rest?) : nil
+        @normal_params = @rest_param ? params_arr.reject(&:rest?) : params_arr
+        @min_args     = params_arr.count { |p| !p.has_default? && !p.rest? }
+        @max_args     = @rest_param ? Float::INFINITY : params_arr.size
       end
 
       def evaluate(_interpreter, env)
@@ -27,6 +35,13 @@ module AlexScript
 
       def set_private(is_private)
         @private = is_private
+      end
+
+      # Named functions (funkcja foo() { ... }) never use implicit-return
+      # semantics — only fn lambdas do. Returning a constant false here lets
+      # dispatch sites drop respond_to?(:implicit_return?) probes.
+      def implicit_return?
+        false
       end
 
       def private?
