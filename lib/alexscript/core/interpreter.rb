@@ -920,7 +920,18 @@ module AlexScript
       # two ever drift, async detection will silently miss cases. TODO:
       # factor out lookup when refactoring evaluate_func_call proper.
       def resolve_func_for_async_check(node, env)
-        # Instance method first (if we're in a class instance context).
+        # Fast path for the most common case (top-level functions like `fib`):
+        # try the function registry first, before any instance/variable walks.
+        # If it's not async, we return nil to skip async dispatch — the sync
+        # path will do its own resolution anyway.
+        func = env.get_func(node.name)
+        if func
+          declr = func[0]
+          return nil unless declr.async  # not async → skip async dispatch entirely
+          return { func_declr: declr, func_env: func[1], instance: nil }
+        end
+
+        # Instance method (only if we're in a class context — rare in hot loops).
         current_instance = env.get_instance
         if current_instance
           class_name = current_instance[:class_name]
@@ -935,8 +946,10 @@ module AlexScript
 
             method = class_def[:methods] && class_def[:methods][node.name]
             if method && !method[:native_lambda]
+              declr = method[:declaration]
+              return nil unless declr.async  # same: skip if not async
               return {
-                func_declr: method[:declaration],
+                func_declr: declr,
                 func_env:   method[:env],
                 instance:   current_instance
               }
@@ -946,22 +959,14 @@ module AlexScript
           end
         end
 
-        # Variable holding a function value.
+        # Variable holding a function value (rare in hot loops).
         var = env.get_var(node.name)
         if var && var[:type] == :type_function && var[:value][:declaration]
+          declr = var[:value][:declaration]
+          return nil unless declr.async  # same
           return {
-            func_declr: var[:value][:declaration],
+            func_declr: declr,
             func_env:   var[:value][:env],
-            instance:   nil
-          }
-        end
-
-        # Regular function.
-        func = env.get_func(node.name)
-        if func
-          return {
-            func_declr: func[0],
-            func_env:   func[1],
             instance:   nil
           }
         end

@@ -11,7 +11,7 @@ module AlexScript
         validate_types([left], [Expr], 'left operand')
         validate_types([right], [Expr], 'right operand')
         @op      = op
-        @op_type = op.token_type   # cache once — used millions of times at runtime
+        @op_type = op.token_type   # cache once
         @left    = left
         @right   = right
         @line    = line
@@ -21,27 +21,24 @@ module AlexScript
         left_type, left_value = interpreter.interpret!(@left, env)
         right_type, right_value = interpreter.interpret!(@right, env)
 
-        # ── FAST PATH: int+int with common operators ──────────────────────
-        # Hot in fib, sort_bubble, math_heavy, all numeric loops. Bypasses
-        # array allocation from `case [left_type, right_type]` and the long
-        # elsif chain below. Operators with mixed-type or special semantics
-        # (division, exponentiation that may convert int→float, string
-        # operations, comparisons on non-numeric types) fall through.
-        if left_type == :type_int && right_type == :type_int
-          case @op_type
-          when :tok_plus     then return [:type_int, left_value + right_value]
-          when :tok_minus    then return [:type_int, left_value - right_value]
-          when :tok_star     then return [:type_int, left_value * right_value]
-          when :tok_mod      then return [:type_int, left_value % right_value]
-          when :tok_less         then return [:type_bool, left_value <  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_lessoreq     then return [:type_bool, left_value <= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_greater      then return [:type_bool, left_value >  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_greateroreq  then return [:type_bool, left_value >= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_eq           then return [:type_bool, left_value == right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_noteq        then return [:type_bool, left_value != right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
-          when :tok_caret        then return [:type_int, left_value ^ right_value]
-          # tok_slash and tok_power fall through — int/int division may yield float
-          # (e.g. 5/2 → 2.5), and exponentiation may yield negative exponents.
+          # Hot path: int+int with common operators. Bypasses the array
+          # allocation from `case [left_type, right_type]` below — saves
+          # 2-3 tuple allocations per BinOp evaluation, which dominates GC
+          # pressure in numeric loops (fib, sort_bubble, math_heavy).
+          if left_type == :type_int && right_type == :type_int
+            case @op_type
+            when :tok_plus     then return [:type_int, left_value + right_value]
+            when :tok_minus    then return [:type_int, left_value - right_value]
+            when :tok_star     then return [:type_int, left_value * right_value]
+            when :tok_mod      then return [:type_int, left_value % right_value]
+            when :tok_smaller      then return [:type_bool, left_value <  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_smalleroreq  then return [:type_bool, left_value <= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_greater      then return [:type_bool, left_value >  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_greateroreq  then return [:type_bool, left_value >= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_eq           then return [:type_bool, left_value == right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_noteq        then return [:type_bool, left_value != right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            when :tok_caret        then return [:type_int, left_value ^ right_value]
+            # tok_slash and tok_power fall through — semantics may change result type.
           end
         end
 

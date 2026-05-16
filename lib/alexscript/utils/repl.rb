@@ -354,7 +354,7 @@ module AlexScript
           puts "    #{name} = #{formatted}#{const_marker}"
         end
 
-        funcs = @env.functions
+        funcs = @env.functions || {}
         unless funcs.empty?
           puts "  \e[1m[Funkcje]\e[0m"
           funcs.each do |name, _|
@@ -362,7 +362,7 @@ module AlexScript
           end
         end
 
-        classes = @env.classes
+        classes = @env.classes || {}
         # Filter out built-in exception classes
         user_classes = classes.reject { |name, cls| cls[:is_exception] }
         unless user_classes.empty?

@@ -14,10 +14,15 @@ module AlexScript
       def initialize(parent = nil)
         @variables = {}
         @parent = parent
-        @functions = {}
-        @classes = {}
-        @modules = {}
+        # Lazy allocation: @functions / @classes / @modules stay undefined in
+        # child envs until something actually writes to them. The root env
+        # (parent.nil?) always needs them because bootstrap_* writes directly.
+        # In fib-style workloads, 99% of envs are child envs that never touch
+        # these — saves 3 hashes per Environment.new (~30M allocations on fib(30)).
         if parent.nil?
+          @functions = {}
+          @classes = {}
+          @modules = {}
           bootstrap_exception_classes
           bootstrap_async_classes
           bootstrap_regex_classes
@@ -294,8 +299,10 @@ module AlexScript
         key = -name
         current = self
         while current
-          value = current.functions[key]
-          return value if value
+          f = current.functions
+          if f && (value = f[key])
+            return value
+          end
           current = current.parent
         end
       end
@@ -321,6 +328,7 @@ module AlexScript
         registry = Utils::StdLibRegistry.instance
         
         # import registered classes to environment
+        @classes ||= {}
         registry.get_all_classes.each do |class_name, class_def|
           @classes[class_name] = class_def
         end
@@ -359,6 +367,7 @@ module AlexScript
 
       def set_func(name, value)
         # value is an 2dms array storing both function declaration and current env where it was declared
+        @functions ||= {}
         @functions[-name] = value
       end
 
@@ -372,9 +381,18 @@ module AlexScript
       # merge env for imported files
       def merge(other_env)
         other_env.variables.each { |name, value| @variables[name] = value }
-        other_env.functions.each { |name, func| @functions[name] = func }
-        other_env.classes.each   { |name, class_def| @classes[name] = class_def }
-        other_env.modules.each   { |name, mod_def| @modules[name] = mod_def }
+        if (other_funcs = other_env.functions)
+          @functions ||= {}
+          other_funcs.each { |name, func| @functions[name] = func }
+        end
+        if (other_classes = other_env.classes)
+          @classes ||= {}
+          other_classes.each { |name, class_def| @classes[name] = class_def }
+        end
+        if (other_mods = other_env.modules)
+          @modules ||= {}
+          other_mods.each { |name, mod_def| @modules[name] = mod_def }
+        end
       end
 
       def call_method(obj_type, method_name, receiver, args = [])
