@@ -155,15 +155,13 @@ module AlexScript
           call_env.set_local_var(rest_param.name, rest_elements, :type_array)
         end
 
-        begin
-          if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
+        catch(:alex_return) do
+          if func_declr.implicit_return?
             interpreter.interpret!(func_declr.body_statement.stmts[0].expression, call_env)
           else
             interpreter.interpret!(func_declr.body_statement, call_env)
             [:type_null, Utils::NULL_VALUE]
           end
-        rescue Utils::ReturnError => e
-          e.value
         end
       end
 

@@ -168,20 +168,19 @@ module AlexScript
         # Execute body
         env.increment_call_depth(@line)
         Utils::CallStackTracker.push(:function, call_name, @current_file, @line)
-        begin
-          result = nil
-          Utils::ContextTracker.track_method_call(call_name) do
-            if func_declr.implicit_return?
-              result = interpreter.interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
-            else
-              interpreter.interpret!(func_declr.body_statement, new_func_env)
-              result = [:type_null, Utils::NULL_VALUE]
+        result = catch(:alex_return) do
+          begin
+            Utils::ContextTracker.track_method_call(call_name) do
+              if func_declr.implicit_return?
+                interpreter.interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
+              else
+                interpreter.interpret!(func_declr.body_statement, new_func_env)
+                [:type_null, Utils::NULL_VALUE]
+              end
             end
+          ensure
+            Utils::CallStackTracker.pop
           end
-        rescue Utils::ReturnError => e
-          result = e.value
-        ensure
-          Utils::CallStackTracker.pop
         end
         env.decrement_call_depth
         result

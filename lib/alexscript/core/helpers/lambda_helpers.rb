@@ -39,11 +39,9 @@ module AlexScript
           if func_declr.respond_to?(:implicit_return?) && func_declr.implicit_return?
             interpret!(func_declr.body_statement.stmts[0].expression, new_env)
           else
-            begin
+            catch(:alex_return) do
               interpret!(func_declr.body_statement, new_env)
               [:type_null, Utils::NULL_VALUE]
-            rescue Utils::ReturnError => e
-              e.value
             end
           end
         end

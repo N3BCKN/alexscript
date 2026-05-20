@@ -208,17 +208,18 @@ module AlexScript
                   new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
                 end
 
-                # execute method body
+                # execute method body — throw/catch is cheaper than raise/rescue
+                # for return-flow control (no exception object, no backtrace).
                 Utils::CallStackTracker.push(:function, node.name, @current_file, node.line)
-                begin
-                  Utils::ContextTracker.track_method_call(node.name) do
-                    interpret!(func_declr.body_statement, new_func_env)
+                result = catch(:alex_return) do
+                  begin
+                    Utils::ContextTracker.track_method_call(node.name) do
+                      interpret!(func_declr.body_statement, new_func_env)
+                    end
+                    [:type_null, Utils::NULL_VALUE]
+                  ensure
+                    Utils::CallStackTracker.pop
                   end
-                  result = [:type_null, Utils::NULL_VALUE]
-                rescue Utils::ReturnError => e
-                  result = e.value
-                ensure
-                  Utils::CallStackTracker.pop
                 end
               end
             end
@@ -328,21 +329,21 @@ module AlexScript
               new_func_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
             end
 
-            # interpret function declaration body
+            # interpret function declaration body — throw/catch for return.
             Utils::CallStackTracker.push(:function, node.name, @current_file, node.line) # for exception handler
-            begin
-              Utils::ContextTracker.track_method_call(node.name) do
-                if func_declr.implicit_return?
-                  result = interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
-                else
-                  interpret!(func_declr.body_statement, new_func_env)
-                  result = [:type_null, Utils::NULL_VALUE]
+            result = catch(:alex_return) do
+              begin
+                Utils::ContextTracker.track_method_call(node.name) do
+                  if func_declr.implicit_return?
+                    interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
+                  else
+                    interpret!(func_declr.body_statement, new_func_env)
+                    [:type_null, Utils::NULL_VALUE]
+                  end
                 end
+              ensure
+                Utils::CallStackTracker.pop
               end
-            rescue Utils::ReturnError => e
-              result = e.value
-            ensure
-              Utils::CallStackTracker.pop
             end
           end
           result
@@ -408,21 +409,24 @@ module AlexScript
             # Track context so `czekaj` inside the body gets the right tracker
             # state. Fiber[:...] isolation means this fiber's tracker state
             # is independent of other concurrent fibers.
-            result = nil
+            #
+            # throw/catch for return: the throw originates from a
+            # ReturnStatement inside this same fiber, so catch(:alex_return)
+            # here is the matching target. Ensure still runs on unwind.
             Utils::CallStackTracker.push(:function, call_name, @current_file, node.line)
-            begin
-              Utils::ContextTracker.track_method_call(call_name) do
-                if func_declr.implicit_return?
-                  result = interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
-                else
-                  interpret!(func_declr.body_statement, new_func_env)
-                  result = [:type_null, Utils::NULL_VALUE]
+            result = catch(:alex_return) do
+              begin
+                Utils::ContextTracker.track_method_call(call_name) do
+                  if func_declr.implicit_return?
+                    interpret!(func_declr.body_statement.stmts[0].expression, new_func_env)
+                  else
+                    interpret!(func_declr.body_statement, new_func_env)
+                    [:type_null, Utils::NULL_VALUE]
+                  end
                 end
+              ensure
+                Utils::CallStackTracker.pop
               end
-            rescue Utils::ReturnError => e
-              result = e.value
-            ensure
-              Utils::CallStackTracker.pop
             end
 
             promise.fulfill(result)
@@ -607,18 +611,18 @@ module AlexScript
               method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
             end
 
-            # execute static method body
+            # execute static method body — throw/catch for return.
             Utils::ContextTracker.current_class_name = object_value[:class_name]
             Utils::CallStackTracker.push(:method, node.method_name, @current_file, node.line)
-            begin
-              Utils::ContextTracker.track_method_call(node.method_name) do
-                interpret!(method_info[:declaration].body_statement, method_env)
+            result = catch(:alex_return) do
+              begin
+                Utils::ContextTracker.track_method_call(node.method_name) do
+                  interpret!(method_info[:declaration].body_statement, method_env)
+                end
+                [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
+              ensure
+                Utils::CallStackTracker.pop
               end
-              result = [:type_null, Utils::NULL_VALUE]  # by default return 'nic'
-            rescue Utils::ReturnError => e
-              result = e.value  # or specific value returned by method
-            ensure
-              Utils::CallStackTracker.pop
             end
 
             return result
@@ -769,18 +773,18 @@ module AlexScript
               method_env.set_local_var(rest_param.name, rest_array_elements, :type_array)
             end
 
-            # execute method body
+            # execute method body — throw/catch for return.
             Utils::ContextTracker.current_class_name = object_value[:class_name]
             Utils::CallStackTracker.push(:method, node.method_name, @current_file, node.line)
-            begin
-              Utils::ContextTracker.track_method_call(node.method_name) do
-                interpret!(method_info[:declaration].body_statement, method_env)
+            result = catch(:alex_return) do
+              begin
+                Utils::ContextTracker.track_method_call(node.method_name) do
+                  interpret!(method_info[:declaration].body_statement, method_env)
+                end
+                [:type_null, Utils::NULL_VALUE]
+              ensure
+                Utils::CallStackTracker.pop
               end
-              result = [:type_null, Utils::NULL_VALUE]
-            rescue Utils::ReturnError => e
-              result = e.value
-            ensure
-              Utils::CallStackTracker.pop
             end
 
             return result

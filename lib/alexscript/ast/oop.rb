@@ -281,15 +281,13 @@ module AlexScript
         end
 
         # execute method body
-        begin
+        result = catch(:alex_return) do
           Utils::ContextTracker.track_method_call(current_method_name) do
             Utils::ContextTracker.track_class_context(method_result[:class_name]) do
               interpreter.interpret!(method_info[:declaration].body_statement, method_env)
             end
           end
-          result = [:type_null, Utils::NULL_VALUE]
-        rescue Utils::ReturnError => e
-          result = e.value
+          [:type_null, Utils::NULL_VALUE]
         end
 
         result
@@ -433,16 +431,16 @@ module AlexScript
 
           # execute constructor
           Utils::CallStackTracker.push(:constructor, @class_name, interpreter.current_file, @line)
-          begin
-            Utils::ContextTracker.track_class_context(@class_name) do
-              Utils::ContextTracker.track_method_call("konstruktor") do
-                interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+          catch(:alex_return) do
+            begin
+              Utils::ContextTracker.track_class_context(@class_name) do
+                Utils::ContextTracker.track_method_call("konstruktor") do
+                  interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+                end
               end
+            ensure
+              Utils::CallStackTracker.pop
             end
-          rescue Utils::ReturnError
-            # ignore return value from constructor
-          ensure
-            Utils::CallStackTracker.pop
           end
         elsif !constructor
           # No constructor in current class — check if parent has a native constructor
@@ -807,13 +805,13 @@ module AlexScript
         # execute static method body
         Utils::ContextTracker.current_class_name = @class_name
         Utils::CallStackTracker.push(:method, @method_name, interpreter.current_file, @line)
-        begin
-          interpreter.interpret!(method_info[:declaration].body_statement, method_env)
-          result = [:type_null, Utils::NULL_VALUE]
-        rescue Utils::ReturnError => e
-          result = e.value
-        ensure
-          Utils::CallStackTracker.pop
+        result = catch(:alex_return) do
+          begin
+            interpreter.interpret!(method_info[:declaration].body_statement, method_env)
+            [:type_null, Utils::NULL_VALUE]
+          ensure
+            Utils::CallStackTracker.pop
+          end
         end
 
         result

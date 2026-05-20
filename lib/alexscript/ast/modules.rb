@@ -399,16 +399,16 @@ module AlexScript
 
           # execute constructor
           Utils::CallStackTracker.push(:constructor, class_name, interpreter.current_file, @line)
-          begin
-            Utils::ContextTracker.track_class_context(class_name) do
-              Utils::ContextTracker.track_method_call("konstruktor") do
-                interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+          catch(:alex_return) do
+            begin
+              Utils::ContextTracker.track_class_context(class_name) do
+                Utils::ContextTracker.track_method_call("konstruktor") do
+                  interpreter.interpret!(constructor[:declaration].body_statement, constructor_env)
+                end
               end
+            ensure
+              Utils::CallStackTracker.pop
             end
-          rescue Utils::ReturnError
-            # ignore
-          ensure
-            Utils::CallStackTracker.pop
           end
         end
 
@@ -579,16 +579,16 @@ module AlexScript
         # execute function
         env.increment_call_depth(@line)
         Utils::CallStackTracker.push(:function, function_name, interpreter.current_file, @line)
-        begin
-          Utils::ContextTracker.track_method_call(function_name) do
-            interpreter.interpret!(func_declr.body_statement, new_func_env)
+        result = catch(:alex_return) do
+          begin
+            Utils::ContextTracker.track_method_call(function_name) do
+              interpreter.interpret!(func_declr.body_statement, new_func_env)
+            end
+            [:type_null, Utils::NULL_VALUE]
+          ensure
+            Utils::CallStackTracker.pop
+            env.decrement_call_depth
           end
-          result = [:type_null, Utils::NULL_VALUE]
-        rescue Utils::ReturnError => e
-          result = e.value
-        ensure
-          Utils::CallStackTracker.pop
-          env.decrement_call_depth
         end
 
         result

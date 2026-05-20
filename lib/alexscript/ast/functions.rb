@@ -160,7 +160,11 @@ module AlexScript
       end
 
       def evaluate(interpreter, env)
-        raise Utils::ReturnError.new(interpreter.interpret!(@value, env))
+        # throw/catch is cheaper than raise/rescue for control flow: no
+        # exception object, no backtrace allocation — just a stack unwind to
+        # the matching catch(:alex_return) at the call site. Ensure blocks
+        # along the way still run.
+        throw :alex_return, interpreter.interpret!(@value, env)
       end
 
       def pretty_print(level = 0)
@@ -216,13 +220,11 @@ module AlexScript
         end
 
         # execute method body
-        begin
+        catch(:alex_return) do
           Utils::ContextTracker.track_method_call(@method_name) do
             interpreter.interpret!(method_def[:declaration].body, method_env)
           end
           [:type_null, Utils::NULL_VALUE]  # default return value
-        rescue Utils::ReturnError => e
-          e.value
         end
       end
 
