@@ -88,6 +88,12 @@ RSpec.describe 'Cli', type: :aruba do
       expect(last_command_started).to have_output(/Zmienna CONSTANT jest stala i nie moze byc zmieniana/)
       expect(last_command_started.exit_status).not_to eq(0)
     end
+
+    it 'returns proper type of constant variable' do
+      code = 'niech CONSTANT = 100 pokazl CONSTANT.typ()'
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('calkowita')
+    end 
   end
 
   describe 'Variable modification' do
