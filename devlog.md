@@ -133,3 +133,7 @@ first fully working version with basic structures:
 * Return flow control has been rewritten from exceptions to throw/catch. The function return statement no longer allocates an exception object or builds a full stack trace on each call—instead, it uses Ruby's lightweight throw/catch mechanism. The result: recursion is ~3× faster (fib from 6.2s to 2.1s), and function and method calls are 25-35%.
 * Lazy environment allocation and fast-path arithmetic. Runtimes only create the structures they actually use (instead of four hash tables on each call), and integer operations bypass expensive type checking. Overall, ~45% less memory allocation on a typical recursive workload.
 * Function metadata is precompiled and unnecessary lookups are eliminated. Parameter information (count, default parameters, *rest) is counted once per parse, not per call; Double function resolution on the async path has also been removed. Loops, inheritance, and static methods have gained an additional 15-25%.
+
+### 0.9.26
+* new key types for objects (integer, variable, null)
+* fix bug that blocked from checking type of constant variables
