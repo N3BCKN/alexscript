@@ -12,17 +12,18 @@ module AlexScript
           
           register_method('na_tablice', lambda { |obj|
             pairs = obj.map do |k, v_typed|
-              inner = [
-                { type: :type_string, value: k.to_s },
-                v_typed
-              ]
-              { type: :type_array, value: inner }
+              k_type, k_value = Utils.object_key_typed(k)
+              { type: :type_array, value: [{ type: k_type, value: k_value }, v_typed] }
             end
             [:type_array, pairs]
           })
 
           register_method('klucze', lambda { |obj|
-            alex_string_array(obj.keys)
+            keys = obj.keys.map do |k|
+              k_type, k_value = Utils.object_key_typed(k)
+              { type: k_type, value: k_value }
+            end
+            [:type_array, keys]
           })
 
           register_method('pusty', lambda { |obj|
@@ -30,8 +31,10 @@ module AlexScript
           })
 
           register_method('ma_klucz', lambda { |obj, key|
-            [:type_bool, obj.has_key?(key) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
+            rk = Utils.object_key_for_lookup(key)
+            [:type_bool, obj.has_key?(rk) ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
           })
+
           register_method('ma_wartosc', lambda { |obj, val|
             vals = obj.map { |key, array| array[:value] }
 
@@ -39,7 +42,7 @@ module AlexScript
           })
 
           register_method('usun', lambda { |obj, key|
-            obj.delete(key)
+            obj.delete(Utils.object_key_for_lookup(key))
           })
         end
       end

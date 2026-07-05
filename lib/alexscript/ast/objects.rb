@@ -82,14 +82,16 @@ module AlexScript
       attr_reader :pairs, :line
 
       def initialize(pairs, line)
-        validate_types([pairs], [Hash], 'object')
+        validate_types([pairs], [Array], 'object')
         @pairs = pairs
         @line = line
       end
 
       def evaluate(interpreter, env)
         pairs = {}
-        @pairs.each do |key, value_expr|
+        @pairs.each do |key_expr, value_expr|
+          _key_type, key_value = interpreter.interpret!(key_expr, env)
+          key = Utils.object_key(key_value, @line)
           value_type, value = interpreter.interpret!(value_expr, env)
           pairs[key] = { type: value_type, value: value }
         end
@@ -98,7 +100,7 @@ module AlexScript
 
       def pretty_print(level = 0)
         pairs_str = @pairs.map do |k, v|
-          "#{indent(level + 1)}#{k}: #{v.pretty_print(level + 1)}"
+          "#{indent(level + 1)}#{k.pretty_print(0)}: #{v.pretty_print(level + 1)}"
         end.join("\n")
 
         [
@@ -144,8 +146,8 @@ module AlexScript
           element = object_var[:value][key_value]
           [element[:type], element[:value]]
         when :type_object
-          Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow', @line) unless key_type == :type_string
-          value = object_var[:value][key_value]
+          key = Utils.object_key(key_value, @line)
+          value = object_var[:value][key]
           if value
             [value[:type], value[:value]]
           else
@@ -207,8 +209,8 @@ module AlexScript
 
           object_var[:value][key_value] = { type: value_type, value: value }
         when :type_object
-          Utils.runtime_error('Klucz obiektu musi byc ciagiem znakow', @line) unless key_type == :type_string
-          object_var[:value][key_value] = { type: value_type, value: value }
+          key = Utils.object_key(key_value, @line)
+          object_var[:value][key] = { type: value_type, value: value }
         when :type_string
           Utils.runtime_error('Napisy sa niemutowalne — nie mozna przypisac znaku przez indeks', @line)
         else

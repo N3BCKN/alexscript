@@ -26,13 +26,12 @@ module AlexScript
             end
             true
           when [:type_object, :type_object]
-            return false if left_value.keys.sort != right_value.keys.sort
-            
+            return false unless left_value.size == right_value.size
             left_value.each do |key, left_val|
-            return false unless right_value.key?(key)
-            right_val = right_value[key]
-            return false unless deep_equal?(left_val[:type], left_val[:value],
-                            right_val[:type], right_val[:value])
+              return false unless right_value.key?(key)
+              right_val = right_value[key]
+              return false unless deep_equal?(left_val[:type], left_val[:value],
+                              right_val[:type], right_val[:value])
             end
             true
           when [:type_instance, :type_instance]

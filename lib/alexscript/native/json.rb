@@ -174,7 +174,7 @@ module AlexScript
           v.map { |elem| convert_to_ruby_inner(elem) }
         when :type_object
           result = {}
-          v.each { |k, inner| result[k.to_s] = convert_to_ruby_inner(inner) }
+          v.each { |k, inner| result[Utils.object_key_typed(k)[1].to_s] = convert_to_ruby_inner(inner) }
           result
         when :type_instance
           v[:__native__] ? v[:__native__].to_s : v.to_s

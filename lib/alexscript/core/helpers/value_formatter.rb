@@ -69,8 +69,8 @@ module AlexScript
         end
 
         def format_object_value(object)
-          if is_exception_object?(object) 
-              return format_exception_object(object) # TODO: this might help to format any huge dump env in the future
+          if is_exception_object?(object)
+              return format_exception_object(object)
           end
 
           pairs = object.map do |key, value|
@@ -80,8 +80,10 @@ module AlexScript
                                 [:type_string, value]
                               end
 
+            k_type, k_value = Utils.object_key_typed(key)
+            formatted_key = format_value(k_type, k_value)
             formatted = format_value(formatted_value[0], formatted_value[1])
-            "#{key}: #{formatted}"
+            "#{formatted_key}: #{formatted}"
           end
           "{#{pairs.join(', ')}}"
         end

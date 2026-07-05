@@ -199,15 +199,14 @@ module AlexScript
         end
 
         if match(:tok_lcurly)
-          pairs = {}
-
+          pairs = []                   
+           
           unless next?(:tok_rcurly)
             loop do
-              key = expect(:tok_string)
+              key_expr = expression       
               expect(:tok_colon)
-              value = expression
-              pairs[key.lexeme] = value
-
+              value_expr = expression
+              pairs << [key_expr, value_expr]
               break unless match(:tok_comma)
             end
           end

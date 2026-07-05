@@ -174,7 +174,7 @@ module AlexScript
         SILENT_NODES.any? { |klass| node.is_a?(klass) }
       end
 
-      # ── Value formatting ─────────────────────────────────────────────
+      # Value formatting -------------
 
       def format_repl_value(type, value)
         case type
@@ -249,14 +249,16 @@ module AlexScript
       end
 
       def format_repl_pair(key, val)
+        k_type, k_value = Utils.object_key_typed(key)
+        formatted_key = format_repl_value(k_type, k_value)
         if val.is_a?(Hash) && val[:type]
-          "\"#{key}\": #{format_repl_value(val[:type], val[:value])}"
+          "#{formatted_key}: #{format_repl_value(val[:type], val[:value])}"
         else
-          "\"#{key}\": #{val.inspect}"
+          "#{formatted_key}: #{val.inspect}"
         end
       end
 
-      # ── Prompt ─────────────────────────────────────────────────────────
+      # Prompt  -------------
 
       def main_prompt
         @line_no += 1
@@ -267,7 +269,7 @@ module AlexScript
         "#{' ' * 3}..  "
       end
 
-      # ── Multiline input ────────────────────────────────────────────────
+      # Multiline input -------------
 
       def read_multiline_input
         input_lines = []
@@ -314,7 +316,7 @@ module AlexScript
         input_lines.join("\n")
       end
 
-      # ── Help ─────────────────────────────────────────────────────────
+      #  Help ------------- 
 
       def display_help
         puts <<~HELP
@@ -337,8 +339,7 @@ module AlexScript
         HELP
       end
 
-      # ── Environment display ────────────────────────────────────────────
-
+      # Environment display -------------
       def display_environment
         vars = @env.variables
         if vars.empty?
