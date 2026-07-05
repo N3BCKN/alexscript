@@ -685,6 +685,13 @@ module AlexScript
               Utils.runtime_error("Nieznana metoda '#{@method_name}' dla modułu #{@class_name}", @line)
             end
           end
+
+          # fallback: uppercase name that is neither a class nor a module
+          # for constant variables eg niech STALA = 3.14
+          if env.get_var(@class_name)
+            synthetic = AST::MethodCall.new(AST::Identifier.new(@class_name, @line), @method_name, @arguments, @line)
+            return interpreter.interpret!(synthetic, env)
+          end
         end
 
         Utils.runtime_error("Nieznana klasa #{@class_name}", @line) unless class_def
