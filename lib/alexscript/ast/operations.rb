@@ -27,10 +27,10 @@ module AlexScript
           # pressure in numeric loops (fib, sort_bubble, math_heavy).
           if left_type == :type_int && right_type == :type_int
             case @op_type
-            when :tok_plus     then return [:type_int, left_value + right_value]
-            when :tok_minus    then return [:type_int, left_value - right_value]
-            when :tok_star     then return [:type_int, left_value * right_value]
-            when :tok_mod      then return [:type_int, left_value % right_value]
+            when :tok_plus         then return [:type_int, left_value + right_value]
+            when :tok_minus        then return [:type_int, left_value - right_value]
+            when :tok_star         then return [:type_int, left_value * right_value]
+            when :tok_mod          then return [:type_int, left_value % right_value]
             when :tok_smaller      then return [:type_bool, left_value <  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
             when :tok_smalleroreq  then return [:type_bool, left_value <= right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
             when :tok_greater      then return [:type_bool, left_value >  right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
@@ -38,7 +38,13 @@ module AlexScript
             when :tok_eq           then return [:type_bool, left_value == right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
             when :tok_noteq        then return [:type_bool, left_value != right_value ? Utils::BOOL_TRUE : Utils::BOOL_FALSE]
             when :tok_caret        then return [:type_int, left_value ^ right_value]
-            # tok_slash and tok_power fall through — semantics may change result type.
+            when :tok_slash
+              Utils.runtime_error('Dzielenie przez zero', @op.line) if right_value == 0
+              return [:type_float, left_value.fdiv(right_value)]
+            when :tok_intdiv
+              Utils.runtime_error('Dzielenie przez zero', @op.line) if right_value == 0
+              return [:type_int, left_value / right_value]
+            # tok_power falls through — int ** negative int changes result type.
           end
         end
 
@@ -102,12 +108,24 @@ module AlexScript
           Utils.runtime_error('Dzielenie przez zero', @op.line) if right_value == 0
 
           case [left_type, right_type]
-          when %i[type_int type_int]
-            # If both are integers but result has decimal part, convert to float
-            result = left_value.to_f / right_value.to_f
-            result == result.to_i ? [:type_int, result.to_i] : [:type_float, result]
-          when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+          when %i[type_int type_int], %i[type_int type_float],
+               %i[type_float type_int], %i[type_float type_float]
+            # '/' is always float division. The result type is a function of the
+            # operand types only, never of their values. Integer division is '//'.
             [:type_float, left_value.to_f / right_value.to_f]
+          else
+            interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
+          end
+        elsif @op_type == :tok_intdiv # integer division //
+          Utils.runtime_error('Dzielenie przez zero', @op.line) if right_value == 0
+
+          case [left_type, right_type]
+          when %i[type_int type_int]
+            # Floored, like Ruby: -7 // 2 == -4. Pairs with '%', which also
+            # floors, so (a // b) * b + (a % b) == a holds.
+            [:type_int, left_value / right_value]
+          when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
+            [:type_float, (left_value.to_f / right_value.to_f).floor.to_f]
           else
             interpreter.runtime_error(left_type, left_value, right_type, right_value, self)
           end
@@ -123,8 +141,14 @@ module AlexScript
         elsif @op_type == :tok_power # exponentiation **
           case [left_type, right_type]
           when %i[type_int type_int]
-            result = left_value**right_value
-            result == result.to_i ? [:type_int, result.to_i] : [:type_float, result.to_f]
+            # int ** non-negative int stays int; a negative exponent yields
+            # float (2 ** -1 == 0.5), as in Python. The result type depends on
+            # the sign of the exponent, never on the magnitude of the result.
+            if right_value >= 0
+              [:type_int, left_value**right_value]
+            else
+              [:type_float, left_value.to_f**right_value]
+            end
           when %i[type_int type_float], %i[type_float type_int], %i[type_float type_float]
             [:type_float, left_value.to_f**right_value.to_f]
           else

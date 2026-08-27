@@ -356,6 +356,8 @@ module AlexScript
       def handle_slash(char)
         if next_match('*')
           handle_multi_line_comment
+        elsif next_match('/')
+          add_token(:tok_intdiv)
         elsif next_match('=')
           add_token(:tok_slasheq)
         else

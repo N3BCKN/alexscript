@@ -144,7 +144,7 @@ RSpec.describe 'Arithmetic Operations', type: :aruba do
     it 'performs division correctly' do
       code = 'niech x = 6 / 2 pokazl x'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('3')
+      expect(last_command_started.output.strip).to eq('3.0')
     end
 
     it 'performs division with automatic float conversion' do
@@ -208,7 +208,7 @@ RSpec.describe 'Arithmetic Operations', type: :aruba do
     it 'handles complex calculations correctly' do
       code = 'niech x = (5 + 3) * 2 - 4 / 2 pokazl x'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('14')
+      expect(last_command_started.output.strip).to eq('14.0')
     end
   end
 

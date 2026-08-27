@@ -206,7 +206,7 @@ RSpec.describe 'Advanced Variable Operations', type: :aruba do
         pokazl x / y
       '
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq('5')
+      expect(last_command_started.output.strip).to eq('5.0')
     end
 
     it 'raises error on invalid type conversions' do

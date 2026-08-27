@@ -433,7 +433,7 @@ RSpec.describe 'Anonymous Functions (fn)', type: :aruba do
       pokazl bezpieczny_podziel(10, 2)
       pokazl bezpieczny_podziel(10, 0)'
       run_command_and_stop "ruby #{main_file_path} '#{code}'"
-      expect(last_command_started.output.strip).to eq("5\n-1")
+      expect(last_command_started.output.strip).to eq("5.0\n-1")
     end
   end
 
