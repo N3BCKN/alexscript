@@ -573,27 +573,21 @@ module AlexScript
         expr
       end
 
-      # <modulo> ::= <exponent> ("%" <exponent>)*
-      def modulo
+      # <multiplication> ::= <exponent> ( ('*' | '/' | '//' | '%') <exponent> )*
+      # Handles multiplication and division with proper precedence
+      #
+      # '*', '/', '//' and '%' share one precedence level and associate left to
+      # right, as in Ruby, Python, JS and C. Before 0.9.27 '%' had its own,
+      # tighter level, so `2 * 6 % 4` parsed as `2 * (6 % 4)` => 4 instead of
+      # `(2 * 6) % 4` => 0. Fixing this is a breaking change for any expression
+      # that mixed '%' with '*' or '/' without parentheses.
+      def multiplication
         expr = exponent
 
-        while match(:tok_mod)
+        while match(:tok_star) || match(:tok_slash) ||
+              match(:tok_intdiv) || match(:tok_mod)
           op = previous_token
           right = exponent
-          expr = AST::BinOp.new(op, expr, right, op.line)
-        end
-
-        expr
-      end
-
-      # <multiplication> ::= <modulo> ( ('*'|'/') <modulo> )*
-      # Handles multiplication and division with proper precedence
-      def multiplication
-        expr = modulo
-
-        while match(:tok_star) || match(:tok_slash)
-          op = previous_token
-          right = modulo
           expr = AST::BinOp.new(op, expr, right, op.line)
         end
 
