@@ -41,7 +41,7 @@ require_relative '../lib/alexscript/async/async'
 
 
 module AlexScript
-  VERSION = '0.9.26'
+  VERSION = '0.10.26'
 
   #load standard libraries
   Native.setup!
