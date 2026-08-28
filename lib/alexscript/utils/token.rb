@@ -22,7 +22,7 @@ module AlexScript
     # Single source of truth for Polish keyword lexemes and their tokens.
     # Used by Lexer (lexeme -> token) and Parser (token -> lexeme, for error messages).
     # Frozen: allocated once at load time, shared across all Lexer/Parser instances.
-    KEYWORDS = {
+    BASE_KEYWORDS = {
       'niech' => :tok_let,
       'globalna' => :tok_global,
       'jesli' => :tok_if,
@@ -66,6 +66,41 @@ module AlexScript
       'czekaj' => :tok_await,
       'istnieje' => :tok_exists
     }.freeze
+
+    # Diacritic spellings of the keywords that have them. Both forms produce
+    # the SAME token, so nothing downstream — parser, AST, debugger, error
+    # messages — can tell them apart.
+    #
+    # Purely additive: diacritics were a lexing error before phase 2, so no
+    # existing program can contain these words outside strings and comments.
+    #
+    # ASCII stays canonical in the documentation and examples; these are a
+    # convenience, not a migration.
+    KEYWORD_ALIASES = {
+      'jeśli'     => 'jesli',
+      'albojeśli' => 'albojesli',
+      'fałsz'     => 'falsz',
+      'dopóki'    => 'dopoki',
+      'pętla'     => 'petla',
+      'zakończ'   => 'zakoncz',
+      'następny'  => 'nastepny',
+      'pokaż'     => 'pokaz',
+      'pokażl'    => 'pokazl',
+      'zwróć'     => 'zwroc',
+      'wyjście'   => 'wyjscie',
+      'próba'     => 'proba',
+      'złap'      => 'zlap',
+      'wkońcu'    => 'wkoncu',
+      'rzuć'      => 'rzuc',
+      'moduł'     => 'modul',
+      'dołącz'    => 'dolacz'
+    }.freeze
+
+    # fetch, not [], so a typo on the right-hand side fails at load time
+    # instead of silently mapping an alias to nil.
+    KEYWORDS = BASE_KEYWORDS.merge(
+      KEYWORD_ALIASES.transform_values { |canonical| BASE_KEYWORDS.fetch(canonical) }
+    ).freeze
 
     # Tokens that are keywords in expression position but valid as names
     # (method names, function/class names, module member names, etc.).
