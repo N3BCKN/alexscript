@@ -146,3 +146,11 @@ first fully working version with basic structures:
 - fix `.dodaj()` and `.wstaw()` raising `BladTypu` for `prawda`, `falsz` and `nic`. Built-in methods received unwrapped values and had to re-derive the AlexScript type from the Ruby one, which cannot work for the three primitive singletons — they share a single class. Both methods are now registered as typed and receive the type tag alongside the value, so nothing is guessed. The `<<` operator was never affected, since it kept the type from the interpreter.
 - Polish letters are now legal in identifiers, and keywords accept diacritic spellings. `niech imię = "Anna"`, `funkcja gęstość()` and `@nazwisko_użytkownika` all lex; `jeśli`, `zwróć`, `fałsz`, `dopóki`, `moduł`, `dołącz` and twelve more resolve to exactly the same tokens as their ASCII forms, so both spellings can be mixed freely in one file. ASCII stays canonical in the documentation — the aliases are a convenience, not a migration. Purely additive: diacritics were a lexing error before, so no existing program can be affected.
 - the lexer scans bytes instead of characters. `String#[]` falls back to a linear scan as soon as a source file contains a single non-ASCII byte, which made tokenization quadratic for any file with Polish text in a string or a comment. 40k lines with one Polish character in a comment: 29.2s → 0.018s. Pure-ASCII files got 3-6× faster as a side effect, since the per-character String allocation is gone. Comment scanning switched from `index` to `byteindex`, which also fixes line numbers reported after non-ASCII text.
+
+
+### 0.10.27
+
+- migrate to ruby 4.0.6, and declare `ruby '~> 4.0'` in the Gemfile so a build on an older Ruby fails loudly instead of silently succeeding. The Docker image was still being built on 3.4.7, three minor versions behind what the README and the Homebrew formula assumed.
+- fix `require 'readline'` in the REPL. Ruby 4.0 no longer resolves it under `bundle exec`, so `alexscript --version` crashed inside the container while working fine when run directly. Replaced with `reline`, which ships with Ruby and is what IRB uses.
+- fix `redline` in the Gemfile — a typo for `reline`, pulling in an unrelated gem that was never used.
+- move `byebug` and `rubocop` to the development group;
