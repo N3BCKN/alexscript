@@ -23,7 +23,9 @@ niech anna = Osoba.nowy("Anna", 30)
 anna.przedstaw_sie()    # Cześć, jestem Anna i mam 30 lat.
 ```
 
-If you've used Ruby, Python, or JavaScript, the semantics will feel immediately familiar, only vocabulary changes. `klasa` is `class`, `funkcja` is `function`, `niech` is `let`, `jesli` is `if`. Full list list of keyword is small enough to learn in an afternoon, and the language design favors the same patterns you already know.
+If you've used Ruby, Python, or JavaScript, the semantics will feel immediately familiar, only vocabulary changes. `klasa` is `class`, `funkcja` is `function`, `niech` is `let`, `jesli` is `if`. Full list list of keywords is small enough to learn in an afternoon, and the language design favors the same patterns you already know.
+
+Keywords come in two interchangeable spellings — plain ASCII (`jesli`, `zwroc`) and the properly accented Polish one (`jeśli`, `zwróć`) — and identifiers may contain Polish letters, so `niech imię = "Anna"` is valid code.
 
 ---
 
@@ -158,6 +160,45 @@ niech profil = {             # obiekt (object/hash)
 ```
 
 Variables are declared with `niech`. Constants are written in `UPPER_CASE` and cannot be reassigned. The language is dynamically typed but strongly typed at runtime — `"abc" - 5` raises `BladTypu`, not silent coercion.
+
+Identifiers may use the full Polish alphabet: `niech gęstość_wody = 1000` and `@nazwisko_użytkownika` are both valid. Only the 18 Polish letters are accepted beyond ASCII — Cyrillic, emoji and other scripts remain a lexing error, so typos in encoding fail loudly rather than silently creating a new variable.
+
+
+### Diacritics
+
+Polish orthography and ASCII are both first-class. Every keyword that has a diacritic form accepts either spelling, and both produce the identical token — the parser, the error messages and the debugger cannot tell them apart, so you can mix them freely within a single file.
+
+| ASCII      | Accented    | ASCII       | Accented     |
+| ---------- | ----------- | ----------- | ------------ |
+| `jesli`    | `jeśli`     | `zwroc`     | `zwróć`      |
+| `albojesli`| `albojeśli` | `wyjscie`   | `wyjście`    |
+| `falsz`    | `fałsz`     | `proba`     | `próba`      |
+| `dopoki`   | `dopóki`    | `zlap`      | `złap`       |
+| `petla`    | `pętla`     | `wkoncu`    | `wkońcu`     |
+| `zakoncz`  | `zakończ`   | `rzuc`      | `rzuć`       |
+| `nastepny` | `następny`  | `modul`     | `moduł`      |
+| `pokaz`    | `pokaż`     | `dolacz`    | `dołącz`     |
+| `pokazl`   | `pokażl`    |             |              |
+
+```ruby
+klasa Zwierzę {
+  funkcja konstruktor(imię) {
+  	niech @imię = imię
+  }
+
+  funkcja przedstaw_się() {
+  	jeśli @imię == nic {
+    	zwróć "brak imienia"
+    }
+    	zwróć "Jestem #{@imię}"
+  }
+}
+
+pokażl Zwierzę.nowy("Mruczek").przedstaw_się()
+```
+
+
+ASCII remains the canonical spelling in this README, the documentation and the examples, for one practical reason: it types cleanly on any keyboard layout, including a US one without a Polish input method. The accented forms exist so that nobody writing Polish has to think about which of the two the language wants. Source files must be saved as UTF-8 in NFC; a file in NFD is rejected with an explicit message rather than a confusing syntax error.
 
 ### Control flow
 
@@ -451,7 +492,7 @@ AlexScript is **production-ready for hobby and educational use**. The language s
 - **Pipeline operator** — natural function-composition syntax
 - **Optional actor-model concurrency** — beyond the current cooperative scheduler
 
-The current focus is performance work — string concatenation has been identified as the primary bottleneck, and a native-method dispatch fast path is in design.
+The current focus is performance work. The lexer was recently rewritten to scan bytes instead of characters, which removed quadratic tokenization on any file containing non-ASCII text; string concatenation is the next identified bottleneck, and a native-method dispatch fast path is in design.
 
 ---
 
