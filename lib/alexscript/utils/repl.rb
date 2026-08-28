@@ -121,6 +121,19 @@ module AlexScript
         # Don't display for explicitly silent statements (print, loops, etc.)
         return if silent_node?(node)
 
+
+        # Multiple declaration/assignment: mirror Ruby and show the bound values
+        # as an array. Values are read back from env, so nothing is allocated on
+        # the normal (non-REPL) execution path.
+        if node.is_a?(AST::MultipleVariableDeclaration) || node.is_a?(AST::MultipleAssignment)
+          bound = node.left.map do |target|
+            var = @env.get_var(target.name)
+            var ? { type: var[:type], value: var[:value] } : { type: :type_null, value: NULL_VALUE }
+          end
+          update_last_and_display(:type_array, bound)
+          return
+        end
+
         # For variable declarations (niech x = 5), the interpreter returns
         # a hash from set_local_var, not a [type, value] pair.
         # Extract the declared value from env to display it.

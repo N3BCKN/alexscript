@@ -43,22 +43,29 @@ module AlexScript
         
         def initialize
           @methods = {}
+          # Names registered via register_typed_method. Must exist before
+          # register_methods runs.
+          @typed_methods = Set.new
           register_methods
-          
 
-          # register this method only when object doesn't have it already
           unless @methods.key?('metody')
             register_method('metody', lambda { |obj|
               alex_string_array(@methods.keys.sort)
             })
           end
-          
-          # freeze methods hash to prevent modification
+
           @methods.freeze
+          @typed_methods.freeze
         end
 
         def get_method(name)
           @methods[name]
+        end
+
+        # True when this method wants { type:, value: } pairs instead of bare
+        # Ruby values. Frozen Set — O(1), no allocation.
+        def typed_method?(name)
+          @typed_methods.include?(name)
         end
 
         def alex_string_array(ruby_array)
@@ -72,6 +79,7 @@ module AlexScript
             value_type = case value
                         when Integer then :type_int
                         when String then :type_string
+                        when Utils::PrimitiveValue then (value.bool? ? :type_bool : :type_null)
                         when TrueClass, FalseClass then :type_bool
                         when NilClass then :type_null
                         else :type_object
@@ -87,11 +95,25 @@ module AlexScript
           @methods[name] = method
         end
 
+
+        # Registers a method whose behaviour depends on the AlexScript type of
+        # its arguments, not just on their Ruby representation. The interpreter
+        # hands such methods { type:, value: } hashes, so they never re-derive a
+        # type that was already known. Use this for anything that stores an
+        # argument into a container.
+        def register_typed_method(name, method)
+          @typed_methods << name
+          @methods[name] = method
+        end
+
         def get_element_type(value)
           case value
           when Integer then :type_int
-          when Float then :type_float
-          when String then :type_string
+          when Float   then :type_float
+          when String  then :type_string
+          when Utils::PrimitiveValue
+            # prawda / falsz / nic — frozen singletons, NOT Ruby true/false/nil
+            value.bool? ? :type_bool : :type_null
           when TrueClass, FalseClass then :type_bool
           when NilClass then :type_null
           when Array then :type_array
@@ -102,6 +124,8 @@ module AlexScript
               :type_function
             elsif value.key?(:methods) && value.key?(:static_methods)
               :type_class
+            elsif value.key?(:functions) && value.key?(:nested_modules)
+              :type_module
             else
               :type_object
             end

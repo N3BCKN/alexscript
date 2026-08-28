@@ -111,6 +111,26 @@ RSpec.describe 'Array Operations', type: :aruba do
       expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, 4]')
     end
 
+    it 'adds prawda with a dodaj() method' do
+      code = '
+        niech arr = [1, 2, 3]
+        arr.dodaj(prawda)
+        pokazl arr
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, prawda]')
+    end
+
+    it 'adds nic with a dodaj() method' do
+      code = '
+        niech arr = [1, 2, 3]
+        arr.dodaj(nic)
+        pokazl arr
+      '
+      run_command_and_stop "ruby #{main_file_path} '#{code}'"
+      expect(last_command_started.output.strip.gsub(/[\\"]/, '')).to eq('[1, 2, 3, nic]')
+    end
+
     it 'adds element using << operator' do
       code = '
         niech arr = [1, 2]

@@ -76,6 +76,11 @@ module AlexScript
             module_def[:functions][stmt.name] = [stmt, module_env]
             # save function in module_env
             module_env.set_func(stmt.name, [stmt, module_env])
+          elsif stmt.is_a?(AST::MultipleVariableDeclaration)
+            Utils.runtime_error(
+              'Przypisanie wielokrotne nie jest obslugiwane w ciele modulu, zadeklaruj kazda stala osobno',
+              stmt.line
+            )
           end
         end
 

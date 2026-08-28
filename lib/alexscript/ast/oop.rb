@@ -108,6 +108,14 @@ module AlexScript
             class_def[:static_vars][stmt.left.name] = { type: value_type, value: value_value }
             in_static_section = false  # reset flag
           end
+
+          # reject multiple static variables declaration attempts 
+          if stmt.is_a?(AST::MultipleVariableDeclaration) && in_static_section
+            Utils.runtime_error(
+              'Przypisanie wielokrotne nie jest obslugiwane dla zmiennych statycznych, zadeklaruj kazda osobno',
+              stmt.line
+            )
+          end
         end
 
         class_def[:class_env] = class_env

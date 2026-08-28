@@ -338,6 +338,143 @@ module AlexScript
       def pretty_print(level = 0)
         "#{indent(level)}ExistsCheck(#{@name})"
       end
-end
+    end
+
+    # Shared by MultipleVariableDeclaration and MultipleAssignment.
+    #
+    # The entire right-hand side is evaluated into a flat list of [type, value]
+    # pairs BEFORE anything is bound. That ordering is what makes `a, b = b, a`
+    # a working swap, and it matches Ruby.
+    module MultipleTargetSupport
+      def evaluate_rhs(interpreter, env, targets_count)
+        values =
+          if @right.size == 1
+            # niech a, b = [1, 2]  — a single expression yielding an array is
+            # destructured across the targets, as in Ruby.
+            type, value = interpreter.interpret!(@right[0], env)
+            unless type == :type_array
+              Utils.runtime_error(
+                "Przypisanie wielokrotne: po prawej stronie oczekiwano tablicy " \
+                "lub #{targets_count} wartosci oddzielonych przecinkiem",
+                @line
+              )
+            end
+            value.map { |element| [element[:type], element[:value]] }
+          else
+            @right.map { |expr| interpreter.interpret!(expr, env) }
+          end
+
+        # Strict arity. Ruby pads the shorter side with nil; AlexScript refuses,
+        # for the same reason it refuses a wrong argument count on a function
+        # call. To get Ruby's behaviour instead, replace this guard with padding
+        # by [:type_null, Utils::NULL_VALUE] / truncation.
+        if values.size != targets_count
+          Utils.runtime_error(
+            "Przypisanie wielokrotne: #{targets_count} zmiennych po lewej stronie, " \
+            "#{values.size} wartosci po prawej",
+            @line
+          )
+        end
+
+        values
+      end
+    end
+
+    # niech a, b = 1, 2      /  niech a, b = [1, 2]
+    # globalna niech a, b = 1, 2   (global: true)
+    class MultipleVariableDeclaration < Stmt
+      include MultipleTargetSupport
+
+      attr_reader :left, :right, :line, :global
+
+      def initialize(left, right, line, global: false)
+        validate_types(left, [Identifier], 'left')
+        validate_types(right, [Expr], 'right')
+        @left = left
+        @right = right
+        @line = line
+        @global = global
+        # Constant-ness follows from the name and never changes — decide once,
+        # at parse time, instead of running a regex per binding per execution.
+        @constants = left.map { |ident| ident.name.match?(/^[A-Z_]+$/) }
+      end
+
+      def evaluate(interpreter, env)
+        n = @left.size
+        values = evaluate_rhs(interpreter, env, n)
+        target_env = @global ? env.get_global_env : env
+
+        i = 0
+        while i < n
+          type, value = values[i]
+          target_env.set_local_var(@left[i].name, value, type, @constants[i])
+          i += 1
+        end
+
+        nil
+      end
+
+      def pretty_print(level = 0)
+        [
+          "#{indent(level)}#{@global ? 'Global' : ''}MultipleVariableDeclaration(",
+          "#{indent(level + 1)}targets: #{@left.map(&:name).join(', ')}",
+          @right.map { |expr| expr.pretty_print(level + 1) },
+          "#{indent(level)})"
+        ].flatten.join("\n")
+      end
+    end
+
+    # a, b = 1, 2  — reassignment; every target must already exist.
+    class MultipleAssignment < Stmt
+      include MultipleTargetSupport
+
+      attr_reader :left, :right, :line
+
+      def initialize(left, right, line)
+        validate_types(left, [Identifier], 'left')
+        validate_types(right, [Expr], 'right')
+        @left = left
+        @right = right
+        @line = line
+      end
+
+      def evaluate(interpreter, env)
+        n = @left.size
+
+        # Validate every target up front. A failure discovered halfway through
+        # the binding loop would leave the assignment partially applied.
+        i = 0
+        while i < n
+          name = @left[i].name
+          var = env.get_var(name)
+          if var.nil?
+            Utils.runtime_error("Zmienna #{name} musi byc zadeklarowana z 'niech' przed przypisaniem", @line)
+          elsif var[:constant]
+            Utils.runtime_error("Zmienna #{name} jest stala i nie moze byc zmieniana", @line)
+          end
+          i += 1
+        end
+
+        values = evaluate_rhs(interpreter, env, n)
+
+        i = 0
+        while i < n
+          type, value = values[i]
+          env.set_var(@left[i].name, value, type)
+          i += 1
+        end
+
+        nil
+      end
+
+      def pretty_print(level = 0)
+        [
+          "#{indent(level)}MultipleAssignment(",
+          "#{indent(level + 1)}targets: #{@left.map(&:name).join(', ')}",
+          @right.map { |expr| expr.pretty_print(level + 1) },
+          "#{indent(level)})"
+        ].flatten.join("\n")
+      end
+    end
   end
 end

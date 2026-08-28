@@ -1085,6 +1085,56 @@ module AlexScript
         f_params
       end
 
+      # Parses targets 2..n of a multiple declaration/assignment. `first` is the
+      # leading target, already parsed by the caller via `expression`.
+      def parse_assignment_targets(first, first_line)
+        unless first.is_a?(AST::Identifier)
+          Utils.parse_error('Nazwa zmiennej musi byc prawidlowym identyfikatorem', first_line)
+        end
+
+        targets = [first]
+
+        while match(:tok_comma)
+          if next?(:tok_instance_var)
+            Utils.parse_error(
+              'Przypisanie wielokrotne nie jest obslugiwane dla zmiennych instancji (@)',
+              peek.line
+            )
+          end
+
+          if @current < @tokens.length && Utils::KEYWORD_TOKENS.include?(peek.token_type)
+            Utils.parse_error(
+              "'#{peek.lexeme}' jest slowem kluczowym i nie moze byc uzyte jako nazwa zmiennej",
+              peek.line
+            )
+          end
+
+          name_token = expect(:tok_identifier)
+          targets << AST::Identifier.new(name_token.lexeme, name_token.line)
+        end
+
+        # A repeated target is always a typo. Ruby allows it (last one wins).
+        seen = {}
+        targets.each do |target|
+          if seen[target.name]
+            Utils.parse_error(
+              "Zmienna '#{target.name}' wystepuje dwukrotnie po lewej stronie przypisania",
+              target.line
+            )
+          end
+          seen[target.name] = true
+        end
+
+        targets
+      end
+
+      # <value_list> ::= <expression> ("," <expression>)*
+      def parse_value_list
+        values = [expression]
+        values << expression while match(:tok_comma)
+        values
+      end
+
       # <return_stmt> :== "zwroc" <expression>
       def return_statement
         expect(:tok_return)
@@ -1131,16 +1181,30 @@ module AlexScript
 
         # check if it's an instance variable (@)
         if left.is_a?(AST::InstanceVariable)
+          if next?(:tok_comma)
+            Utils.parse_error(
+              'Przypisanie wielokrotne nie jest obslugiwane dla zmiennych instancji (@)',
+              left.line
+            )
+          end
           expect(:tok_assign)
           right = expression
           return AST::InstanceVariableDeclaration.new(left.name, right, previous_token.line)
+        end
+
+        # Multiple declaration: niech a, b = 1, 2
+        if next?(:tok_comma)
+          targets = parse_assignment_targets(left, lhs_line)
+          expect(:tok_assign)
+          values = parse_value_list
+          return AST::MultipleVariableDeclaration.new(targets, values, previous_token.line)
         end
 
         # Catch non-identifier LHS (e.g. "niech prawda = 5", "niech 10 = 5", "niech [a, b] = ...").
         # Regular variable declarations must use a plain identifier on the left side.
         unless left.is_a?(AST::Identifier)
           Utils.parse_error(
-            "Nazwa zmiennej musi byc prawidlowym identyfikatorem",
+            'Nazwa zmiennej musi byc prawidlowym identyfikatorem',
             lhs_line
           )
         end
@@ -1148,6 +1212,17 @@ module AlexScript
         # for regular variables
         expect(:tok_assign)
         right = expression
+
+        # `niech x = 4, 5` means x == [4, 5] in Ruby. Here it is rejected: it is
+        # far more often a miscounted destructuring than an intended array.
+        if next?(:tok_comma)
+          Utils.parse_error(
+            'Po lewej stronie jest 1 zmienna, a po prawej lista wartosci. ' \
+            'Uzyj tablicy [..] albo wymien tyle samo zmiennych po lewej',
+            peek.line
+          )
+        end
+
         AST::VariableDeclaration.new(left, right, previous_token.line)
       end
 
@@ -1166,6 +1241,13 @@ module AlexScript
 
         lhs_line = peek.line
         left = expression
+
+        if next?(:tok_comma)
+          targets = parse_assignment_targets(left, lhs_line)
+          expect(:tok_assign)
+          values = parse_value_list
+          return AST::MultipleVariableDeclaration.new(targets, values, previous_token.line, global: true)
+        end
 
         unless left.is_a?(AST::Identifier)
           Utils.parse_error(
@@ -1369,6 +1451,15 @@ module AlexScript
           include_module_statement
         else
           left = expression
+
+          # Multiple assignment: a, b = 1, 2  /  a, b = b, a
+          if next?(:tok_comma)
+            targets = parse_assignment_targets(left, left.respond_to?(:line) ? left.line : previous_token.line)
+            expect(:tok_assign)
+            values = parse_value_list
+            return AST::MultipleAssignment.new(targets, values, previous_token.line)
+          end
+
           if match(:tok_assign)
             # check if not trying to assing to 'sam' (self)
             if left.is_a?(AST::SelfReference)
