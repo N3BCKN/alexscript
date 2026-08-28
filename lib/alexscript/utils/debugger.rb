@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'readline'
+require 'reline'
 require 'set'
 
 module AlexScript
@@ -159,7 +159,7 @@ module AlexScript
 
         def run_repl(env, file, line)
           loop do
-            input = Readline.readline(PROMPT, true)
+            input = Reline.readline(PROMPT, true)
 
             if input.nil?
               puts ""
@@ -170,9 +170,9 @@ module AlexScript
             input = input.strip
             next if input.empty?
 
-            if Readline::HISTORY.length > 1 &&
-               Readline::HISTORY[-1] == Readline::HISTORY[-2]
-              Readline::HISTORY.pop
+            if Reline::HISTORY.length > 1 &&
+               Reline::HISTORY[-1] == Reline::HISTORY[-2]
+              Reline::HISTORY.pop
             end
 
             should_break = execute_command(input, env, file, line)

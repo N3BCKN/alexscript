@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'readline'
+require 'reline'
 
 module AlexScript
   module Utils
@@ -290,20 +290,20 @@ module AlexScript
         prompt = main_prompt
 
         loop do
-          line = Readline.readline(prompt, true)
+          line = Reline.readline(prompt, true)
 
           # Ctrl+D
           return nil if line.nil?
 
           # Remove duplicate history entries
-          if Readline::HISTORY.length > 1 &&
-             Readline::HISTORY[-1] == Readline::HISTORY[-2]
-            Readline::HISTORY.pop
+          if Reline::HISTORY.length > 1 &&
+             Reline::HISTORY[-1] == Reline::HISTORY[-2]
+            Reline::HISTORY.pop
           end
 
           # Skip empty lines in single-line mode
           if line.strip.empty? && brace_count == 0
-            Readline::HISTORY.pop if Readline::HISTORY.length > 0
+            Reline::HISTORY.pop if Reline::HISTORY.length > 0
             return ''
           end
 

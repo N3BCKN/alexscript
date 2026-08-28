@@ -1,9 +1,9 @@
 source 'https://rubygems.org'
 
-gem 'byebug'
+ruby '~> 4.0'
+
 gem 'colorize'
-gem 'redline'
-gem 'rubocop'
+gem 'reline' 
 gem 'slop'
 
 # stdlib extracted since Ruby 3.4
@@ -11,5 +11,7 @@ gem 'csv'
 
 group :development, :test do
   gem 'aruba', '~> 2.3'
+  gem 'byebug'
   gem 'rspec'
+  gem 'rubocop'
 end

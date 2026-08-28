@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # builder
-FROM ruby:3.4.7-slim AS builder
+FROM ruby:4.0.6-slim AS builder
 
 # Dependencies for building native extensions (some gems)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,12 +22,12 @@ RUN bundle config set --local without 'development test' \
 
 
 # runtime
-FROM ruby:3.4.7-slim AS runtime
+FROM ruby:4.0.6-slim AS runtime
 
 # OCI metadata (visible in Docker Hub and `docker inspect`)
 LABEL org.opencontainers.image.title="AlexScript"
 LABEL org.opencontainers.image.description="Programming language with Polish syntax"
-LABEL org.opencontainers.image.version="0.9.18"
+LABEL org.opencontainers.image.version="0.10.26"
 LABEL org.opencontainers.image.source="https://github.com/N3BCKN/alexscript"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Konstanty Koszewski <https://github.com/N3BCKN>"
