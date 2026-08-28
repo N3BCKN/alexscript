@@ -11,9 +11,38 @@ module AlexScript
     class Lexer
       attr_reader :tokens
 
+      # Byte constants. The lexer compares bytes, not characters, so that
+      # source containing non-ASCII text (Polish strings, comments, and — from
+      # phase 2 — identifiers) does not degrade String#[] to a linear scan.
+      B_NEWLINE   = 10
+      B_QUOTE_D   = 34   # "
+      B_HASH      = 35   # #
+      B_QUOTE_S   = 39   # '
+      B_STAR      = 42   # *
+      B_ZERO      = 48
+      B_SEVEN     = 55
+      B_SLASH     = 47   # /
+      B_DOT       = 46
+      B_BACKSLASH = 92
+      B_LCURLY    = 123
+      B_RCURLY    = 125
+
+      # UTF-8 lead bytes of the 18 Polish letters. All are two-byte sequences
+      # with lead byte C3, C4 or C5, so a 3x256 table resolves them in O(1)
+      # without decoding anything.
+      POLISH_LEAD_MIN = 0xC3
+      POLISH_LEAD_MAX = 0xC5
+
+      POLISH_TRAIL_BYTES = {
+        0xC3 => [0xB3, 0x93].freeze,                                 # ó Ó
+        0xC4 => [0x85, 0x84, 0x87, 0x86, 0x99, 0x98].freeze,         # ą Ą ć Ć ę Ę
+        0xC5 => [0x82, 0x81, 0x84, 0x83, 0x9B, 0x9A,                 # ł Ł ń Ń ś Ś
+                 0xBA, 0xB9, 0xBC, 0xBB].freeze                      # ź Ź ż Ż
+      }.freeze
+
       def initialize(source)
         @source = source
-        @source_size = source.size # cache size for performance
+        @source_size = source.bytesize  # cache size for performance
         @tokens = []
         @line = 1
         @start = 0
@@ -24,27 +53,19 @@ module AlexScript
         
         # initialize ASCII character type lookup tables for fast character classification
         init_character_tables
-        
+            
         # initialize dispatch table for faster token handling
+        init_character_tables
+        init_polish_tables
         init_dispatch_table
       end
       
       def tokenize!
         while @current < @source_size
           @start = @current
-          
-          # buffer next characters for faster access
-          char = @current < @source_size ? @source[@current] : "\0"
-          
-          @current += 1  # inline advance for performance
-          
-          # use dispatch table for O(1) token handling
-          if char.ord < 256
-            method_name = @dispatch_table[char.ord]
-            send(method_name, char)
-          else
-            handle_unknown(char)
-          end
+          byte = @source.getbyte(@current)  # Integer 0..255, O(1), no allocation
+          @current += 1
+          send(@dispatch_table[byte], byte)
         end
 
         @tokens
@@ -52,12 +73,10 @@ module AlexScript
 
       private
 
-      def is_hex_digit?(char)
-        ord = char.ord
-        return false if ord >= 256
-        @is_digit[ord] ||
-          (ord >= 'a'.ord && ord <= 'f'.ord) ||
-          (ord >= 'A'.ord && ord <= 'F'.ord)
+      def is_hex_digit?(byte)
+        @is_digit[byte] ||
+          (byte >= 97 && byte <= 102) ||   # a-f
+          (byte >= 65 && byte <= 70)       # A-F
       end
       
       # initialize tables for fast character classification
@@ -75,6 +94,14 @@ module AlexScript
         
         @is_whitespace = Array.new(256, false)
         [' '.ord, "\t".ord, "\r".ord].each { |c| @is_whitespace[c] = true }
+      end
+
+      def init_polish_tables
+        @is_polish_trail = Array.new(3) { Array.new(256, false) }
+        POLISH_TRAIL_BYTES.each do |lead, trails|
+          row = @is_polish_trail[lead - POLISH_LEAD_MIN]
+          trails.each { |t| row[t] = true }
+        end
       end
       
       # initialize dispatch table for O(1) character handling
@@ -132,56 +159,37 @@ module AlexScript
         # string literals
         @dispatch_table['"'.ord] = :handle_string
         @dispatch_table["'".ord] = :handle_string
+
+
+        # Polish letters open an identifier just like an ASCII letter does
+        (POLISH_LEAD_MIN..POLISH_LEAD_MAX).each { |b| @dispatch_table[b] = :handle_polish_identifier }
       end
       
       # fast character type checking methods
-      def is_digit?(char)
-        char.ord < 256 && @is_digit[char.ord]
-      end
-      
-      def is_alpha?(char)
-        char.ord < 256 && @is_alpha[char.ord]
-      end
-      
-      def is_alnum?(char)
-        char.ord < 256 && @is_alnum[char.ord]
-      end
-      
-      def is_whitespace?(char)
-        char.ord < 256 && @is_whitespace[char.ord]
-      end
-
-      # advances current position by specified number of positions and returns current character
-      # def advance(positions = 1)
-      #   char = @source[@current]
-      #   @current += positions
-      #   char
-      # end
+      def is_digit?(byte)  = @is_digit[byte]
+      def is_alnum?(byte)  = @is_alnum[byte]
+      def is_whitespace?(byte) = @is_whitespace[byte]
+      def is_alpha?(byte) = @is_alpha[byte]
 
       # creates and adds a new token to the tokens array
       def add_token(token_type)
-        current_token = @source[@start...@current]
-        @tokens << Utils::Token.new(token_type, current_token, @line)
+        lexeme = @source.byteslice(@start, @current - @start).force_encoding(Encoding::UTF_8)
+        @tokens << Utils::Token.new(token_type, lexeme, @line)
       end
 
-      # returns the next character without advancing position
-      # returns null character if at end of source
-      def peek
-        return "\0" if @current >= @source_size
-        @source[@current]
+
+      # Returns the next byte, or -1 at end of source. -1 never matches any
+      # table entry or comparison, which replaces the old "\0" sentinel.
+      def peek_byte
+        return -1 if @current >= @source_size
+        @source.getbyte(@current)
       end
       
-      # returns character at position current + 1
-      # returns null character if at end of source
-      # def look_ahead
-      #   return "\0" if @current >= @source_size
-      #   @source[@current + 1]
-      # end
-
-      # checks if next character matches expected and advances position if it does
+      # `expected` stays a one-character String literal so call sites remain
+      # readable: next_match('=') rather than next_match(61).
       def next_match(expected)
         return false if @current >= @source_size
-        return false if @source[@current] != expected
+        return false if @source.getbyte(@current) != expected.getbyte(0)
 
         @current += 1
         true
@@ -190,72 +198,73 @@ module AlexScript
       # optimized handlers for different token types
       
       # whitespace handler - skips all consecutive whitespace at once
-      def handle_whitespace(char)
-        # skip the current whitespace character (already advanced)
-        # and any following whitespace characters
-        while @current < @source_size && is_whitespace?(@source[@current])
-          @current += 1
-        end
+      def handle_whitespace(_byte)
+        @current += 1 while @current < @source_size && @is_whitespace[@source.getbyte(@current)]
       end
       
       # newline handler - increments line counter and skips consecutive newlines
-      def handle_newline(char)
+      def handle_newline(_byte)
         @line += 1
-        
-        # optimize for multiple consecutive newlines
-        while @current < @source_size && @source[@current] == "\n"
+        while @current < @source_size && @source.getbyte(@current) == B_NEWLINE
           @line += 1
           @current += 1
         end
       end
       
-      # single line comment handler - skips to end of line in one operation
-      def handle_single_line_comment(char)
-        # find the next newline or EOF
-        newline_pos = @source.index("\n", @current)
-        
-        if newline_pos
-          @current = newline_pos
-        else
-          # If no newline found, skip to end of file
-          @current = @source_size
-        end
+      # single line comment handler, skips to end of line in one operation
+      def handle_single_line_comment(_byte)
+        # byteindex, not index, index returns a CHARACTER offset, which would
+        # silently desynchronise byte-based positions on non-ASCII lines.
+        newline_pos = @source.byteindex("\n", @current)
+        @current = newline_pos || @source_size
       end
       
       # multi-line comment handler for slash-star comments
       def handle_multi_line_comment
-        @current += 1  # Skip the '*' after '/'
-        
+        @current += 1  # skip the '*' after '/'
+
         while @current < @source_size
-          # optimized check for end of comment
-          if @current + 1 < @source_size && 
-             @source[@current] == '*' && @source[@current + 1] == '/'
-            @current += 2  # Skip '*/'
+          b = @source.getbyte(@current)
+
+          if b == B_STAR && @current + 1 < @source_size && @source.getbyte(@current + 1) == B_SLASH
+            @current += 2
             return
           end
-          
-          # count lines in comments
-          if @source[@current] == "\n"
-            @line += 1
-          end
-          
+
+          @line += 1 if b == B_NEWLINE
           @current += 1
         end
-        
-        Utils.lexing_error("Niezamknięty komentarz wieloliniowy", @line)
+        Utils.lexing_error('Niezamkniety komentarz wieloliniowy', @line)
       end
 
-      def handle_instance_var(char)
-        #identifier after @ 
-        if peek.match?(/[a-zA-Z_]/)
-          @start = @current
-          @current += 1 while peek.match?(/[a-zA-Z0-9_]/)
-          var_name = @source[@start...@current]
-          @tokens << Utils::Token.new(:tok_instance_var, var_name, @line)
-        else
-          Utils.lexing_error("Oczekiwano identyfikatora po @", @line)
+      def handle_instance_var(_byte)
+        b = peek_byte
+        ascii_start  = b >= 0 && @is_alpha[b]
+        polish_start = b >= POLISH_LEAD_MIN && b <= POLISH_LEAD_MAX &&
+                       @current + 1 < @source_size &&
+                       @is_polish_trail[b - POLISH_LEAD_MIN][@source.getbyte(@current + 1)]
+
+        Utils.lexing_error('Oczekiwano identyfikatora po @', @line) unless ascii_start || polish_start
+
+        @start = @current
+        @current += (polish_start ? 2 : 1)
+
+        while @current < @source_size
+          nb = @source.getbyte(@current)
+          if @is_alnum[nb]
+            @current += 1
+          elsif nb >= POLISH_LEAD_MIN && nb <= POLISH_LEAD_MAX &&
+                @current + 1 < @source_size &&
+                @is_polish_trail[nb - POLISH_LEAD_MIN][@source.getbyte(@current + 1)]
+            @current += 2
+          else
+            break
+          end
         end
-      end 
+
+        name = @source.byteslice(@start, @current - @start).force_encoding(Encoding::UTF_8)
+        @tokens << Utils::Token.new(:tok_instance_var, name, @line)
+      end
       
       # grouping and punctuation handlers
       def handle_lparen(char) 
@@ -404,62 +413,55 @@ module AlexScript
       # complex token handlers
       
       # optimized numeral handler for faster processing of numbers
-      def handle_numeral(char)
+      def handle_numeral(byte)
         # Prefix literals: 0b1010 (binary), 0o777 (octal), 0xFF (hex)
-        # Fast path: trigger only if starting char is '0' AND next is b/o/x
-        if char == '0' && @current < @source_size
-          next_char = @source[@current]
-          if next_char == 'b' || next_char == 'B'
-            @current += 1  # skip 'b'
+        if byte == B_ZERO && @current < @source_size
+          nb = @source.getbyte(@current)
+
+          if nb == 98 || nb == 66          # b B
+            @current += 1
             bin_start = @current
-            while @current < @source_size && (@source[@current] == '0' || @source[@current] == '1')
+            while @current < @source_size
+              d = @source.getbyte(@current)
+              break unless d == 48 || d == 49
               @current += 1
             end
-            if @current == bin_start
-              Utils.lexing_error("Nieprawidlowy literal binarny", @line)
-            end
-            # strip "0b" prefix before converting
-            lexeme = @source[bin_start...@current]
+            Utils.lexing_error('Nieprawidlowy literal binarny', @line) if @current == bin_start
+            lexeme = @source.byteslice(bin_start, @current - bin_start)
             @tokens << Utils::Token.new(:tok_int, lexeme.to_i(2).to_s, @line)
             return
-          elsif next_char == 'x' || next_char == 'X'
-            @current += 1  # skip 'x'
+
+          elsif nb == 120 || nb == 88      # x X
+            @current += 1
             hex_start = @current
-            while @current < @source_size && is_hex_digit?(@source[@current])
-              @current += 1
-            end
-            if @current == hex_start
-              Utils.lexing_error("Nieprawidlowy literal szesnastkowy", @line)
-            end
-            lexeme = @source[hex_start...@current]
+            @current += 1 while @current < @source_size && is_hex_digit?(@source.getbyte(@current))
+            Utils.lexing_error('Nieprawidlowy literal szesnastkowy', @line) if @current == hex_start
+            lexeme = @source.byteslice(hex_start, @current - hex_start)
             @tokens << Utils::Token.new(:tok_int, lexeme.to_i(16).to_s, @line)
             return
-          elsif next_char == 'o' || next_char == 'O'
-            @current += 1  # skip 'o'
+
+          elsif nb == 111 || nb == 79      # o O
+            @current += 1
             oct_start = @current
-            while @current < @source_size && @source[@current] >= '0' && @source[@current] <= '7'
+            while @current < @source_size
+              d = @source.getbyte(@current)
+              break unless d >= B_ZERO && d <= B_SEVEN
               @current += 1
             end
-            if @current == oct_start
-              Utils.lexing_error("Nieprawidlowy literal osemkowy", @line)
-            end
-            lexeme = @source[oct_start...@current]
+            Utils.lexing_error('Nieprawidlowy literal osemkowy', @line) if @current == oct_start
+            lexeme = @source.byteslice(oct_start, @current - oct_start)
             @tokens << Utils::Token.new(:tok_int, lexeme.to_i(8).to_s, @line)
             return
           end
         end
 
-        #  decimal path
-        while @current < @source_size && is_digit?(@source[@current])
-          @current += 1
-        end
+        # decimal path
+        @current += 1 while @current < @source_size && @is_digit[@source.getbyte(@current)]
 
-        if @current < @source_size && @source[@current] == '.' &&
-          @current + 1 < @source_size && is_digit?(@source[@current + 1])
+        if @current < @source_size && @source.getbyte(@current) == B_DOT &&
+           @current + 1 < @source_size && @is_digit[@source.getbyte(@current + 1)]
           @current += 1
-          while @current < @source_size && is_digit?(@source[@current])
-            @current += 1
-          end
+          @current += 1 while @current < @source_size && @is_digit[@source.getbyte(@current)]
           add_token(:tok_float)
         else
           add_token(:tok_int)
@@ -467,108 +469,81 @@ module AlexScript
       end
       
       # optimized identifier handler using precomputed keyword lookup
-      def handle_identifier(char)
-        # first character is already consumed
-        
-        # fast-forward through all alphanumeric characters
-        while @current < @source_size && is_alnum?(@source[@current])
-          @current += 1
+      def handle_identifier(_byte)
+        while @current < @source_size
+          b = @source.getbyte(@current)
+
+          if @is_alnum[b]
+            @current += 1
+          elsif b >= POLISH_LEAD_MIN && b <= POLISH_LEAD_MAX &&
+                @current + 1 < @source_size &&
+                @is_polish_trail[b - POLISH_LEAD_MIN][@source.getbyte(@current + 1)]
+            @current += 2
+          else
+            break
+          end
         end
-        
-        # Check if it's a keyword using our lookup table
-        word = @source[@start...@current]
-        token_type = @keywords[word] || :tok_identifier
-        
-        add_token(token_type)
+
+        word = @source.byteslice(@start, @current - @start).force_encoding(Encoding::UTF_8)
+        @tokens << Utils::Token.new(@keywords[word] || :tok_identifier, word, @line)
+      end
+
+
+      # Entry point when an identifier starts with a Polish letter (imię, ćwiczenie).
+      # tokenize! consumed the lead byte; validate and consume the trail byte,
+      # then fall into the common identifier loop.
+      def handle_polish_identifier(lead)
+        trail = peek_byte
+        handle_unknown(lead) unless trail >= 0 && @is_polish_trail[lead - POLISH_LEAD_MIN][trail]
+        @current += 1
+        handle_identifier(lead)
       end
       
       # optimized string handler with direct buffer access
       # Supports interpolation via #{expr} syntax (Ruby-style)
-      def handle_string(char)
-        str_quote = char
-        @start += 1  # skip the opening quote
-
-        # Scan through string, detecting interpolation markers #{...}
-        # Strategy: emit a sequence of tokens:
-        #   tok_string (literal part) | tok_interp_start | <expr tokens> | tok_interp_end | ...
-        # If no interpolation is found, emit a single tok_string as before (zero overhead path).
-
+      def handle_string(quote_byte)
+        @start += 1                 # skip the opening quote
         literal_start = @start
-        parts_emitted = 0  # counts emitted (string part + interpolation) pairs
-        literal_buffer = nil  # lazily allocated only when interpolation is detected
+        interpolated = false
 
         while @current < @source_size
-          c = @source[@current]
+          b = @source.getbyte(@current)
 
-          if c == '\\' && @current + 1 < @source_size
-            # Escape sequence — accumulate into buffer if we're in interpolation mode
-            if literal_buffer
-              literal_buffer << process_escape(@source[@current + 1])
-            end
-            @current += 2
-            next
+          if b == B_BACKSLASH && @current + 1 < @source_size
+            @current += 2           # escaped byte is consumed verbatim here and
+            next                    # resolved later by apply_escapes
           end
 
-          if c == '#' && @current + 1 < @source_size && @source[@current + 1] == '{'
-            # Found interpolation start — emit literal part, then markers + inner tokens
-
-            # Emit the literal text accumulated so far
-            literal_text = if literal_buffer
-                             literal_buffer.dup
-                           else
-                             apply_escapes(@source[literal_start...@current])
-                           end
-            @tokens << Utils::Token.new(:tok_string, literal_text, @line)
+          if b == B_HASH && @current + 1 < @source_size && @source.getbyte(@current + 1) == B_LCURLY
+            emit_string_part(literal_start)
             @tokens << Utils::Token.new(:tok_interp_start, '#{', @line)
-            parts_emitted += 1
+            interpolated = true
 
-            # Skip #{
             @current += 2
-
-            # Tokenize inner expression until matching } (accounting for nested braces)
             tokenize_interpolation_body
 
-            # After tokenize_interpolation_body, @current is past the closing }
-            # Reset literal accumulator for next literal segment
-            literal_buffer = String.new
             literal_start = @current
             next
           end
 
-          if c == str_quote
-            # End of string
-            break
-          end
+          break if b == quote_byte
 
-          if c == "\n"
-            @line += 1
-          end
-
-          # Normal character — accumulate if in interpolation mode
-          literal_buffer << c if literal_buffer
+          @line += 1 if b == B_NEWLINE
           @current += 1
         end
 
-        if @current >= @source_size
-          Utils.lexing_error("Niezakonczony ciag znakow", @line)
-        end
+        Utils.lexing_error('Niezakonczony ciag znakow', @line) if @current >= @source_size
 
-        # Emit final literal part
-        final_text = if literal_buffer
-                       literal_buffer
-                     else
-                       apply_escapes(@source[literal_start...@current])
-                     end
+        emit_string_part(literal_start)
+        @current += 1               # skip closing quote
+      end
 
-        @current += 1  # skip closing quote
-
-        if parts_emitted == 0
-          # No interpolation — emit single tok_string (fast path, identical to before)
-          @tokens << Utils::Token.new(:tok_string, final_text, @line)
-        else
-          # Had interpolation — emit final literal segment (may be empty)
-          @tokens << Utils::Token.new(:tok_string, final_text, @line)
-        end
+      # Slices one literal segment and resolves its escape sequences. Both the
+      # interpolated and non-interpolated paths go through here, so they cannot
+      # diverge — previously the interpolated path processed escapes inline.
+      def emit_string_part(from)
+        text = @source.byteslice(from, @current - from).force_encoding(Encoding::UTF_8)
+        @tokens << Utils::Token.new(:tok_string, apply_escapes(text), @line)
       end
 
       # Apply escape sequences to a raw string slice (used for non-interpolated path)
@@ -600,13 +575,13 @@ module AlexScript
 
         while @current < @source_size && depth > 0
           @start = @current
-          char = @source[@current]
+          b = @source.getbyte(@current)
 
-          if char == '{'
+          if b == B_LCURLY
             depth += 1
             @current += 1
             add_token(:tok_lcurly)
-          elsif char == '}'
+          elsif b == B_RCURLY
             depth -= 1
             @current += 1
             if depth == 0
@@ -616,12 +591,7 @@ module AlexScript
             add_token(:tok_rcurly)
           else
             @current += 1
-            if char.ord < 256
-              method_name = @dispatch_table[char.ord]
-              send(method_name, char)
-            else
-              handle_unknown(char)
-            end
+            send(@dispatch_table[b], b)
           end
         end
 
@@ -629,7 +599,15 @@ module AlexScript
       end
       
       # handler for unknown characters
-      def handle_unknown(char)
+      def handle_unknown(byte)
+        # A file saved in NFD encodes ś as s + U+0301, whose bytes start with
+        # CC or CD. Naming that case explicitly saves the user from debugging a
+        # file that looks correct in their editor.
+        if byte == 0xCC || byte == 0xCD
+          Utils.lexing_error('plik wydaje sie byc zapisany w formie NFD; zapisz go w UTF-8 NFC', @line)
+        end
+
+        char = @source.byteslice(@start, 4).force_encoding(Encoding::UTF_8).scrub('?')[0]
         Utils.lexing_error("nieznany znak: #{char}", @line)
       end
     end
